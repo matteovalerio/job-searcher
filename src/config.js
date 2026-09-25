@@ -1,4 +1,5 @@
 import { readFile } from 'node:fs/promises';
+import { findComune } from './geo.js';
 import { builtinSources, createCustomSource } from './sources/index.js';
 
 /**
@@ -7,6 +8,7 @@ import { builtinSources, createCustomSource } from './sources/index.js';
  * @property {string} [label]
  * @property {'area'|'remote'} type   "area" = zona geografica, "remote" = full remote
  * @property {string} [place]         località (per type "area"), es. "Padova"
+ * @property {string[]} [places]      più località, es. ["Padova", "Vicenza"] (in alternativa a place)
  * @property {string} [country]       codice paese ISO, es. "it" (usato da Adzuna)
  * @property {number} [radiusKm]
  * @property {string[]} [keywords]    parole chiave aggiuntive per questo target
@@ -15,6 +17,7 @@ import { builtinSources, createCustomSource } from './sources/index.js';
  * @property {string[]} [boostKeywords]
  * @property {string[]} [sources]     fonti da usare (default: tutte quelle compatibili)
  * @property {string[]} [acceptedRegions] per "remote": restrizioni geografiche accettate
+ * @property {'drop'|'keep'} [unknownLocation] per "area": cosa fare delle offerte con località non riconosciuta
  *
  * @typedef {TargetConfig & { id: string, label: string, keywords: string[], excludeKeywords: string[],
  *   boostKeywords: string[], matchIn: string, maxAgeDays: number, maxPages: number, sources: object[] }} ResolvedTarget
@@ -62,7 +65,12 @@ export function applyOverrides(profile = {}, opts = {}) {
     // Località/remoto indicati da CLI sostituiscono i target del profilo.
     p.targets = [];
     if (opts.place) {
-      p.targets.push({ type: 'area', place: opts.place, radiusKm: opts.radiusKm ?? 30, country: opts.country ?? 'it' });
+      p.targets.push({
+        type: 'area',
+        places: opts.place.split(',').map((s) => s.trim()),
+        radiusKm: opts.radiusKm ?? 30,
+        country: opts.country ?? 'it',
+      });
     }
     if (opts.remote) p.targets.push({ type: 'remote' });
   } else if (opts.radiusKm) {
@@ -93,7 +101,15 @@ export function resolveProfile(profile, { onlySources } = {}) {
     if (t.type !== 'area' && t.type !== 'remote') {
       throw new Error(`Target #${i + 1}: "type" deve essere "area" o "remote"`);
     }
-    if (t.type === 'area' && !t.place) throw new Error(`Target #${i + 1}: manca "place"`);
+    const placeNames = t.type === 'area' ? unique(t.places ?? [t.place]) : [];
+    if (t.type === 'area' && !placeNames.length) throw new Error(`Target #${i + 1}: manca "place" o "places"`);
+    const country = (t.country ?? 'it').toLowerCase();
+    // In Italia le località vengono geolocalizzate per filtrare le offerte per distanza.
+    const places = placeNames.map((name) => {
+      const comune = country === 'it' ? findComune(name) : null;
+      if (country === 'it' && !comune) throw new Error(`Target #${i + 1}: comune "${name}" non trovato`);
+      return comune ?? { name };
+    });
 
     const keywords = unique([...(profile.keywords ?? []), ...(t.keywords ?? [])]);
     if (!keywords.length) throw new Error('Serve almeno una parola chiave ("keywords" o --keywords)');
@@ -113,8 +129,12 @@ export function resolveProfile(profile, { onlySources } = {}) {
 
     return {
       ...t,
-      id: t.id ?? (t.type === 'remote' ? 'remote' : t.place.toLowerCase()),
-      label: t.label ?? (t.type === 'remote' ? 'Full remote' : `${t.place} (+${t.radiusKm ?? 30} km)`),
+      id: t.id ?? (t.type === 'remote' ? 'remote' : placeNames.join('-').toLowerCase()),
+      label: t.label ?? (t.type === 'remote' ? 'Full remote' : `${placeNames.join(', ')} (+${t.radiusKm ?? 30} km)`),
+      country,
+      places,
+      radiusKm: t.radiusKm ?? 30,
+      unknownLocation: t.unknownLocation ?? profile.unknownLocation ?? 'drop',
       keywords,
       // Parole inviate ai portali (di solito poche e generiche); tutte le "keywords" servono poi al filtro.
       // Le parole con "*" restano solo nel filtro locale: i portali non capiscono i caratteri jolly.
