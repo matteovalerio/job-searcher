@@ -134,3 +134,45 @@ test('una parola sia chiave sia bonus conta una volta sola', () => {
   assert.deepEqual(v.boosted, ['frontiers']);
   assert.equal(v.score, 12);
 });
+
+test('lingue: scarta le offerte che chiedono lingue non indicate (casi reali)', () => {
+  const m = buildMatcher(
+    target({ type: 'remote', relatedKeywords: ['translator', 'localization'], languages: ['italian', 'english'] }),
+  );
+  const at = (title) => evaluate(job({ title, location: 'Anywhere', remote: true }), m, NOW).rejected;
+  assert.equal(at('Hebrew Sports Localization Specialist (Football)'), REJECT.language);
+  assert.equal(at('Internal Medical Translator - English to Korean'), REJECT.language);
+  assert.equal(at('Bilingual Content Editor (Italian/english)'), undefined);
+  assert.equal(at('Translator'), undefined);
+  // senza "languages" nel profilo la regola non si applica
+  const free = buildMatcher(target({ type: 'remote', relatedKeywords: ['localization'] }));
+  assert.equal(
+    evaluate(job({ title: 'Dutch Localization', location: 'Anywhere', remote: true }), free, NOW).rejected,
+    undefined,
+  );
+});
+
+test('remoto: la regione può essere scritta nel titolo', () => {
+  const m = buildMatcher(target({ type: 'remote' }));
+  const v = evaluate(
+    job({ title: 'Senior Medical Editor (EMEA Home Based)', location: 'Spain', remote: true }),
+    m,
+    NOW,
+  );
+  assert.equal(v.rejected, undefined);
+  const us = (title) => evaluate(job({ title, location: 'United States', remote: true }), m, NOW).rejected;
+  assert.equal(us('Remote Copy-editor/Proofreader'), REJECT.region);
+  assert.equal(us('Global Managing Editor'), REJECT.region);
+});
+
+test('remoto: segnala le offerte che sembrano ibride', () => {
+  const m = buildMatcher(target({ type: 'remote' }));
+  const hybrid = evaluate(
+    job({ title: 'Editor', location: 'Italia', remote: true, description: 'Lavoro ibrido' }),
+    m,
+    NOW,
+  );
+  assert.deepEqual(hybrid.warnings, ['possibile ibrido']);
+  const full = evaluate(job({ title: 'Editor', location: 'Italia', remote: true, description: 'Full remote' }), m, NOW);
+  assert.deepEqual(full.warnings, []);
+});

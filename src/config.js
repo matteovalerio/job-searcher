@@ -13,6 +13,7 @@ import { builtinSources, createCustomSource } from './sources/index.js';
  * @property {number} [radiusKm]
  * @property {string[]} [keywords]    parole chiave aggiuntive per questo target
  * @property {string[]} [relatedKeywords] ruoli affini: bastano per tenere un'offerta ma valgono meno punti
+ * @property {string[]} [languages]   lingue conosciute: si scartano le offerte che nel titolo ne chiedono altre
  * @property {string[]} [searchKeywords] parole da cercare sui portali (default: tutte le keywords)
  * @property {string[]} [excludeKeywords]
  * @property {string[]} [boostKeywords]
@@ -141,6 +142,7 @@ export function resolveProfile(profile, { onlySources } = {}) {
       unknownLocation: t.unknownLocation ?? profile.unknownLocation ?? 'drop',
       keywords,
       relatedKeywords,
+      languages: t.languages ?? profile.languages,
       // Parole inviate ai portali (di solito poche e generiche); tutte le "keywords" servono poi al filtro.
       // Le parole con "*" restano solo nel filtro locale: i portali non capiscono i caratteri jolly.
       queryKeywords: unique(t.searchKeywords ?? profile.searchKeywords ?? keywords).filter((k) => !k.includes('*')),

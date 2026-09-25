@@ -77,6 +77,7 @@ Un profilo è un file JSON dentro `profiles/`. Per crearne un altro, copia `prof
   "name": "Redattore casa editrice",
   "keywords": ["redattore", "redattrice", "editor", "correttore di bozze"],   // almeno una deve comparire
   "relatedKeywords": ["impaginat*", "traduttore"],  // (opz.) ruoli affini: tengono l'offerta ma con meno punti
+  "languages": ["italiano", "italian", "inglese", "english"], // (opz.) scarta chi chiede altre lingue nel titolo
   "searchKeywords": ["redattore", "editor"],        // (opz.) parole cercate sui portali; default: keywords
   "excludeKeywords": ["video", "software"],        // scarta le offerte che le hanno nel TITOLO
   "boostKeywords": ["casa editrice", "libri"],     // alzano il punteggio (non obbligatorie)
@@ -101,13 +102,17 @@ Un profilo è un file JSON dentro `profiles/`. Per crearne un altro, copia `prof
 - **Target `remote`**: offerte full remote. Un'offerta viene scartata se è riservata a paesi fuori da `acceptedRegions` (per esempio "USA only"); le località italiane vanno bene se tra le regioni c'è "italia". Per le fonti che non dicono se un'offerta è remota si cerca nel testo "full remote", "da remoto" e simili ("smart working" non basta, perché di solito indica un lavoro ibrido).
 - **Fonti per target**: con `"sources": ["linkedin", "adzuna"]` dentro un target limiti le fonti usate. Di default si usano tutte quelle compatibili con il tipo di target.
 - **Punteggio**: una parola chiave nel titolo vale 10 punti, nella descrizione 2. Un ruolo affine vale 5 punti (una volta sola), quindi resta sotto i ruoli principali. Una parola "boost" vale 5 punti nel titolo e 2 altrove (azienda compresa, quindi ci si possono mettere i nomi degli editori preferiti). Le offerte sono ordinate per punteggio e poi per data.
+- **Lingue**: con `languages` si scartano le offerte che nel titolo chiedono una lingua diversa da quelle indicate, per esempio "Hebrew Localization Specialist" o "English to Korean Translator". Senza `languages` la regola non si applica.
+- **Descrizioni di LinkedIn**: nei risultati di ricerca LinkedIn mostra solo titolo, azienda e luogo. Per le offerte che passano il filtro sul titolo il programma scarica anche la descrizione (al massimo 40 per ricerca, modificabile con `maxEnrich` nel target), così può assegnare i punti bonus. Nelle offerte "da remoto" segnala `possibile ibrido` se la descrizione parla di lavoro ibrido o in ufficio.
 - **`searchKeywords` e `keywords` sono due cose diverse**: le prime sono le ricerche inviate ai portali (poche, perché ogni parola è una richiesta per fonte e per luogo); le seconde decidono quali risultati tenere. Molti portali restituiscono offerte generiche, ed è il filtro locale a scartarle.
 
 ### Il profilo incluso
 
 `profiles/redattore-padova.json` è pensato per una redattrice/un redattore con 5 anni di esperienza in una casa editrice scientifica (revisione bozze, rapporti con gli autori, coordinamento di progetti editoriali, impaginazione in InDesign) e con una laurea magistrale in linguistica:
 
-- **ruoli principali**: redazione, editor, coordinamento editoriale, correzione e revisione di bozze e testi, e i ruoli dell'editoria scientifica internazionale (journal, peer review, manuscript, publishing: Assistant/Managing/Production Editor, Peer Review Coordinator, Journal Manager…);
+- **ruoli principali**: redazione, editor, coordinamento editoriale, correzione e revisione di bozze e testi, i ruoli dell'editoria scientifica internazionale (journal, peer review, manuscript, publishing: Assistant/Managing/Production Editor, Peer Review Coordinator, Journal Manager, Associate Publisher…) e il medical/scientific writing;
+- **lingue**: italiano e inglese;
+- **periodo**: 60 giorni per Padova/Vicenza, dove le offerte sono poche; 30 per il remoto;
 - **ruoli affini**, con meno punti: impaginazione/InDesign, traduzione e localizzazione, ruoli per linguisti;
 - **esclusi**: stage, tirocini e apprendistato (non adatti a 5 anni di esperienza), ruoli commerciali ("promotore editoriale", "agente", sales), video, SEO/social media, ruoli tecnici;
 - **bonus**: contesto scientifico e accademico (riviste, STM, medicina, università) ed editori scientifici/universitari, internazionali (Elsevier, Springer, Wiley, MDPI, Frontiers…) e del territorio (Piccin, Cedam, CLEUP, Il Poligrafo, Neri Pozza, Marsilio…).
