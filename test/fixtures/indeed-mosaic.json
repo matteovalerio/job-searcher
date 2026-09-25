@@ -1,0 +1,29 @@
+{
+  "metaData": {
+    "mosaicProviderJobCardsModel": {
+      "results": [
+        {
+          "jobkey": "a1b2c3d4e5f60708",
+          "displayTitle": "Redattore/Redattrice editoriale",
+          "title": "Redattore editoriale",
+          "company": "Piccin Nuova Libraria S.p.A.",
+          "formattedLocation": "35131 Padova",
+          "pubDate": 1789900000000,
+          "snippet": "<ul><li>Revisione di bozze per <b>riviste scientifiche</b>.</li></ul>",
+          "salarySnippet": { "text": "1.600 € - 1.900 € al mese" },
+          "jobTypes": ["Tempo pieno"],
+          "remoteLocation": false
+        },
+        {
+          "jobkey": "ffffeeeeddddcccc",
+          "displayTitle": "Correttore di bozze",
+          "company": "Edizioni Esempio",
+          "formattedLocation": "Da remoto",
+          "pubDate": 1789800000000,
+          "snippet": "Lavoro full remote",
+          "remoteLocation": true
+        }
+      ]
+    }
+  }
+}

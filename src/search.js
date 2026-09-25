@@ -76,7 +76,7 @@ export async function runSearch(profile, { onProgress = () => {}, now = Date.now
                   maxPages: target.maxPages,
                   warn,
                 }),
-                SOURCE_TIMEOUT_MS,
+                source.timeoutMs ?? SOURCE_TIMEOUT_MS,
                 source.label,
               );
               raw.push(...found);

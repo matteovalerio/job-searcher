@@ -56,6 +56,7 @@ Per installare il comando `job-searcher` globalmente, esegui `npm link`.
 | Fonte | Zona geografica | Full remote | Note |
 |---|---|---|---|
 | LinkedIn | ✓ | ✓ | pagina pubblica delle offerte, senza login. Spesso ignora la località (i risultati vengono filtrati per distanza) e, se si fanno troppe richieste, risponde con errore 429 |
+| Indeed | ✓ | ✓ | **da attivare** (`"enableSources": ["indeed"]`, già attiva nel profilo incluso). Usa un vero browser: vedi sotto |
 | Adzuna | ✓ | ✓ | aggregatore con API gratuita, copre l'Italia (per il remoto cerca offerte italiane che citano il lavoro da remoto). Richiede `ADZUNA_APP_ID` e `ADZUNA_APP_KEY` |
 | Jooble | ✓ | | aggrega molti portali italiani (InfoJobs, Indeed, siti aziendali…). Richiede `JOOBLE_API_KEY`; se dà sempre 0 risultati prova `JOOBLE_HOST=it.jooble.org` |
 | Remotive | | ✓ | API pubblica |
@@ -64,7 +65,20 @@ Per installare il comando `job-searcher` globalmente, esegui `npm link`.
 | Himalayas | | ✓ | API pubblica |
 | We Work Remotely | | ✓ | feed RSS |
 
-Le fonti che richiedono una chiave vengono **saltate** se la chiave manca: la ricerca funziona lo stesso. Consiglio comunque di registrarti gratis su Adzuna e Jooble, perché sono il modo più affidabile per coprire i portali italiani. Indeed, InfoJobs e Subito bloccano le letture automatiche delle loro pagine.
+Le fonti che richiedono una chiave vengono **saltate** se la chiave manca: la ricerca funziona lo stesso. Consiglio comunque di registrarti gratis su Adzuna e Jooble, perché sono il modo più affidabile per coprire i portali italiani. InfoJobs e Subito bloccano le letture automatiche delle loro pagine.
+
+### Indeed
+
+Indeed non ha un'API pubblica e blocca gli script con Cloudflare, quindi questa fonte apre **Chrome** (tramite Playwright, installato da `npm install`) e legge le pagine dei risultati come farebbe una persona.
+
+- **Prima esecuzione**: si apre una finestra di Chrome. Se Indeed mostra la verifica "non sono un robot", risolvila a mano nella finestra (hai 2 minuti): il programma poi prosegue da solo. Il profilo del browser è salvato in `.job-searcher/indeed-browser`, quindi le volte successive la verifica di solito non ricompare.
+- **Più lenta delle altre fonti**: tra una pagina e l'altra fa pause di 3–6 secondi, perché Indeed è molto sensibile al traffico automatico.
+- **Variabili d'ambiente** (nel file `.env`):
+  - `INDEED_HEADLESS=1` nasconde la finestra (utile con cron), ma la verifica anti-robot in quel caso non si può risolvere;
+  - `INDEED_BROWSER=msedge` usa Edge invece di Chrome;
+  - `INDEED_BROWSER_PATH=/percorso/del/browser` usa un altro browser basato su Chromium (Brave, Chromium…);
+  - `INDEED_HOST=it.indeed.com` cambia il dominio del paese.
+- **Da sapere**: i termini d'uso di Indeed non consentono la lettura automatica del sito. Per questo la fonte è disattivata di default. Per un uso personale, con poche richieste, il rischio pratico è basso, ma la scelta è tua. Per disattivarla togli `"enableSources": ["indeed"]` dal profilo, oppure usa `-s` per scegliere le fonti.
 
 Se un portale non risponde o cambia formato, la ricerca continua con gli altri. Nel riepilogo vedi quali fonti hanno funzionato, quante offerte hanno restituito e quante ne sono state tenute.
 
@@ -79,6 +93,7 @@ Un profilo è un file JSON dentro `profiles/`. Per crearne un altro, copia `prof
   "relatedKeywords": ["impaginat*", "traduttore"],  // (opz.) ruoli affini: tengono l'offerta ma con meno punti
   "languages": ["italiano", "italian", "inglese", "english"], // (opz.) scarta chi chiede altre lingue nel titolo
   "searchKeywords": ["redattore", "editor"],        // (opz.) parole cercate sui portali; default: keywords
+  "enableSources": ["indeed"],                     // (opz.) fonti disattivate di default da usare
   "excludeKeywords": ["video", "software"],        // scarta le offerte che le hanno nel TITOLO
   "boostKeywords": ["casa editrice", "libri"],     // alzano il punteggio (non obbligatorie)
   "matchIn": "title",                              // oppure "title+description" (più risultati, più rumore)

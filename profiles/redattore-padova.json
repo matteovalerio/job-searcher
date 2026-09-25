@@ -131,6 +131,7 @@
     "loescher",
     "pearson"
   ],
+  "enableSources": ["indeed"],
   "matchIn": "title",
   "maxAgeDays": 30,
   "targets": [
