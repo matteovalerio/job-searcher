@@ -1,0 +1,24 @@
+{
+  "jobs": [
+    {
+      "title": "Editorial Assistant",
+      "excerpt": "Support our editorial team",
+      "companyName": "Readwise",
+      "employmentType": "Full Time",
+      "locationRestrictions": [],
+      "categories": ["Editing"],
+      "pubDate": 1790100000,
+      "applicationLink": "https://himalayas.app/companies/readwise/jobs/editorial-assistant",
+      "guid": "https://himalayas.app/companies/readwise/jobs/editorial-assistant"
+    },
+    {
+      "title": "Senior Editor",
+      "excerpt": "Only for Canada",
+      "companyName": "Maple Media",
+      "locationRestrictions": ["Canada"],
+      "pubDate": 1790100000,
+      "applicationLink": "https://himalayas.app/companies/maple/jobs/senior-editor",
+      "guid": "https://himalayas.app/companies/maple/jobs/senior-editor"
+    }
+  ]
+}
