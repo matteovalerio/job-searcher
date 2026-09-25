@@ -7,7 +7,7 @@ import { applyOverrides, loadProfile, resolveProfile } from './config.js';
 import { renderCsv } from './output/csv.js';
 import { renderHtml } from './output/html.js';
 import { renderJson } from './output/json.js';
-import { c, renderTerminal } from './output/terminal.js';
+import { c, formatReasons, renderRejected, renderTerminal } from './output/terminal.js';
 import { runSearch } from './search.js';
 import { builtinSources, missingEnv } from './sources/index.js';
 import { SeenStore } from './store.js';
@@ -23,7 +23,7 @@ Opzioni di ricerca:
   -p, --profile <file>     profilo JSON con parole chiave, target e fonti (vedi profiles/)
   -k, --keywords <lista>   parole chiave separate da virgola (sostituiscono quelle del profilo)
   -x, --exclude <lista>    parole da escludere nel titolo (si aggiungono al profilo)
-  -l, --place <luogo>      cerca in una zona geografica, es. "Padova"
+  -l, --place <luoghi>     cerca in una zona geografica, es. "Padova" o "Padova,Vicenza"
   -r, --radius <km>        raggio attorno al luogo (default 30)
       --country <codice>   paese per le API che lo richiedono (default "it")
       --remote             cerca anche offerte full remote
@@ -32,6 +32,7 @@ Opzioni di ricerca:
   -f, --format <formato>   table (default), json, csv, html
   -o, --out <file>         scrive il risultato su file (il formato si deduce dall'estensione)
       --only-new           mostra solo le offerte non viste nelle esecuzioni precedenti
+      --explain            elenca anche le offerte scartate e il motivo
       --limit <n>          massimo di offerte per target mostrate a terminale (default 50)
       --no-report          non generare il report HTML in reports/
   -h, --help
@@ -69,6 +70,7 @@ function parseCli(argv) {
       format: { type: 'string', short: 'f' },
       out: { type: 'string', short: 'o' },
       'only-new': { type: 'boolean' },
+      explain: { type: 'boolean' },
       limit: { type: 'string' },
       'no-report': { type: 'boolean' },
       help: { type: 'boolean', short: 'h' },
@@ -95,6 +97,7 @@ function parseCli(argv) {
     format: values.format,
     out: values.out,
     onlyNew: values['only-new'],
+    explain: values.explain,
     limit: num(values.limit, 'limit') ?? 50,
     report: !values['no-report'],
   };
@@ -140,7 +143,10 @@ async function search(opts) {
   const results = await runSearch(profile, {
     onProgress: (e) => {
       const where = `${e.target.label} · ${e.source.label}`;
-      if (e.type === 'done') log(c.dim(`  ✓ ${where}: ${e.kept} pertinenti su ${e.fetched}`));
+      if (e.type === 'done') {
+        const why = formatReasons(e.reasons);
+        log(c.dim(`  ✓ ${where}: ${e.kept} pertinenti su ${e.fetched}${why ? ` (scartate: ${why})` : ''}`));
+      }
       if (e.type === 'skip') log(c.yellow(`  - ${where}: saltata (${e.reason})`));
       if (e.type === 'warn') log(c.yellow(`  ! ${where}: ${e.message}`));
       if (e.type === 'error') log(c.red(`  ✗ ${where}: ${e.error}`));
@@ -161,6 +167,7 @@ async function search(opts) {
   if (format === 'table' || !opts.out) {
     console.log(format === 'table' ? renderTerminal(results, { limit: opts.limit }) : render(format, results, title));
   }
+  if (opts.explain) log(renderRejected(results));
   if (opts.report && !(opts.out && format === 'html')) {
     await mkdir('reports', { recursive: true });
     const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-');

@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
-import { parse as parseAdzuna } from '../src/sources/adzuna.js';
+import adzuna, { parse as parseAdzuna } from '../src/sources/adzuna.js';
 import { parse as parseHimalayas } from '../src/sources/himalayas.js';
 import { parseHtml } from '../src/sources/html.js';
 import { parse as parseJobicy } from '../src/sources/jobicy.js';
 import { parse as parseJooble } from '../src/sources/jooble.js';
-import { kmToLinkedinMiles, parse as parseLinkedin } from '../src/sources/linkedin.js';
+import linkedin, { kmToLinkedinMiles, parse as parseLinkedin } from '../src/sources/linkedin.js';
 import { eachQuery } from '../src/sources/queries.js';
 import { parse as parseRemoteok } from '../src/sources/remoteok.js';
 import { parse as parseRemotive } from '../src/sources/remotive.js';
@@ -126,4 +126,50 @@ test('eachQuery: tiene i risultati parziali e fallisce solo se falliscono tutte'
     }),
     /giù/,
   );
+});
+
+test('linkedin: località completa per le aree e geoId per il remoto', async (t) => {
+  const urls = [];
+  t.mock.method(globalThis, 'fetch', async (url) => {
+    urls.push(new URL(url));
+    return new Response('');
+  });
+  const padova = { name: 'Padova', region: 'Veneto' };
+  await linkedin.search({ keywords: ['redattore'], target: { type: 'area', place: 'Padova', placeInfo: padova } });
+  await linkedin.search({
+    keywords: ['editor'],
+    target: { type: 'remote', linkedinLocations: ['Italia', 'Worldwide'] },
+  });
+  const params = urls.map((u) => Object.fromEntries(u.searchParams));
+  assert.equal(params[0].location, 'Padova, Veneto, Italia');
+  assert.equal(params[0].f_WT, undefined);
+  assert.deepEqual(
+    params.slice(1).map((p) => [p.location, p.geoId, p.f_WT]),
+    [
+      ['Italia', '103350119', '2'],
+      ['Worldwide', '92000000', '2'],
+    ],
+  );
+});
+
+test('adzuna: cerca solo nel titolo con matchIn "title"; per il remoto niente località', async (t) => {
+  process.env.ADZUNA_APP_ID ??= 'id';
+  process.env.ADZUNA_APP_KEY ??= 'key';
+  const urls = [];
+  t.mock.method(globalThis, 'fetch', async (url) => {
+    urls.push(new URL(url));
+    return Response.json({ results: [] });
+  });
+  await adzuna.search({
+    keywords: ['redattore'],
+    target: { type: 'area', place: 'Vicenza', radiusKm: 35, matchIn: 'title' },
+  });
+  await adzuna.search({ keywords: ['editor'], target: { type: 'remote', matchIn: 'title+description' } });
+  const [area, remote] = urls.map((u) => Object.fromEntries(u.searchParams));
+  assert.equal(area.title_only, 'redattore');
+  assert.equal(area.what_phrase, undefined);
+  assert.equal(area.where, 'Vicenza');
+  assert.equal(remote.what_phrase, 'editor');
+  assert.equal(remote.where, undefined);
+  assert.match(remote.what_or, /remoto/);
 });

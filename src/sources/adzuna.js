@@ -22,7 +22,8 @@ export function parse(data) {
 export default {
   name: 'adzuna',
   label: 'Adzuna',
-  supports: ['area'],
+  // Per il remoto: offerte in tutto il paese che citano il lavoro da remoto.
+  supports: ['area', 'remote'],
   env: ['ADZUNA_APP_ID', 'ADZUNA_APP_KEY'],
   async search({ keywords, target, maxAgeDays, maxPages = 2, warn }) {
     const country = (target.country ?? 'it').toLowerCase();
@@ -34,11 +35,17 @@ export default {
           const params = new URLSearchParams({
             app_id: process.env.ADZUNA_APP_ID,
             app_key: process.env.ADZUNA_APP_KEY,
-            what_phrase: keyword,
-            where: target.place,
-            distance: String(target.radiusKm ?? 30),
             results_per_page: '50',
           });
+          // Con matchIn "title" cerchiamo solo nel titolo: altrimenti "editor" o "redazione"
+          // trovano anche offerte che li citano di sfuggita ("redazione di bilanci").
+          params.set(target.matchIn === 'title' ? 'title_only' : 'what_phrase', keyword);
+          if (target.type === 'remote') {
+            params.set('what_or', 'remoto remote telelavoro');
+          } else {
+            params.set('where', target.place);
+            params.set('distance', String(target.radiusKm ?? 30));
+          }
           if (maxAgeDays) params.set('max_days_old', String(maxAgeDays));
           const found = parse(await getJson(`https://api.adzuna.com/v1/api/jobs/${country}/search/${page}?${params}`));
           jobs.push(...found);

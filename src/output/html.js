@@ -16,6 +16,19 @@ function renderStats(stats) {
     .join(' ');
 }
 
+function renderRejected(rejected) {
+  if (!rejected.length) return '';
+  const rows = rejected
+    .map(
+      (job) =>
+        `<li><a href="${esc(job.url)}" target="_blank" rel="noopener">${esc(job.title)}</a> ` +
+        `<span class="meta">${[job.company, job.location, job.source].filter(Boolean).map(esc).join(' · ')}</span> ` +
+        `<span class="reason">${esc(job.rejected)}</span></li>`,
+    )
+    .join('\n');
+  return `<details class="rejected"><summary>Scartate (${rejected.length}): per controllare che il filtro non sia troppo severo</summary><ul>${rows}</ul></details>`;
+}
+
 function renderJob(job) {
   const also = job.alsoOn?.length
     ? ` · anche su ${job.alsoOn.map((o) => `<a href="${esc(o.url)}" target="_blank" rel="noopener">${esc(o.source)}</a>`).join(', ')}`
@@ -31,10 +44,11 @@ function renderJob(job) {
 export function renderHtml(results, { title = 'Offerte di lavoro', generatedAt = new Date() } = {}) {
   const sections = results
     .map(
-      ({ target, jobs, stats }) => `<section>
+      ({ target, jobs, stats, rejected = [] }) => `<section>
   <h2>${esc(target.label)} <small>${jobs.length} offerte</small></h2>
   <p class="stats">Fonti (tenute/scaricate): ${renderStats(stats)}</p>
   ${jobs.map(renderJob).join('\n')}
+  ${renderRejected(rejected)}
 </section>`,
     )
     .join('\n');
@@ -58,6 +72,8 @@ export function renderHtml(results, { title = 'Offerte di lavoro', generatedAt =
   input { width:100%; box-sizing:border-box; padding:8px; font:inherit; background:var(--bg); color:var(--fg); border:1px solid var(--line); border-radius:6px; }
   label { color:var(--muted); font-size:.9em; }
   details p { white-space:pre-line; font-size:.9em; }
+  .rejected { margin-top:12px; color:var(--muted); } .rejected ul { padding-left:18px; font-size:.9em; }
+  .reason { background:var(--line); border-radius:4px; padding:0 6px; font-size:.85em; }
 </style>
 </head>
 <body>

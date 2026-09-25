@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { dedupe } from '../src/dedupe.js';
-import { buildMatcher, evaluate } from '../src/filter.js';
+import { buildMatcher, evaluate, REJECT } from '../src/filter.js';
+import { findComune } from '../src/geo.js';
 import { makeJob } from '../src/job.js';
 import { compileKeyword, normalize } from '../src/text.js';
 
@@ -63,8 +64,15 @@ test('remoto: controlla il flag e le restrizioni geografiche', () => {
   assert.ok(!remote('Europe').rejected);
   assert.ok(!remote('Milano, Lombardia, Italia').rejected);
   assert.ok(!remote('').rejected);
-  assert.equal(remote('USA Only').rejected, 'remoto solo per USA Only');
-  assert.equal(evaluate(job({ title: 'Editor', location: 'Italia', remote: null }), m, NOW).rejected, 'non remoto');
+  assert.ok(!remote('Segrate', { remote: true }).rejected, "località italiana: ok se l'Italia è accettata");
+  assert.equal(remote('USA Only').rejected, REJECT.region);
+  assert.equal(remote('Canada').rejected, REJECT.region);
+  assert.equal(evaluate(job({ title: 'Editor', location: 'Italia', remote: null }), m, NOW).rejected, REJECT.notRemote);
+  // "smart working" di solito significa ibrido: non basta.
+  assert.equal(
+    evaluate(job({ title: 'Editor', location: 'Milano', description: 'smart working 2 giorni' }), m, NOW).rejected,
+    REJECT.notRemote,
+  );
   // Se la fonte non lo dice, si guarda il testo dell'annuncio.
   assert.ok(
     !evaluate(job({ title: 'Editor', location: 'Italia', description: 'Lavoro full remote' }), m, NOW).rejected,
@@ -79,4 +87,28 @@ test('dedupe: unisce la stessa offerta da fonti diverse', () => {
   ]);
   assert.equal(merged.length, 2);
   assert.deepEqual(merged[0].alsoOn, [{ source: 'jooble', url: 'https://b' }]);
+});
+
+test('area: filtra per distanza reale dai luoghi cercati (casi reali)', () => {
+  const m = buildMatcher(target({ places: [findComune('Padova'), findComune('Vicenza')], radiusKm: 35 }));
+  const at = (location) => evaluate(job({ title: 'Redattore', location }), m, NOW).rejected;
+  // Offerte che LinkedIn restituiva cercando "Padova"
+  assert.equal(at('Milano'), REJECT.farAway);
+  assert.equal(at('Segrate'), REJECT.farAway);
+  assert.equal(at('Caronno Pertusella'), REJECT.farAway);
+  assert.equal(at('Area metropolitana di Milano'), REJECT.farAway);
+  // Offerte vicine, nei vari formati dei portali
+  assert.equal(at('Padova, Veneto, Italia'), undefined);
+  assert.equal(at('Castelfranco Veneto, Provincia di Treviso'), undefined);
+  assert.equal(at('Montecchio Maggiore, Provincia di Vicenza'), undefined);
+  assert.equal(at('Provincia di Vicenza, Veneto'), undefined);
+  assert.equal(at('Abano Terme'), undefined);
+  // Montagnana dista 36 km da Padova ma è in provincia: si tiene
+  assert.equal(at('Montagnana (PD)'), undefined);
+  assert.equal(at('Treviso, TV'), REJECT.farAway);
+  assert.equal(at('Veneto'), undefined);
+  // Non riconosciute: scartate di default, tenute con unknownLocation "keep"
+  assert.equal(at('Italia'), REJECT.unknownPlace);
+  const keep = buildMatcher(target({ places: [findComune('Padova')], radiusKm: 35, unknownLocation: 'keep' }));
+  assert.equal(evaluate(job({ title: 'Redattore', location: 'Italia' }), keep, NOW).rejected, undefined);
 });

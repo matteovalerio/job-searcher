@@ -21,7 +21,10 @@
     "sviluppatore",
     "engineer",
     "fotografo",
-    "graphic designer"
+    "graphic designer",
+    "tecnico",
+    "tecnica",
+    "technical writer"
   ],
   "boostKeywords": [
     "casa editrice",
@@ -42,19 +45,19 @@
     "copy editing",
     "copyediting"
   ],
+  "matchIn": "title",
   "maxAgeDays": 30,
   "targets": [
     {
-      "id": "padova",
-      "label": "Padova e dintorni",
+      "id": "padova-vicenza",
+      "label": "Padova, Vicenza e dintorni",
       "type": "area",
-      "place": "Padova",
+      "places": ["Padova", "Vicenza"],
       "country": "it",
-      "radiusKm": 40,
+      "radiusKm": 35,
       "searchKeywords": [
         "redattore",
         "redattrice",
-        "redazione",
         "editor",
         "assistente editoriale",
         "correttore di bozze"
@@ -82,7 +85,6 @@
         "development editor",
         "developmental editor"
       ],
-      "matchIn": "title",
       "acceptedRegions": [
         "worldwide",
         "anywhere",
@@ -97,11 +99,7 @@
         "italy",
         "italia"
       ],
-      "linkedinLocations": [
-        "Italia",
-        "Unione Europea",
-        "Worldwide"
-      ]
+      "linkedinLocations": ["Italia", "Unione Europea", "Worldwide"]
     }
   ],
   "customSources": []
