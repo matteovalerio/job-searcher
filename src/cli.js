@@ -128,7 +128,11 @@ function listSources() {
   console.log(c.bold('Fonti integrate:'));
   for (const s of builtinSources) {
     const missing = missingEnv(s);
-    const status = missing.length ? c.yellow(`manca ${missing.join(', ')}`) : c.green('pronta');
+    const status = missing.length
+      ? c.yellow(`manca ${missing.join(', ')}`)
+      : s.optIn
+        ? c.yellow('da attivare con "enableSources"')
+        : c.green('pronta');
     console.log(`  ${s.name.padEnd(16)} ${s.label.padEnd(18)} ${s.supports.join('+').padEnd(12)} ${status}`);
   }
   console.log(c.dim('\nAltre fonti (feed RSS o pagine HTML) si aggiungono con "customSources" nel profilo.'));
