@@ -12,6 +12,7 @@ import { builtinSources, createCustomSource } from './sources/index.js';
  * @property {string} [country]       codice paese ISO, es. "it" (usato da Adzuna)
  * @property {number} [radiusKm]
  * @property {string[]} [keywords]    parole chiave aggiuntive per questo target
+ * @property {string[]} [relatedKeywords] ruoli affini: bastano per tenere un'offerta ma valgono meno punti
  * @property {string[]} [searchKeywords] parole da cercare sui portali (default: tutte le keywords)
  * @property {string[]} [excludeKeywords]
  * @property {string[]} [boostKeywords]
@@ -54,9 +55,11 @@ export function applyOverrides(profile = {}, opts = {}) {
   if (opts.keywords?.length) {
     p.keywords = opts.keywords;
     delete p.searchKeywords;
+    delete p.relatedKeywords;
     for (const t of p.targets) {
       delete t.keywords;
       delete t.searchKeywords;
+      delete t.relatedKeywords;
     }
   }
   if (opts.exclude?.length) p.excludeKeywords = unique([...(p.excludeKeywords ?? []), ...opts.exclude]);
@@ -112,6 +115,7 @@ export function resolveProfile(profile, { onlySources } = {}) {
     });
 
     const keywords = unique([...(profile.keywords ?? []), ...(t.keywords ?? [])]);
+    const relatedKeywords = unique([...(profile.relatedKeywords ?? []), ...(t.relatedKeywords ?? [])]);
     if (!keywords.length) throw new Error('Serve almeno una parola chiave ("keywords" o --keywords)');
 
     let sources;
@@ -136,6 +140,7 @@ export function resolveProfile(profile, { onlySources } = {}) {
       radiusKm: t.radiusKm ?? 30,
       unknownLocation: t.unknownLocation ?? profile.unknownLocation ?? 'drop',
       keywords,
+      relatedKeywords,
       // Parole inviate ai portali (di solito poche e generiche); tutte le "keywords" servono poi al filtro.
       // Le parole con "*" restano solo nel filtro locale: i portali non capiscono i caratteri jolly.
       queryKeywords: unique(t.searchKeywords ?? profile.searchKeywords ?? keywords).filter((k) => !k.includes('*')),

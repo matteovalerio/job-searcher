@@ -112,3 +112,25 @@ test('area: filtra per distanza reale dai luoghi cercati (casi reali)', () => {
   const keep = buildMatcher(target({ places: [findComune('Padova')], radiusKm: 35, unknownLocation: 'keep' }));
   assert.equal(evaluate(job({ title: 'Redattore', location: 'Italia' }), keep, NOW).rejected, undefined);
 });
+
+test("ruoli affini: tengono l'offerta ma restano sotto i ruoli principali", () => {
+  const m = buildMatcher(target({ matchIn: 'title', relatedKeywords: ['impaginat*', 'indesign', 'traduttore'] }));
+  const core = evaluate(job({ title: 'Redattore' }), m, NOW);
+  const related = evaluate(job({ title: 'Grafico impaginatore InDesign' }), m, NOW);
+  assert.equal(related.score, 5);
+  assert.ok(core.score > related.score);
+  assert.equal(evaluate(job({ title: 'Magazziniere' }), m, NOW).rejected, REJECT.noKeyword);
+});
+
+test('"parola esclusa" solo per offerte che altrimenti sarebbero passate', () => {
+  const m = buildMatcher(target({ excludeKeywords: ['engineer', 'stage'] }));
+  assert.equal(evaluate(job({ title: 'Software Engineer' }), m, NOW).rejected, REJECT.noKeyword);
+  assert.equal(evaluate(job({ title: 'Stage Junior Editor' }), m, NOW).rejected, REJECT.excluded);
+});
+
+test('una parola sia chiave sia bonus conta una volta sola', () => {
+  const m = buildMatcher(target({ keywords: ['peer review'], boostKeywords: ['peer review', 'frontiers'] }));
+  const v = evaluate(job({ title: 'Peer Review Coordinator', company: 'Frontiers' }), m, NOW);
+  assert.deepEqual(v.boosted, ['frontiers']);
+  assert.equal(v.score, 12);
+});

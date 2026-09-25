@@ -77,7 +77,7 @@ export default {
           const html = await getText(`${BASE}?${params}`);
           const found = parse(html, { remote: target.type === 'remote' ? true : null });
           jobs.push(...found);
-          await sleep(1000); // LinkedIn limita rapidamente chi fa troppe richieste
+          await sleep(1500); // LinkedIn limita rapidamente chi fa troppe richieste
           if (found.length < PAGE_SIZE) break;
         }
         return jobs;
