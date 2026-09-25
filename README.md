@@ -57,7 +57,7 @@ Per installare il comando `job-searcher` globalmente, esegui `npm link`.
 |---|---|---|---|
 | LinkedIn | ✓ | ✓ | pagina pubblica delle offerte, senza login. Spesso ignora la località (i risultati vengono filtrati per distanza) e, se si fanno troppe richieste, risponde con errore 429 |
 | Adzuna | ✓ | ✓ | aggregatore con API gratuita, copre l'Italia (per il remoto cerca offerte italiane che citano il lavoro da remoto). Richiede `ADZUNA_APP_ID` e `ADZUNA_APP_KEY` |
-| Jooble | ✓ | | aggrega molti portali italiani (InfoJobs, Indeed, siti aziendali…). Richiede `JOOBLE_API_KEY` |
+| Jooble | ✓ | | aggrega molti portali italiani (InfoJobs, Indeed, siti aziendali…). Richiede `JOOBLE_API_KEY`; se dà sempre 0 risultati prova `JOOBLE_HOST=it.jooble.org` |
 | Remotive | | ✓ | API pubblica |
 | Remote OK | | ✓ | API pubblica |
 | Jobicy | | ✓ | API pubblica |
@@ -76,6 +76,7 @@ Un profilo è un file JSON dentro `profiles/`. Per crearne un altro, copia `prof
 {
   "name": "Redattore casa editrice",
   "keywords": ["redattore", "redattrice", "editor", "correttore di bozze"],   // almeno una deve comparire
+  "relatedKeywords": ["impaginat*", "traduttore"],  // (opz.) ruoli affini: tengono l'offerta ma con meno punti
   "searchKeywords": ["redattore", "editor"],        // (opz.) parole cercate sui portali; default: keywords
   "excludeKeywords": ["video", "software"],        // scarta le offerte che le hanno nel TITOLO
   "boostKeywords": ["casa editrice", "libri"],     // alzano il punteggio (non obbligatorie)
@@ -99,7 +100,17 @@ Un profilo è un file JSON dentro `profiles/`. Per crearne un altro, copia `prof
 - **Target `area`**: una o più località (`place` oppure `places`) con un raggio. Molti portali non rispettano il raggio: cercando "Padova", LinkedIn restituisce offerte di tutta Italia. Per questo il programma riconosce da solo la località di ogni offerta ("Abano Terme", "Provincia di Vicenza", "Castelfranco Veneto, Provincia di Treviso"…) usando le coordinate di tutti i comuni italiani, e tiene solo quelle entro il raggio o nella stessa provincia di uno dei luoghi cercati. Se l'offerta indica solo la regione (es. "Veneto") viene tenuta. Se la località non si riconosce (es. "Italia") viene scartata, a meno di impostare `"unknownLocation": "keep"`. Il filtro per distanza vale per le ricerche in Italia (`"country": "it"`, il default).
 - **Target `remote`**: offerte full remote. Un'offerta viene scartata se è riservata a paesi fuori da `acceptedRegions` (per esempio "USA only"); le località italiane vanno bene se tra le regioni c'è "italia". Per le fonti che non dicono se un'offerta è remota si cerca nel testo "full remote", "da remoto" e simili ("smart working" non basta, perché di solito indica un lavoro ibrido).
 - **Fonti per target**: con `"sources": ["linkedin", "adzuna"]` dentro un target limiti le fonti usate. Di default si usano tutte quelle compatibili con il tipo di target.
-- **Punteggio**: una parola chiave nel titolo vale 10 punti, nella descrizione 2. Una parola "boost" vale 5 punti nel titolo e 2 altrove. Le offerte sono ordinate per punteggio e poi per data.
+- **Punteggio**: una parola chiave nel titolo vale 10 punti, nella descrizione 2. Un ruolo affine vale 5 punti (una volta sola), quindi resta sotto i ruoli principali. Una parola "boost" vale 5 punti nel titolo e 2 altrove (azienda compresa, quindi ci si possono mettere i nomi degli editori preferiti). Le offerte sono ordinate per punteggio e poi per data.
+- **`searchKeywords` e `keywords` sono due cose diverse**: le prime sono le ricerche inviate ai portali (poche, perché ogni parola è una richiesta per fonte e per luogo); le seconde decidono quali risultati tenere. Molti portali restituiscono offerte generiche, ed è il filtro locale a scartarle.
+
+### Il profilo incluso
+
+`profiles/redattore-padova.json` è pensato per una redattrice/un redattore con 5 anni di esperienza in una casa editrice scientifica (revisione bozze, rapporti con gli autori, coordinamento di progetti editoriali, impaginazione in InDesign) e con una laurea magistrale in linguistica:
+
+- **ruoli principali**: redazione, editor, coordinamento editoriale, correzione e revisione di bozze e testi, e i ruoli dell'editoria scientifica internazionale (journal, peer review, manuscript, publishing: Assistant/Managing/Production Editor, Peer Review Coordinator, Journal Manager…);
+- **ruoli affini**, con meno punti: impaginazione/InDesign, traduzione e localizzazione, ruoli per linguisti;
+- **esclusi**: stage, tirocini e apprendistato (non adatti a 5 anni di esperienza), ruoli commerciali ("promotore editoriale", "agente", sales), video, SEO/social media, ruoli tecnici;
+- **bonus**: contesto scientifico e accademico (riviste, STM, medicina, università) ed editori scientifici/universitari, internazionali (Elsevier, Springer, Wiley, MDPI, Frontiers…) e del territorio (Piccin, Cedam, CLEUP, Il Poligrafo, Neri Pozza, Marsilio…).
 
 Le opzioni da riga di comando `-k`, `-l` e `--remote` sostituiscono quelle del profilo. `-x` si aggiunge alle esclusioni del profilo.
 

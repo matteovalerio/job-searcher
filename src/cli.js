@@ -144,6 +144,10 @@ async function search(opts) {
     onProgress: (e) => {
       const where = `${e.target.label} · ${e.source.label}`;
       if (e.type === 'done') {
+        if (!e.fetched) {
+          log(c.yellow(`  ? ${where}: nessun risultato (se succede sempre, controlla chiave o servizio)`));
+          return;
+        }
         const why = formatReasons(e.reasons);
         log(c.dim(`  ✓ ${where}: ${e.kept} pertinenti su ${e.fetched}${why ? ` (scartate: ${why})` : ''}`));
       }
