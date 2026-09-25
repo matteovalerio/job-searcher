@@ -1,0 +1,17 @@
+{
+  "count": 1,
+  "results": [
+    {
+      "id": "4400001",
+      "title": "<strong>Redattrice</strong> editoriale",
+      "description": "Casa editrice scolastica cerca redattrice...",
+      "created": "2026-09-15T09:00:00Z",
+      "redirect_url": "https://www.adzuna.it/land/ad/4400001",
+      "company": { "display_name": "Scuola Libri SpA" },
+      "location": { "display_name": "Padova, Veneto", "area": ["Italia", "Veneto", "Padova"] },
+      "salary_min": 24000,
+      "salary_max": 28000,
+      "contract_type": "permanent"
+    }
+  ]
+}

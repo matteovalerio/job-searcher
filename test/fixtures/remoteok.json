@@ -1,0 +1,17 @@
+[
+  { "legal": "API Terms of Service: please link back to Remote OK" },
+  {
+    "slug": "remote-proofreader-acme-123",
+    "id": "123",
+    "epoch": 1790000000,
+    "date": "2026-09-21T12:00:00+00:00",
+    "company": "Acme Books",
+    "position": "Proofreader",
+    "tags": ["writing", "editor"],
+    "description": "Proofread our titles.",
+    "location": "Worldwide",
+    "salary_min": 30000,
+    "salary_max": 40000,
+    "url": "https://remoteOK.com/remote-jobs/remote-proofreader-acme-123"
+  }
+]

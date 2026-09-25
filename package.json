@@ -1,0 +1,21 @@
+{
+  "name": "job-searcher",
+  "version": "0.1.0",
+  "description": "Cerca offerte di lavoro su più portali per parole chiave e area geografica (o full remote).",
+  "type": "module",
+  "bin": {
+    "job-searcher": "src/cli.js"
+  },
+  "scripts": {
+    "search": "node src/cli.js search --profile profiles/redattore-padova.json",
+    "sources": "node src/cli.js sources",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20.12"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "cheerio": "^1.2.0"
+  }
+}

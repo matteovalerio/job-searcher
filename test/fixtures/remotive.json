@@ -1,0 +1,31 @@
+{
+  "job-count": 2,
+  "jobs": [
+    {
+      "id": 1900001,
+      "url": "https://remotive.com/remote-jobs/writing/copy-editor-1900001",
+      "title": "Copy Editor (Books)",
+      "company_name": "Great Books Publishing",
+      "category": "Writing",
+      "tags": ["editing", "publishing"],
+      "job_type": "full_time",
+      "publication_date": "2026-09-18T10:00:00",
+      "candidate_required_location": "Europe",
+      "salary": "",
+      "description": "<p>We are a <b>publisher</b> of books looking for a copy editor.</p>"
+    },
+    {
+      "id": 1900002,
+      "url": "https://remotive.com/remote-jobs/writing/editor-1900002",
+      "title": "Managing Editor",
+      "company_name": "US News Co",
+      "category": "Writing",
+      "tags": [],
+      "job_type": "full_time",
+      "publication_date": "2026-09-19T10:00:00",
+      "candidate_required_location": "USA Only",
+      "salary": "$80k",
+      "description": "<p>News desk.</p>"
+    }
+  ]
+}

@@ -1,0 +1,108 @@
+{
+  "name": "Redattore casa editrice",
+  "keywords": [
+    "redattore",
+    "redattrice",
+    "redazione",
+    "redazionale",
+    "assistente editoriale",
+    "coordinatore editoriale",
+    "coordinatrice editoriale",
+    "correttore di bozze",
+    "correttrice di bozze",
+    "editor"
+  ],
+  "excludeKeywords": [
+    "video editor",
+    "video",
+    "montaggio",
+    "software",
+    "developer",
+    "sviluppatore",
+    "engineer",
+    "fotografo",
+    "graphic designer"
+  ],
+  "boostKeywords": [
+    "casa editrice",
+    "editoria",
+    "editoriale",
+    "libri",
+    "libro",
+    "narrativa",
+    "saggistica",
+    "scolastica",
+    "manoscritti",
+    "bozze",
+    "publishing",
+    "publisher",
+    "book",
+    "books",
+    "proofreading",
+    "copy editing",
+    "copyediting"
+  ],
+  "maxAgeDays": 30,
+  "targets": [
+    {
+      "id": "padova",
+      "label": "Padova e dintorni",
+      "type": "area",
+      "place": "Padova",
+      "country": "it",
+      "radiusKm": 40,
+      "searchKeywords": [
+        "redattore",
+        "redattrice",
+        "redazione",
+        "editor",
+        "assistente editoriale",
+        "correttore di bozze"
+      ]
+    },
+    {
+      "id": "remote",
+      "label": "Full remote (tutto il mondo)",
+      "type": "remote",
+      "searchKeywords": [
+        "editor",
+        "copy editor",
+        "proofreader",
+        "redattore"
+      ],
+      "keywords": [
+        "copy editor",
+        "copyeditor",
+        "book editor",
+        "managing editor",
+        "editorial assistant",
+        "assistant editor",
+        "proofreader",
+        "acquisitions editor",
+        "development editor",
+        "developmental editor"
+      ],
+      "matchIn": "title",
+      "acceptedRegions": [
+        "worldwide",
+        "anywhere",
+        "global",
+        "remote",
+        "europe",
+        "european union",
+        "unione europea",
+        "eu",
+        "emea",
+        "cet",
+        "italy",
+        "italia"
+      ],
+      "linkedinLocations": [
+        "Italia",
+        "Unione Europea",
+        "Worldwide"
+      ]
+    }
+  ],
+  "customSources": []
+}
