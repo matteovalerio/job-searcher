@@ -1,0 +1,16 @@
+{
+  "jobCount": 1,
+  "jobs": [
+    {
+      "id": 555,
+      "url": "https://jobicy.com/jobs/555-book-editor",
+      "jobTitle": "Book Editor",
+      "companyName": "Paper &amp; Ink",
+      "jobIndustry": ["Copywriting &amp; Content"],
+      "jobType": ["full-time"],
+      "jobGeo": "Anywhere",
+      "jobExcerpt": "Edit manuscripts.",
+      "pubDate": "2026-09-22 08:00:00"
+    }
+  ]
+}
