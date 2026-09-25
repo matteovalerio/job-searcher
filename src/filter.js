@@ -27,6 +27,7 @@ const REMOTE_HINTS = compileKeywords(['full remote', 'fully remote', 'remote', '
 export function buildMatcher(target) {
   return {
     keywords: compileKeywords(target.keywords),
+    related: compileKeywords(target.relatedKeywords ?? []),
     exclude: compileKeywords(target.excludeKeywords),
     boost: compileKeywords(target.boostKeywords),
     regions: compileKeywords(target.acceptedRegions ?? DEFAULT_REMOTE_REGIONS),
@@ -78,19 +79,25 @@ function areaProblem(job, matcher) {
 
 /**
  * Valuta un'offerta. Restituisce { score, matched, boosted } oppure { rejected: motivo }.
- * Punteggio: parola chiave nel titolo 10, nella descrizione 2; parola "bonus" nel titolo 5, altrove 2.
+ * Punteggio: parola chiave nel titolo 10, nella descrizione 2; ruolo affine ("relatedKeywords") 5 se nel titolo,
+ * altrimenti 1 (una volta sola); parola "bonus" nel titolo 5, altrove 2.
  */
 export function evaluate(job, matcher, now = Date.now()) {
   const title = normalize(job.title);
   const body = normalize(`${job.description} ${job.tags.join(' ')} ${job.company}`);
   const fullText = `${title} ${body}`;
 
-  if (findKeywords(title, matcher.exclude).length) return { rejected: REJECT.excluded };
-
+  const titleOnly = matcher.matchIn === 'title';
   const inTitle = findKeywords(title, matcher.keywords);
-  const inBody =
-    matcher.matchIn === 'title' ? [] : findKeywords(body, matcher.keywords).filter((k) => !inTitle.includes(k));
-  if (!inTitle.length && !inBody.length) return { rejected: REJECT.noKeyword };
+  const inBody = titleOnly ? [] : findKeywords(body, matcher.keywords).filter((k) => !inTitle.includes(k));
+  const relTitle = findKeywords(title, matcher.related);
+  const relBody = titleOnly ? [] : findKeywords(body, matcher.related).filter((k) => !relTitle.includes(k));
+  if (!inTitle.length && !inBody.length && !relTitle.length && !relBody.length) {
+    return { rejected: REJECT.noKeyword };
+  }
+
+  // Le esclusioni si controllano dopo: così "parola esclusa" indica offerte che altrimenti sarebbero passate.
+  if (findKeywords(title, matcher.exclude).length) return { rejected: REJECT.excluded };
 
   if (matcher.maxAgeDays && job.postedAt) {
     const ageDays = (now - Date.parse(job.postedAt)) / 86400000;
@@ -100,10 +107,19 @@ export function evaluate(job, matcher, now = Date.now()) {
   const problem = matcher.remoteOnly ? remoteProblem(job, matcher, fullText) : areaProblem(job, matcher);
   if (problem) return { rejected: problem };
 
-  const boostTitle = findKeywords(title, matcher.boost);
-  const boostBody = findKeywords(body, matcher.boost).filter((k) => !boostTitle.includes(k));
-  const score = inTitle.length * 10 + inBody.length * 2 + boostTitle.length * 5 + boostBody.length * 2;
+  // Una parola già contata come parola chiave non vale di nuovo come "bonus".
+  const matched = [...inTitle, ...inBody, ...relTitle, ...relBody].map(normalize);
+  const notMatched = (k) => !matched.includes(normalize(k));
+  const boostTitle = findKeywords(title, matcher.boost).filter(notMatched);
+  const boostBody = findKeywords(body, matcher.boost).filter((k) => notMatched(k) && !boostTitle.includes(k));
+  // I ruoli affini contano una volta sola: devono restare sotto i ruoli principali.
+  const related = relTitle.length ? 5 : relBody.length ? 1 : 0;
+  const score = inTitle.length * 10 + inBody.length * 2 + related + boostTitle.length * 5 + boostBody.length * 2;
   if (score < matcher.minScore) return { rejected: REJECT.lowScore };
 
-  return { score, matched: [...inTitle, ...inBody], boosted: [...boostTitle, ...boostBody] };
+  return {
+    score,
+    matched: [...inTitle, ...inBody, ...relTitle, ...relBody],
+    boosted: [...boostTitle, ...boostBody],
+  };
 }

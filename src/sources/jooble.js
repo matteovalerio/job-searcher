@@ -34,7 +34,9 @@ export default {
       async (keyword) => {
         const jobs = [];
         for (let page = 1; page <= maxPages; page++) {
-          const res = await request(`https://jooble.org/api/${process.env.JOOBLE_API_KEY}`, {
+          // Alcune chiavi funzionano solo col dominio del paese (es. JOOBLE_HOST=it.jooble.org).
+          const host = process.env.JOOBLE_HOST || 'jooble.org';
+          const res = await request(`https://${host}/api/${process.env.JOOBLE_API_KEY}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

@@ -31,8 +31,10 @@ test('il profilo di esempio è valido', async () => {
   assert.ok(padova.sources.some((s) => s.name === 'linkedin'));
   assert.ok(!padova.sources.some((s) => s.name === 'remotive'), "le fonti solo-remote non servono per un'area");
   assert.ok(remote.sources.some((s) => s.name === 'remotive'));
-  assert.ok(remote.keywords.includes('redattore') && remote.keywords.includes('copy editor'));
-  assert.deepEqual(remote.queryKeywords, ['editor', 'copy editor', 'proofreader', 'redattore']);
+  assert.ok(remote.keywords.includes('redattore') && remote.relatedKeywords.includes('indesign'));
+  assert.ok(remote.queryKeywords.includes('peer review'));
+  // le parole con "*" non vengono mai inviate ai portali
+  assert.ok(profile.targets.every((t) => t.queryKeywords.every((k) => !k.includes('*'))));
 });
 
 test('opzioni da CLI: parole chiave, luogo e remoto sostituiscono il profilo', async () => {

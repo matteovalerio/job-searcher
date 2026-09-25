@@ -62,10 +62,10 @@ export async function runSearch(profile, { onProgress = () => {}, now = Date.now
               raw.push(...found);
             } catch (err) {
               errors.push(err);
-              if (variant.place) warn(`${variant.place}: ${err.message}`);
             }
           }
           if (errors.length && !raw.length) throw errors[0];
+          for (const err of errors) warn(err.message);
 
           const kept = [];
           const reasons = {};
