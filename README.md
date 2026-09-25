@@ -15,7 +15,7 @@ cp .env.example .env   # opzionale: chiavi API gratuite per Adzuna e Jooble
 
 ## Uso rapido
 
-La ricerca "redattore casa editrice, zona Padova oppure full remote in tutto il mondo" è già pronta:
+La ricerca "redattore casa editrice, zona Padova/Vicenza oppure full remote in tutto il mondo" è già pronta:
 
 ```bash
 npm run search
@@ -23,8 +23,8 @@ npm run search
 
 È come scrivere `node src/cli.js search --profile profiles/redattore-padova.json`. Il comando:
 
-1. interroga i portali per Padova (raggio 40 km) e per le offerte full remote;
-2. tiene solo le offerte pertinenti e dà loro un punteggio;
+1. interroga i portali per Padova e Vicenza (raggio 35 km) e per le offerte full remote;
+2. tiene solo le offerte pertinenti e dà loro un punteggio (e per ogni fonte ti dice quante ne ha scartate e perché);
 3. unisce i duplicati trovati su portali diversi;
 4. stampa i risultati e salva un report HTML in `reports/`, con un filtro testuale e l'opzione "solo nuove".
 
@@ -32,7 +32,10 @@ Altri esempi:
 
 ```bash
 # ricerca veloce senza profilo
-node src/cli.js search -k "redattore,editor,correttore di bozze" -l Padova -r 40 --remote
+node src/cli.js search -k "redattore,editor,correttore di bozze" -l "Padova,Vicenza" -r 40 --remote
+
+# mostra anche le offerte scartate e il motivo (utile per regolare il profilo)
+node src/cli.js search -p profiles/redattore-padova.json --explain
 
 # solo le offerte mai viste prima, salvate anche in CSV (apribile con Excel)
 node src/cli.js search -p profiles/redattore-padova.json --only-new -o offerte.csv
@@ -52,8 +55,8 @@ Per installare il comando `job-searcher` globalmente, esegui `npm link`.
 
 | Fonte | Zona geografica | Full remote | Note |
 |---|---|---|---|
-| LinkedIn | ✓ | ✓ | pagina pubblica delle offerte, senza login. Se si fanno troppe richieste risponde con errore 429 |
-| Adzuna | ✓ | | aggregatore con API gratuita, copre l'Italia. Richiede `ADZUNA_APP_ID` e `ADZUNA_APP_KEY` |
+| LinkedIn | ✓ | ✓ | pagina pubblica delle offerte, senza login. Spesso ignora la località (i risultati vengono filtrati per distanza) e, se si fanno troppe richieste, risponde con errore 429 |
+| Adzuna | ✓ | ✓ | aggregatore con API gratuita, copre l'Italia (per il remoto cerca offerte italiane che citano il lavoro da remoto). Richiede `ADZUNA_APP_ID` e `ADZUNA_APP_KEY` |
 | Jooble | ✓ | | aggrega molti portali italiani (InfoJobs, Indeed, siti aziendali…). Richiede `JOOBLE_API_KEY` |
 | Remotive | | ✓ | API pubblica |
 | Remote OK | | ✓ | API pubblica |
@@ -76,11 +79,11 @@ Un profilo è un file JSON dentro `profiles/`. Per crearne un altro, copia `prof
   "searchKeywords": ["redattore", "editor"],        // (opz.) parole cercate sui portali; default: keywords
   "excludeKeywords": ["video", "software"],        // scarta le offerte che le hanno nel TITOLO
   "boostKeywords": ["casa editrice", "libri"],     // alzano il punteggio (non obbligatorie)
-  "matchIn": "title+description",                  // oppure "title" per essere più severi
+  "matchIn": "title",                              // oppure "title+description" (più risultati, più rumore)
   "maxAgeDays": 30,                                 // ignora offerte più vecchie
   "maxPages": 2,                                    // pagine di risultati per ogni ricerca
   "targets": [
-    { "type": "area", "label": "Padova e dintorni", "place": "Padova", "country": "it", "radiusKm": 40 },
+    { "type": "area", "label": "Padova, Vicenza e dintorni", "places": ["Padova", "Vicenza"], "radiusKm": 35 },
     {
       "type": "remote",
       "label": "Full remote",
@@ -93,11 +96,16 @@ Un profilo è un file JSON dentro `profiles/`. Per crearne un altro, copia `prof
 ```
 
 - **Parole chiave**: maiuscole e accenti non contano. Si cercano parole intere, quindi "editor" non trova "editoriale". Con `*` finale si cerca un prefisso: `redatt*` trova sia "redattore" sia "redattrice". Le parole con `*` servono solo al filtro locale, perché i portali non le capiscono.
-- **Target**: sono le zone in cui cercare. `area` indica una località con un raggio. `remote` indica offerte full remote: un'offerta remota viene scartata se è riservata a paesi fuori da `acceptedRegions` (per esempio "USA only").
+- **Target `area`**: una o più località (`place` oppure `places`) con un raggio. Molti portali non rispettano il raggio: cercando "Padova", LinkedIn restituisce offerte di tutta Italia. Per questo il programma riconosce da solo la località di ogni offerta ("Abano Terme", "Provincia di Vicenza", "Castelfranco Veneto, Provincia di Treviso"…) usando le coordinate di tutti i comuni italiani, e tiene solo quelle entro il raggio o nella stessa provincia di uno dei luoghi cercati. Se l'offerta indica solo la regione (es. "Veneto") viene tenuta. Se la località non si riconosce (es. "Italia") viene scartata, a meno di impostare `"unknownLocation": "keep"`. Il filtro per distanza vale per le ricerche in Italia (`"country": "it"`, il default).
+- **Target `remote`**: offerte full remote. Un'offerta viene scartata se è riservata a paesi fuori da `acceptedRegions` (per esempio "USA only"); le località italiane vanno bene se tra le regioni c'è "italia". Per le fonti che non dicono se un'offerta è remota si cerca nel testo "full remote", "da remoto" e simili ("smart working" non basta, perché di solito indica un lavoro ibrido).
 - **Fonti per target**: con `"sources": ["linkedin", "adzuna"]` dentro un target limiti le fonti usate. Di default si usano tutte quelle compatibili con il tipo di target.
 - **Punteggio**: una parola chiave nel titolo vale 10 punti, nella descrizione 2. Una parola "boost" vale 5 punti nel titolo e 2 altrove. Le offerte sono ordinate per punteggio e poi per data.
 
 Le opzioni da riga di comando `-k`, `-l` e `--remote` sostituiscono quelle del profilo. `-x` si aggiunge alle esclusioni del profilo.
+
+### Perché un'offerta non compare?
+
+Durante la ricerca, per ogni fonte vedi quante offerte sono state scartate e per quale motivo, per esempio `LinkedIn: 11 pertinenti su 60 (scartate: 40 fuori zona, 9 nessuna parola chiave)`. Con `--explain`, o aprendo la sezione "Scartate" del report HTML, vedi quali offerte sono state scartate. Così capisci se conviene allargare il raggio, aggiungere parole chiave o togliere un'esclusione.
 
 ## Aggiungere altri portali o siti
 
@@ -164,12 +172,14 @@ src/
   cli.js           riga di comando
   config.js        lettura e validazione del profilo
   search.js        orchestrazione: fonti → filtro → deduplica → ordinamento
-  filter.js        corrispondenza delle parole chiave, punteggio, controllo del remoto
+  filter.js        corrispondenza delle parole chiave, punteggio, controllo di zona e remoto
+  geo.js           riconoscimento delle località italiane e calcolo delle distanze
   dedupe.js        unione delle offerte doppie
   store.js         memoria delle offerte già viste (.job-searcher/)
   job.js           formato comune di un'offerta
   sources/         un modulo per portale + fonti generiche rss/html
   output/          terminale, HTML, CSV, JSON
+data/comuni.json   comuni italiani con coordinate (rigenerabile con npm run build:comuni)
 test/              test (npm test) con file d'esempio in test/fixtures/
 ```
 

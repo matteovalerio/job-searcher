@@ -29,6 +29,34 @@ export function renderTerminal(results, { limit = 50 } = {}) {
   return lines.join('\n');
 }
 
+/** "12 fuori zona, 3 nessuna parola chiave" */
+export function formatReasons(reasons = {}) {
+  return Object.entries(reasons)
+    .sort((a, b) => b[1] - a[1])
+    .map(([reason, n]) => `${n} ${reason}`)
+    .join(', ');
+}
+
+/** Elenco delle offerte scartate, raggruppate per motivo (opzione --explain). */
+export function renderRejected(results, { limit = 15 } = {}) {
+  const lines = [];
+  for (const { target, rejected } of results) {
+    lines.push('', c.bold(c.yellow(`■ ${target.label} — ${rejected.length} scartate`)));
+    const byReason = new Map();
+    for (const job of rejected) byReason.set(job.rejected, [...(byReason.get(job.rejected) ?? []), job]);
+    for (const [reason, jobs] of byReason) {
+      lines.push(c.bold(`  ${reason} (${jobs.length})`));
+      for (const job of jobs.slice(0, limit)) {
+        lines.push(
+          `    ${job.title} ${c.dim(`· ${[job.company, job.location, job.source].filter(Boolean).join(' · ')}`)}`,
+        );
+      }
+      if (jobs.length > limit) lines.push(c.dim(`    … altre ${jobs.length - limit}`));
+    }
+  }
+  return lines.join('\n');
+}
+
 export function formatStats(stats) {
   return Object.entries(stats)
     .map(([name, s]) => {

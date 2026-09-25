@@ -4,6 +4,8 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 import { applyOverrides, loadProfile, resolveProfile } from '../src/config.js';
+import { REJECT } from '../src/filter.js';
+import { findComune } from '../src/geo.js';
 import { makeJob } from '../src/job.js';
 import { renderCsv } from '../src/output/csv.js';
 import { renderHtml } from '../src/output/html.js';
@@ -19,7 +21,13 @@ function fakeSource(name, supports, jobsFor) {
 test('il profilo di esempio è valido', async () => {
   const profile = resolveProfile(await loadProfile('profiles/redattore-padova.json'));
   const [padova, remote] = profile.targets;
-  assert.equal(padova.place, 'Padova');
+  assert.deepEqual(
+    padova.places.map((p) => [p.name, p.sigla]),
+    [
+      ['Padova', 'PD'],
+      ['Vicenza', 'VI'],
+    ],
+  );
   assert.ok(padova.sources.some((s) => s.name === 'linkedin'));
   assert.ok(!padova.sources.some((s) => s.name === 'remotive'), "le fonti solo-remote non servono per un'area");
   assert.ok(remote.sources.some((s) => s.name === 'remotive'));
@@ -30,15 +38,16 @@ test('il profilo di esempio è valido', async () => {
 test('opzioni da CLI: parole chiave, luogo e remoto sostituiscono il profilo', async () => {
   const base = await loadProfile('profiles/redattore-padova.json');
   const p = resolveProfile(
-    applyOverrides(base, { keywords: ['traduttore'], place: 'Verona', radiusKm: 20, remote: true }),
+    applyOverrides(base, { keywords: ['traduttore'], place: 'Verona, Trento', radiusKm: 20, remote: true }),
   );
   assert.deepEqual(
-    p.targets.map((t) => [t.type, t.place, t.radiusKm]),
+    p.targets.map((t) => [t.type, t.places.map((pl) => pl.name).join('+'), t.radiusKm]),
     [
-      ['area', 'Verona', 20],
-      ['remote', undefined, undefined],
+      ['area', 'Verona+Trento', 20],
+      ['remote', '', 30],
     ],
   );
+  assert.throws(() => resolveProfile(applyOverrides({}, { keywords: ['x'], place: 'Paperopoli' })), /non trovato/);
   assert.deepEqual(p.targets[0].keywords, ['traduttore']);
   assert.throws(() => resolveProfile(applyOverrides({}, { keywords: ['x'] })), /Nessun target/);
   assert.throws(
@@ -49,16 +58,30 @@ test('opzioni da CLI: parole chiave, luogo e remoto sostituiscono il profilo', a
 
 test('runSearch: filtra, unisce, ordina e isola gli errori delle fonti', async () => {
   const good = fakeSource('good', ['area'], ({ keywords, target }) => [
-    makeJob('good', { id: 1, title: 'Redattore', company: 'Libri Srl', url: 'https://1', postedAt: '2026-09-10' }),
+    makeJob('good', {
+      id: `1-${target.place}`,
+      title: 'Redattore',
+      company: 'Libri Srl',
+      location: 'Padova',
+      url: 'https://1',
+      postedAt: '2026-09-10',
+    }),
     makeJob('good', {
       id: 2,
       title: 'Redattore casa editrice',
       company: 'Pagine',
+      location: 'Vicenza',
       url: 'https://2',
       postedAt: '2026-09-20',
     }),
-    makeJob('good', { id: 3, title: 'Cuoco', url: 'https://3' }),
-    makeJob('good', { id: 4, title: `ricerca ${keywords.join('+')} a ${target.place}`, url: 'https://4' }),
+    makeJob('good', { id: 3, title: 'Cuoco', location: 'Padova', url: 'https://3' }),
+    makeJob('good', { id: 5, title: 'Redattore', company: 'Milano Libri', location: 'Milano', url: 'https://5' }),
+    makeJob('good', {
+      id: `4-${target.place}`,
+      title: `ricerca ${keywords.join('+')} a ${target.place}`,
+      location: target.place,
+      url: `https://4/${target.place}`,
+    }),
   ]);
   const broken = fakeSource('broken', ['area'], () => {
     throw new Error('HTTP 403');
@@ -73,7 +96,8 @@ test('runSearch: filtra, unisce, ordina e isola gli errori delle fonti', async (
           id: 'pd',
           label: 'PD',
           type: 'area',
-          place: 'Padova',
+          places: [findComune('Padova'), findComune('Vicenza')],
+          radiusKm: 30,
           keywords: ['redattore'],
           queryKeywords: ['redattore'],
           excludeKeywords: [],
@@ -89,9 +113,21 @@ test('runSearch: filtra, unisce, ordina e isola gli errori delle fonti', async (
   assert.deepEqual(
     result.jobs.map((j) => j.title),
     // a parità di punteggio vince la più recente; quelle senza data vanno in fondo
-    ['Redattore casa editrice', 'Redattore', 'ricerca redattore a Padova'],
+    ['Redattore casa editrice', 'Redattore', 'ricerca redattore a Padova', 'ricerca redattore a Vicenza'],
   );
-  assert.deepEqual(result.stats.good, { fetched: 4, kept: 3 });
+  // una ricerca per ciascun luogo: 5 offerte x 2
+  assert.deepEqual(result.stats.good, {
+    fetched: 10,
+    kept: 6,
+    reasons: { [REJECT.noKeyword]: 2, [REJECT.farAway]: 2 },
+  });
+  assert.deepEqual(
+    result.rejected.map((j) => [j.title, j.rejected]),
+    [
+      ['Cuoco', REJECT.noKeyword],
+      ['Redattore', REJECT.farAway],
+    ],
+  );
   assert.equal(result.stats.broken.error, 'HTTP 403');
   assert.match(result.stats.keyed.skipped, /JOB_SEARCHER_TEST_MISSING_KEY/);
 });

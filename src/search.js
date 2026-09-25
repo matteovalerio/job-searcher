@@ -2,7 +2,7 @@ import { dedupe } from './dedupe.js';
 import { buildMatcher, evaluate } from './filter.js';
 import { missingEnv } from './sources/index.js';
 
-const SOURCE_TIMEOUT_MS = 120000;
+const SOURCE_TIMEOUT_MS = 180000;
 
 function withTimeout(promise, ms, label) {
   let timer;
@@ -12,9 +12,16 @@ function withTimeout(promise, ms, label) {
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
+/** Per un'area con più luoghi la fonte viene interrogata una volta per luogo. */
+function placeVariants(target) {
+  if (target.type !== 'area') return [target];
+  return target.places.map((p) => ({ ...target, place: p.name, placeInfo: p }));
+}
+
 /**
  * Esegue la ricerca su tutti i target e le fonti di un profilo risolto.
  * Una fonte che fallisce non blocca le altre: l'errore finisce nelle statistiche.
+ * Le offerte scartate sono restituite in `rejected`, con il motivo, per capire cosa filtra il programma.
  *
  * @param {{ name: string, targets: import('./config.js').ResolvedTarget[] }} profile
  * @param {{ onProgress?: (event: object) => void, now?: number }} [options]
@@ -24,6 +31,7 @@ export async function runSearch(profile, { onProgress = () => {}, now = Date.now
   for (const target of profile.targets) {
     const matcher = buildMatcher(target);
     const stats = {};
+    const rejected = [];
 
     const perSource = await Promise.all(
       target.sources.map(async (source) => {
@@ -34,24 +42,43 @@ export async function runSearch(profile, { onProgress = () => {}, now = Date.now
           return [];
         }
         onProgress({ type: 'start', target, source });
+        const warn = (message) => onProgress({ type: 'warn', target, source, message });
         try {
-          const raw = await withTimeout(
-            source.search({
-              keywords: target.queryKeywords,
-              target,
-              maxAgeDays: target.maxAgeDays,
-              maxPages: target.maxPages,
-              warn: (message) => onProgress({ type: 'warn', target, source, message }),
-            }),
-            SOURCE_TIMEOUT_MS,
-            source.label,
-          );
+          const raw = [];
+          const errors = [];
+          for (const variant of placeVariants(target)) {
+            try {
+              const found = await withTimeout(
+                source.search({
+                  keywords: target.queryKeywords,
+                  target: variant,
+                  maxAgeDays: target.maxAgeDays,
+                  maxPages: target.maxPages,
+                  warn,
+                }),
+                SOURCE_TIMEOUT_MS,
+                source.label,
+              );
+              raw.push(...found);
+            } catch (err) {
+              errors.push(err);
+              if (variant.place) warn(`${variant.place}: ${err.message}`);
+            }
+          }
+          if (errors.length && !raw.length) throw errors[0];
+
           const kept = [];
+          const reasons = {};
           for (const job of raw) {
             const verdict = evaluate(job, matcher, now);
-            if (!verdict.rejected) kept.push({ ...job, ...verdict, targetId: target.id });
+            if (verdict.rejected) {
+              reasons[verdict.rejected] = (reasons[verdict.rejected] ?? 0) + 1;
+              rejected.push({ ...job, rejected: verdict.rejected });
+            } else {
+              kept.push({ ...job, ...verdict, targetId: target.id });
+            }
           }
-          stats[source.name] = { fetched: raw.length, kept: kept.length };
+          stats[source.name] = { fetched: raw.length, kept: kept.length, reasons };
           onProgress({ type: 'done', target, source, ...stats[source.name] });
           return kept;
         } catch (err) {
@@ -65,7 +92,7 @@ export async function runSearch(profile, { onProgress = () => {}, now = Date.now
     const jobs = dedupe(perSource.flat()).sort(
       (a, b) => b.score - a.score || (Date.parse(b.postedAt ?? 0) || 0) - (Date.parse(a.postedAt ?? 0) || 0),
     );
-    results.push({ target, jobs, stats });
+    results.push({ target, jobs, stats, rejected: dedupe(rejected) });
   }
   return results;
 }
