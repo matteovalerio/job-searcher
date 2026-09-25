@@ -20,6 +20,22 @@ export const DEFAULT_REMOTE_REGIONS = [
 // "smart working" non basta: in Italia di solito indica un lavoro ibrido.
 const REMOTE_HINTS = compileKeywords(['full remote', 'fully remote', 'remote', 'da remoto', 'remoto', 'telelavoro']);
 
+// Segnali che un'offerta "da remoto" è in realtà ibrida o in sede: non la scartano, ma la segnalano.
+const HYBRID_HINTS = compileKeywords(['hybrid', 'ibrido', 'ibrida', 'on-site', 'onsite', 'in office', 'in ufficio']);
+
+// Lingue riconosciute nei titoli ("Hebrew Localization Specialist", "Traduttore tedesco").
+// prettier-ignore
+const LANGUAGES = compileKeywords([
+  'english', 'inglese', 'italian', 'italiano', 'italiana', 'french', 'francese', 'german', 'tedesco', 'tedesca',
+  'spanish', 'spagnolo', 'spagnola', 'portuguese', 'portoghese', 'dutch', 'olandese', 'flemish', 'hebrew', 'ebraico',
+  'arabic', 'arabo', 'chinese', 'cinese', 'mandarin', 'cantonese', 'japanese', 'giapponese', 'korean', 'coreano',
+  'russian', 'russo', 'ukrainian', 'ucraino', 'polish', 'polacco', 'czech', 'ceco', 'slovak', 'slovacco', 'hungarian',
+  'ungherese', 'romanian', 'rumeno', 'bulgarian', 'bulgaro', 'greek', 'greco', 'turkish', 'turco', 'swedish',
+  'svedese', 'norwegian', 'norvegese', 'danish', 'danese', 'finnish', 'finlandese', 'estonian', 'latvian',
+  'lithuanian', 'croatian', 'croato', 'serbian', 'serbo', 'slovenian', 'sloveno', 'kazakh', 'vietnamese', 'thai',
+  'hindi', 'bengali', 'urdu', 'persian', 'farsi', 'indonesian', 'malay', 'tagalog', 'swahili', 'catalan', 'catalano',
+]);
+
 /**
  * Prepara le regole di filtro di un target (parole chiave già compilate).
  * @param {import('./config.js').ResolvedTarget} target
@@ -28,9 +44,14 @@ export function buildMatcher(target) {
   return {
     keywords: compileKeywords(target.keywords),
     related: compileKeywords(target.relatedKeywords ?? []),
+    // Se indicate, le offerte che nel titolo chiedono altre lingue vengono scartate.
+    languages: target.languages?.length ? target.languages.map(normalize) : null,
     exclude: compileKeywords(target.excludeKeywords),
     boost: compileKeywords(target.boostKeywords),
     regions: compileKeywords(target.acceptedRegions ?? DEFAULT_REMOTE_REGIONS),
+    titleRegions: compileKeywords(
+      (target.acceptedRegions ?? DEFAULT_REMOTE_REGIONS).filter((r) => !['remote', 'global'].includes(normalize(r))),
+    ),
     acceptsItaly: (target.acceptedRegions ?? DEFAULT_REMOTE_REGIONS).some((r) =>
       ['italia', 'italy'].includes(normalize(r)),
     ),
@@ -52,6 +73,7 @@ export const REJECT = {
   tooOld: 'troppo vecchia',
   notRemote: 'non è full remote',
   region: 'remoto solo per altri paesi',
+  language: "richiede un'altra lingua",
   farAway: 'fuori zona',
   unknownPlace: 'località non riconosciuta',
   lowScore: 'punteggio basso',
@@ -64,6 +86,9 @@ function remoteProblem(job, matcher, fullText) {
   const location = normalize(job.location);
   if (!location) return null;
   if (findKeywords(location, matcher.regions).length > 0) return null;
+  // La regione può essere anche nel titolo: "Medical Editor (EMEA Home Based)". Qui però "remote" e "global"
+  // non bastano ("Remote Copy Editor", "Global Head of…" possono essere riservati agli USA).
+  if (findKeywords(normalize(job.title), matcher.titleRegions).length > 0) return null;
   // Una località italiana ("Milano, Lombardia") va bene se l'Italia è tra le regioni accettate.
   if (matcher.acceptsItaly && locate(job.location)) return null;
   return REJECT.region;
@@ -98,6 +123,10 @@ export function evaluate(job, matcher, now = Date.now()) {
 
   // Le esclusioni si controllano dopo: così "parola esclusa" indica offerte che altrimenti sarebbero passate.
   if (findKeywords(title, matcher.exclude).length) return { rejected: REJECT.excluded };
+  if (matcher.languages) {
+    const other = findKeywords(title, LANGUAGES).filter((l) => !matcher.languages.includes(normalize(l)));
+    if (other.length) return { rejected: REJECT.language };
+  }
 
   if (matcher.maxAgeDays && job.postedAt) {
     const ageDays = (now - Date.parse(job.postedAt)) / 86400000;
@@ -117,9 +146,13 @@ export function evaluate(job, matcher, now = Date.now()) {
   const score = inTitle.length * 10 + inBody.length * 2 + related + boostTitle.length * 5 + boostBody.length * 2;
   if (score < matcher.minScore) return { rejected: REJECT.lowScore };
 
+  const warnings = [];
+  if (matcher.remoteOnly && findKeywords(body, HYBRID_HINTS).length) warnings.push('possibile ibrido');
+
   return {
     score,
     matched: [...inTitle, ...inBody, ...relTitle, ...relBody],
     boosted: [...boostTitle, ...boostBody],
+    warnings,
   };
 }

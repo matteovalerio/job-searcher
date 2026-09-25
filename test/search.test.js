@@ -177,3 +177,48 @@ test('report: CSV con escape e HTML senza iniezioni', () => {
   assert.ok(html.includes('Redattore, &quot;junior&quot; &lt;script&gt;'));
   assert.ok(!html.includes('<script>"'));
 });
+
+test('runSearch: completa con i dettagli solo le offerte passate dal filtro sul titolo', async () => {
+  const enriched = [];
+  const source = {
+    ...fakeSource('rich', ['remote'], () => [
+      makeJob('rich', {
+        id: 1,
+        title: 'Associate Publisher',
+        company: 'Springer Nature',
+        location: 'Italia',
+        remote: true,
+      }),
+      makeJob('rich', { id: 2, title: 'Magazziniere', location: 'Italia', remote: true }),
+      makeJob('rich', { id: 3, title: 'Editor', location: 'Italia', remote: true }),
+    ]),
+    async enrich(job) {
+      enriched.push(job.title);
+      if (job.title === 'Editor') throw new Error('HTTP 429');
+      return { ...job, description: 'Riviste scientifiche, lavoro ibrido' };
+    },
+  };
+  const [result] = await runSearch({
+    name: 't',
+    targets: [
+      {
+        id: 'r',
+        label: 'R',
+        type: 'remote',
+        keywords: ['publisher', 'editor'],
+        queryKeywords: ['publisher'],
+        excludeKeywords: [],
+        boostKeywords: ['scientifiche'],
+        matchIn: 'title',
+        maxAgeDays: 30,
+        sources: [source],
+      },
+    ],
+  });
+  assert.deepEqual(enriched, ['Associate Publisher', 'Editor']);
+  const publisher = result.jobs.find((j) => j.title === 'Associate Publisher');
+  assert.deepEqual(publisher.boosted, ['scientifiche']);
+  assert.deepEqual(publisher.warnings, ['possibile ibrido']);
+  // se il dettaglio non si scarica l'offerta resta, con i soli dati della ricerca
+  assert.ok(result.jobs.some((j) => j.title === 'Editor'));
+});

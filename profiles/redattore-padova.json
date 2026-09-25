@@ -19,7 +19,11 @@
     "journal",
     "journals",
     "peer review",
-    "manuscript*"
+    "manuscript*",
+    "medical writer",
+    "medical writing",
+    "scientific writer",
+    "scientific writing"
   ],
   "relatedKeywords": [
     "impaginat*",
@@ -34,6 +38,7 @@
     "linguist*",
     "language specialist"
   ],
+  "languages": ["italiano", "italiana", "italian", "inglese", "english"],
   "excludeKeywords": [
     "video",
     "montaggio",
@@ -144,7 +149,8 @@
         "correttore di bozze",
         "impaginatore",
         "traduttore"
-      ]
+      ],
+      "maxAgeDays": 60
     },
     {
       "id": "remote",
@@ -157,6 +163,7 @@
         "proofreader",
         "journal",
         "peer review",
+        "medical writer",
         "publishing",
         "redattore",
         "traduttore"

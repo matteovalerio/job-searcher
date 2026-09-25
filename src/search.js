@@ -12,6 +12,26 @@ function withTimeout(promise, ms, label) {
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
+/** Completa fino a `limit` offerte con i dettagli; se una richiesta fallisce si tiene l'offerta com'è. */
+async function enrichAll(source, jobs, { limit, warn }) {
+  const out = [];
+  let failures = 0;
+  for (const [i, job] of jobs.entries()) {
+    if (i >= limit || failures >= 3) {
+      out.push(job);
+      continue;
+    }
+    try {
+      out.push(await source.enrich(job));
+    } catch (err) {
+      failures++;
+      if (failures === 3) warn(`dettagli non disponibili (${err.message}): uso solo i titoli`);
+      out.push(job);
+    }
+  }
+  return out;
+}
+
 /** Per un'area con più luoghi la fonte viene interrogata una volta per luogo. */
 function placeVariants(target) {
   if (target.type !== 'area') return [target];
@@ -67,16 +87,29 @@ export async function runSearch(profile, { onProgress = () => {}, now = Date.now
           if (errors.length && !raw.length) throw errors[0];
           for (const err of errors) warn(err.message);
 
-          const kept = [];
+          let candidates = [];
           const reasons = {};
+          const reject = (job, reason) => {
+            reasons[reason] = (reasons[reason] ?? 0) + 1;
+            rejected.push({ ...job, rejected: reason });
+          };
           for (const job of raw) {
             const verdict = evaluate(job, matcher, now);
-            if (verdict.rejected) {
-              reasons[verdict.rejected] = (reasons[verdict.rejected] ?? 0) + 1;
-              rejected.push({ ...job, rejected: verdict.rejected });
-            } else {
-              kept.push({ ...job, ...verdict, targetId: target.id });
-            }
+            if (verdict.rejected) reject(job, verdict.rejected);
+            else candidates.push(job);
+          }
+
+          // Alcune fonti (LinkedIn) nei risultati non hanno la descrizione: la scarichiamo solo per le offerte
+          // già passate dal filtro sul titolo, e poi le rivalutiamo.
+          if (source.enrich && candidates.length) {
+            candidates = await enrichAll(source, dedupe(candidates), { limit: target.maxEnrich ?? 40, warn });
+          }
+
+          const kept = [];
+          for (const job of candidates) {
+            const verdict = evaluate(job, matcher, now);
+            if (verdict.rejected) reject(job, verdict.rejected);
+            else kept.push({ ...job, ...verdict, targetId: target.id });
           }
           stats[source.name] = { fetched: raw.length, kept: kept.length, reasons };
           onProgress({ type: 'done', target, source, ...stats[source.name] });

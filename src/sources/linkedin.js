@@ -1,10 +1,12 @@
 import * as cheerio from 'cheerio';
 import { getText, sleep } from '../http.js';
 import { makeJob } from '../job.js';
+import { htmlToText, truncate } from '../text.js';
 import { eachQuery } from './queries.js';
 
 // Endpoint pubblico (senza login) usato dalla pagina "Offerte di lavoro" di LinkedIn.
 const BASE = 'https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search';
+const DETAIL = 'https://www.linkedin.com/jobs-guest/jobs/api/jobPosting';
 const PAGE_SIZE = 25;
 // LinkedIn accetta solo questi raggi, in miglia.
 const MILES = [5, 10, 25, 50, 100];
@@ -52,10 +54,33 @@ export function parse(html, { remote = null } = {}) {
     .filter((job) => job.title && job.url);
 }
 
+/**
+ * Estrae descrizione e criteri (livello, tipo di contratto, settore…) dalla pagina di dettaglio di un'offerta.
+ * I risultati di ricerca di LinkedIn non hanno la descrizione: senza, non si possono dare i punti "bonus"
+ * né capire se un lavoro "da remoto" è in realtà ibrido.
+ */
+export function parseDetail(html) {
+  const $ = cheerio.load(html);
+  const description = htmlToText($('.show-more-less-html__markup, .description__text').first().html() ?? '');
+  const tags = $('.description__job-criteria-item')
+    .toArray()
+    .map((el) => $(el).find('.description__job-criteria-text').text().trim())
+    .filter(Boolean);
+  return { description: truncate(description, 1500), tags };
+}
+
 export default {
   name: 'linkedin',
   label: 'LinkedIn',
   supports: ['area', 'remote'],
+  /** Completa un'offerta già selezionata con descrizione e criteri. */
+  async enrich(job) {
+    const id = job.id.split(':').pop();
+    if (!/^\d+$/.test(id)) return job;
+    const detail = parseDetail(await getText(`${DETAIL}/${id}`));
+    await sleep(1500);
+    return { ...job, description: detail.description || job.description, tags: [...job.tags, ...detail.tags] };
+  },
   async search({ keywords, target, maxAgeDays, maxPages = 2, warn }) {
     // Per il remoto interroghiamo più "località" LinkedIn con il filtro "Da remoto" (f_WT=2).
     const locations =
