@@ -127,7 +127,9 @@ export function resolveProfile(profile, { onlySources } = {}) {
         return s;
       });
     } else {
-      sources = all;
+      // Le fonti "optIn" (es. Indeed) si usano solo se richieste esplicitamente.
+      const enabled = new Set([...(profile.enableSources ?? []), ...(onlySources ?? [])]);
+      sources = all.filter((s) => !s.optIn || enabled.has(s.name));
     }
     sources = sources.filter((s) => s.supports.includes(t.type));
     if (onlySources?.length) sources = sources.filter((s) => onlySources.includes(s.name));

@@ -1,5 +1,6 @@
 import adzuna from './adzuna.js';
 import himalayas from './himalayas.js';
+import indeed from './indeed.js';
 import jobicy from './jobicy.js';
 import jooble from './jooble.js';
 import linkedin from './linkedin.js';
@@ -13,9 +14,11 @@ import { createRssSource } from './rss.js';
  * Fonti integrate. Per aggiungerne una nuova basta un oggetto con:
  *   name, label, supports (['area'] e/o ['remote']), env (chiavi richieste, opzionale)
  *   async search({ keywords, target, maxAgeDays, maxPages }) -> Job[]  (vedi src/job.js)
+ *   optIn: true         (opz.) usata solo se elencata in "enableSources" o in "sources"
+ *   async enrich(job)   (opz.) completa un'offerta già selezionata (es. con la descrizione)
  * e registrarlo qui sotto.
  */
-export const builtinSources = [linkedin, adzuna, jooble, remotive, remoteok, jobicy, himalayas, weworkremotely];
+export const builtinSources = [linkedin, indeed, adzuna, jooble, remotive, remoteok, jobicy, himalayas, weworkremotely];
 
 /** Crea le fonti personalizzate dichiarate nel profilo ("customSources"). */
 export function createCustomSource(def) {
