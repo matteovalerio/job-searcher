@@ -18,7 +18,8 @@ export function renderTerminal(results, { limit = 50 } = {}) {
   for (const { target, jobs, stats } of results) {
     lines.push('', c.bold(c.cyan(`■ ${target.label} — ${jobs.length} offerte`)));
     for (const job of jobs.slice(0, limit)) {
-      const badge = job.isNew ? c.green(' [NUOVA]') : '';
+      const badge =
+        (job.isNew ? c.green(' [NUOVA]') : '') + (job.warnings ?? []).map((w) => c.yellow(` [${w}]`)).join('');
       lines.push(`${c.bold(job.title)}${badge}  ${c.dim(`punti ${job.score}`)}`);
       lines.push(`  ${[job.company, job.location, formatDate(job.postedAt), job.source].filter(Boolean).join(' · ')}`);
       lines.push(`  ${c.dim(job.url)}`);

@@ -6,7 +6,7 @@ import { parse as parseHimalayas } from '../src/sources/himalayas.js';
 import { parseHtml } from '../src/sources/html.js';
 import { parse as parseJobicy } from '../src/sources/jobicy.js';
 import { parse as parseJooble } from '../src/sources/jooble.js';
-import linkedin, { kmToLinkedinMiles, parse as parseLinkedin } from '../src/sources/linkedin.js';
+import linkedin, { kmToLinkedinMiles, parse as parseLinkedin, parseDetail } from '../src/sources/linkedin.js';
 import { eachQuery } from '../src/sources/queries.js';
 import { parse as parseRemoteok } from '../src/sources/remoteok.js';
 import { parse as parseRemotive } from '../src/sources/remotive.js';
@@ -172,4 +172,11 @@ test('adzuna: cerca solo nel titolo con matchIn "title"; per il remoto niente lo
   assert.equal(remote.what_phrase, 'editor');
   assert.equal(remote.where, undefined);
   assert.match(remote.what_or, /remoto/);
+});
+
+test('linkedin: dettaglio con descrizione e criteri', () => {
+  const detail = parseDetail(fixture('linkedin-detail.html'));
+  assert.match(detail.description, /^Springer Nature cerca un Associate Publisher/);
+  assert.match(detail.description, /Rapporti con gli autori/);
+  assert.deepEqual(detail.tags, ['Livello intermedio', 'Editoria di libri e periodici']);
 });
