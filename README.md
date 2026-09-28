@@ -46,6 +46,23 @@ node src/cli.js profile show redattore-padova    # mostra un profilo
 
 L'analisi del CV funziona a regole, senza inviare il CV a servizi esterni. Riconosce le aree elencate in `src/profiles/roles.js`, a cui se ne possono aggiungere altre. Non legge i CV scansionati come immagine: in quel caso usa la modalità senza CV.
 
+#### In alternativa: farsi aiutare da Claude (con l'abbonamento, senza API)
+
+L'analisi a regole conosce solo le aree professionali del dizionario. Per profili più ricchi o per professioni non previste, puoi far scrivere il profilo a Claude su claude.ai. Usi il tuo abbonamento (Pro o gratuito): niente chiavi API e nessun costo in più.
+
+```bash
+node src/cli.js profile prompt --cv ~/Documenti/cv.pdf -o prompt.txt
+```
+
+1. Il comando prepara un testo con le istruzioni, il formato del profilo, un esempio e il testo del CV. Senza `--cv` il testo ti chiede di allegare il PDF nella chat.
+2. Incolla il testo in una nuova chat su claude.ai. Claude riassume il CV e ti fa qualche domanda: che lavoro cerchi, dove, se vuoi anche il remoto, cosa evitare.
+3. Dopo le tue risposte, Claude scrive il profilo in un blocco JSON.
+4. Copia la risposta in un file ed esegui `node src/cli.js profile import risposta.txt`. In alternativa esegui `node src/cli.js profile import` e incolla la risposta direttamente nel terminale.
+
+Il programma estrae il JSON dalla risposta, lo controlla con le stesse verifiche della ricerca (per esempio che le città siano comuni italiani esistenti) e lo salva in `profiles/`. Se qualcosa non va, l'errore è scritto in modo da poterlo rigirare a Claude per farlo correggere. Il nome del profilo è quello scelto da Claude, a meno di indicarne un altro con `--name`.
+
+Tieni presente che in questo modo il CV, con i dati personali che contiene, viene inviato a claude.ai.
+
 ### 2. Cerca
 
 ```bash
@@ -254,7 +271,7 @@ src/
   store.js         memoria delle offerte già viste (.job-searcher/)
   job.js           formato comune di un'offerta
   browser.js       browser vero (Playwright) per Indeed e InfoJobs
-  profiles/        archivio dei profili, analisi del CV, procedura guidata, aree professionali (roles.js)
+  profiles/        archivio dei profili, analisi del CV, procedura guidata, prompt per claude.ai, aree professionali (roles.js)
   sources/         un modulo per portale + fonti generiche rss/html
   output/          terminale, HTML, CSV, JSON
 data/comuni.json   comuni italiani con coordinate (rigenerabile con npm run build:comuni)

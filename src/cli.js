@@ -1,11 +1,21 @@
 #!/usr/bin/env node
 import { existsSync } from 'node:fs';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { createInterface } from 'node:readline/promises';
 import { parseArgs } from 'node:util';
 import { applyOverrides, resolveProfile } from './config.js';
-import { describeTargets, listProfiles, loadProfile, profilePath, profilesDir, saveProfile } from './profiles/store.js';
+import { readCvText } from './profiles/cv.js';
+import { buildPrompt, checkImported, extractJson } from './profiles/prompt.js';
+import {
+  describeTargets,
+  listProfiles,
+  loadProfile,
+  profilePath,
+  profilesDir,
+  saveProfile,
+  slugify,
+} from './profiles/store.js';
 import { runWizard } from './profiles/wizard.js';
 import { renderCsv } from './output/csv.js';
 import { renderHtml } from './output/html.js';
@@ -22,12 +32,15 @@ Uso:
   job-searcher search [opzioni]         esegue la ricerca (comando predefinito)
   job-searcher profiles                 elenca i profili salvati
   job-searcher profile new [opzioni]    crea un profilo, da CV in PDF e/o rispondendo a domande
+  job-searcher profile prompt [--cv f]  prepara il testo da incollare su claude.ai per farsi aiutare da Claude
+  job-searcher profile import [file]    salva il profilo scritto da Claude (da file o incollato nel terminale)
   job-searcher profile show <nome>      mostra un profilo
   job-searcher sources                  elenca le fonti disponibili
 
-Opzioni di "profile new":
-      --cv <file.pdf>      ricava le informazioni dal CV (poi si possono correggere)
-      --name <nome>        nome del profilo
+Opzioni di "profile new", "profile prompt" e "profile import":
+      --cv <file.pdf>      ricava le informazioni dal CV (con "prompt": include il testo del CV)
+      --name <nome>        nome con cui salvare il profilo
+  -o, --out <file>         con "prompt": scrive il testo su file invece che a video
   -y, --yes                accetta tutte le proposte senza fare domande (richiede --cv)
 
 Opzioni di ricerca:
@@ -50,6 +63,8 @@ Opzioni di ricerca:
 
 Esempi:
   job-searcher profile new --cv ~/Documenti/cv.pdf
+  job-searcher profile prompt --cv ~/Documenti/cv.pdf -o prompt.txt
+  job-searcher profile import risposta.txt
   job-searcher search -p redattore-padova
   job-searcher search -k "redattore,editor" -l Padova -r 40 --remote
   job-searcher search -p redattore-padova --only-new -o offerte.csv
@@ -252,6 +267,53 @@ async function newProfile(opts) {
   }
 }
 
+async function profilePrompt(opts) {
+  const prompt = buildPrompt({ cvText: opts.cv ? await readCvText(opts.cv) : '' });
+  const next = [
+    opts.cv
+      ? '1. Incolla il testo in una nuova chat su claude.ai (il CV è già incluso).'
+      : '1. Apri una nuova chat su claude.ai, allega il CV in PDF e incolla il testo.',
+    '2. Rispondi alle domande di Claude.',
+    '3. Copia la risposta con il blocco JSON in un file (es. risposta.txt) ed esegui:',
+    '     job-searcher profile import risposta.txt',
+    '   oppure esegui "job-searcher profile import" e incollala direttamente nel terminale.',
+  ].join('\n');
+  if (opts.out) {
+    await writeFile(opts.out, prompt);
+    console.log(c.green(`Prompt salvato in ${opts.out}`));
+    console.log(next);
+  } else {
+    console.log(prompt);
+    console.error(c.dim(`\n${'-'.repeat(60)}\n${next}`));
+  }
+}
+
+async function readStdin() {
+  if (process.stdin.isTTY) {
+    const eof = process.platform === 'win32' ? 'Ctrl+Z e poi Invio' : 'Ctrl+D';
+    console.error(`Incolla la risposta di Claude, poi premi Invio e ${eof}:`);
+  }
+  let text = '';
+  for await (const chunk of process.stdin) text += chunk;
+  return text;
+}
+
+async function importProfile(opts, file) {
+  const text = file ? await readFile(file, 'utf8') : await readStdin();
+  let profile;
+  try {
+    profile = checkImported(extractJson(text));
+  } catch (err) {
+    throw new Error(`${err.message}\nPuoi chiedere a Claude di correggere il profilo riportandogli questo errore.`);
+  }
+  const id = slugify(opts.name ?? profile.name);
+  const exists = existsSync(profilePath(id));
+  const saved = await saveProfile(id, profile, { overwrite: true });
+  console.log(c.green(`Profilo ${exists ? 'aggiornato' : 'salvato'} in ${saved}`));
+  console.log(`  ${profile.description ?? profile.name} — ${describeTargets(profile.targets)}`);
+  console.log(`Per cercare: ${c.bold(`job-searcher search -p ${id}`)}`);
+}
+
 async function main() {
   if (existsSync('.env')) process.loadEnvFile('.env');
   const opts = parseCli(process.argv.slice(2));
@@ -263,8 +325,12 @@ async function main() {
     const [sub, name] = opts.args;
     if (sub === 'new' || sub === 'nuovo') return newProfile(opts);
     if (sub === 'show') return showProfile(name);
+    if (sub === 'prompt') return profilePrompt(opts);
+    if (sub === 'import') return importProfile(opts, name);
     if (!sub || sub === 'list') return listSavedProfiles();
-    throw new Error(`Sottocomando sconosciuto "profile ${sub}". Usa: profile new | show <nome> | list`);
+    throw new Error(
+      `Sottocomando sconosciuto "profile ${sub}". Usa: profile new | prompt | import | show <nome> | list`,
+    );
   }
   throw new Error(`Comando sconosciuto "${opts.command}". Usa --help.`);
 }
