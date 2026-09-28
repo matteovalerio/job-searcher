@@ -1,7 +1,7 @@
 {
   "name": "job-searcher",
   "version": "0.1.0",
-  "description": "Cerca offerte di lavoro su pi\u00f9 portali per parole chiave e area geografica (o full remote).",
+  "description": "Cerca offerte di lavoro su più portali per parole chiave e area geografica (o full remote).",
   "type": "module",
   "bin": {
     "job-searcher": "src/cli.js"
@@ -20,6 +20,7 @@
   "license": "MIT",
   "dependencies": {
     "cheerio": "^1.2.0",
+    "nodemailer": "^10.0.11",
     "unpdf": "^1.8.1"
   },
   "devDependencies": {

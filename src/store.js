@@ -26,6 +26,8 @@ export class SeenStore {
     } catch (err) {
       if (err.code !== 'ENOENT') throw err;
     }
+    // Prima esecuzione per questo profilo: tutte le offerte risulteranno nuove.
+    this.firstRun = Object.keys(this.seen).length === 0;
     return this;
   }
 

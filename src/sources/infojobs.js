@@ -156,6 +156,7 @@ export default {
   label: 'InfoJobs',
   supports: ['area'],
   optIn: true,
+  browser: true,
   timeoutMs: 15 * 60 * 1000,
   // Sostituibili nei test.
   openBrowser,

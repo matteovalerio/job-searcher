@@ -1,0 +1,78 @@
+# Ricerca quotidiana: cerca le offerte e manda quelle nuove su Telegram e/o email.
+# Configurazione (segreti e variabili del repository): vedi il README, sezione "Ricerca automatica ogni giorno".
+# Indeed e InfoJobs sono esclusi: richiedono un browser e la verifica anti-robot.
+name: Ricerca quotidiana
+
+on:
+  schedule:
+    # Ogni giorno alle 5:23 UTC, cioè le 7:23 in Italia d'estate e le 6:23 d'inverno.
+    - cron: '23 5 * * *'
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: Profilo da usare (nome del file in profiles/, senza .json)
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ricerca-quotidiana
+  cancel-in-progress: false
+
+jobs:
+  search:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PROFILE: ${{ inputs.profile || vars.JOB_SEARCHER_PROFILE || 'redattore-padova' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # Senza le dipendenze opzionali: il browser (Playwright) qui non serve.
+      - run: npm ci --omit=optional
+
+      - name: Ripristina l'elenco delle offerte già viste
+        uses: actions/cache/restore@v4
+        with:
+          path: .job-searcher
+          key: job-searcher-state-${{ env.PROFILE }}-${{ github.run_id }}
+          restore-keys: job-searcher-state-${{ env.PROFILE }}-
+
+      - name: Cerca e notifica
+        env:
+          ADZUNA_APP_ID: ${{ secrets.ADZUNA_APP_ID }}
+          ADZUNA_APP_KEY: ${{ secrets.ADZUNA_APP_KEY }}
+          JOOBLE_API_KEY: ${{ secrets.JOOBLE_API_KEY }}
+          JOOBLE_HOST: ${{ vars.JOOBLE_HOST }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+          JOB_SEARCHER_REPORT_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          NO_COLOR: '1'
+        run: node src/cli.js search -p "$PROFILE" --no-browser --notify --limit 20
+
+      - name: Salva l'elenco delle offerte già viste
+        if: always() && hashFiles('.job-searcher/seen-*.json') != ''
+        uses: actions/cache/save@v4
+        with:
+          path: .job-searcher
+          key: job-searcher-state-${{ env.PROFILE }}-${{ github.run_id }}
+
+      - name: Allega il report HTML
+        if: always() && hashFiles('reports/*.html') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: report-${{ env.PROFILE }}
+          path: reports/*.html
+          retention-days: 14

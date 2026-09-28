@@ -99,6 +99,46 @@ node src/cli.js --help
 
 Per installare il comando `job-searcher` globalmente, esegui `npm link`. La cartella dei profili si può cambiare con `JOB_SEARCHER_PROFILES`.
 
+## Ricerca automatica ogni giorno (GitHub Actions)
+
+Il repository contiene un workflow (`.github/workflows/ricerca-quotidiana.yml`) che ogni mattina esegue la ricerca sui server di GitHub, gratis, e manda **solo le offerte nuove** su Telegram, per email o su entrambi. Non serve tenere acceso il computer.
+
+- **Fonti:** Indeed e InfoJobs sono esclusi, perché richiedono un browser e la verifica anti-robot. Tutte le altre fonti funzionano.
+- **Prima esecuzione:** arriva un riepilogo con le 10 offerte migliori per zona. Dalla seconda in poi arrivano solo quelle mai viste.
+- **Memoria:** l'elenco delle offerte già viste è conservato nella cache di GitHub Actions.
+- **Se l'invio fallisce:** l'elenco non viene aggiornato, così le offerte arrivano con l'esecuzione successiva.
+- **Report completo:** il report HTML di ogni esecuzione si scarica dalla pagina dell'esecuzione su GitHub (sezione *Artifacts*), a cui porta il link "Report completo" del messaggio.
+
+### Configurazione
+
+Tutto si fa da GitHub, nel repository: **Settings → Secrets and variables → Actions**.
+
+**1. Scegli il canale e aggiungi i segreti** (scheda *Secrets*):
+
+- **Telegram** (consigliato: gratuito e immediato)
+  1. In Telegram scrivi a [@BotFather](https://t.me/BotFather), manda `/newbot` e segui le istruzioni: alla fine ricevi il *token* del bot.
+  2. Scrivi un messaggio qualsiasi al tuo nuovo bot, poi apri nel browser `https://api.telegram.org/bot<TOKEN>/getUpdates` e cerca `"chat":{"id":…}`: quel numero è il *chat id*.
+  3. Aggiungi i segreti `TELEGRAM_BOT_TOKEN` e `TELEGRAM_CHAT_ID`.
+- **Email**
+  - Servono `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` (la password del server di posta) ed `EMAIL_TO` (l'indirizzo a cui mandare le offerte).
+  - Facoltativo: `EMAIL_FROM`, se deve essere diverso da `SMTP_USER`.
+  - Con Gmail: `SMTP_HOST` = `smtp.gmail.com`, `SMTP_PORT` = `465`, `SMTP_USER` = il tuo indirizzo Gmail. Come `SMTP_PASS` crea una [password per le app](https://myaccount.google.com/apppasswords); serve la verifica in due passaggi attiva.
+
+Per le fonti con chiave API aggiungi anche `ADZUNA_APP_ID`, `ADZUNA_APP_KEY` e `JOOBLE_API_KEY`.
+
+**2. Facoltativo: variabili** (scheda *Variables*):
+- `JOB_SEARCHER_PROFILE`: il profilo da usare (default `redattore-padova`). Il profilo deve essere nel repository, cioè in `profiles/` con commit e push.
+- `JOOBLE_HOST`: per esempio `it.jooble.org`, se serve.
+
+**3. Prova subito:** scheda **Actions** → *Ricerca quotidiana* → **Run workflow**. Qui puoi anche scegliere un profilo diverso per quella esecuzione.
+
+**Orario:** l'ora si cambia nel file del workflow (`cron: '23 5 * * *'` = 5:23 UTC, cioè le 7:23 d'estate e le 6:23 d'inverno in Italia).
+
+**Da sapere:**
+- Se il repository è **pubblico**, i profili e i log delle esecuzioni sono visibili a tutti. I segreti restano nascosti; i profili contengono solo parole chiave e città, ma il blocco `candidate` creato da `profile new` riporta anche studi e anni di esperienza. Se preferisci, rendi il repository privato: per un uso come questo i minuti gratuiti di GitHub Actions bastano ampiamente.
+- GitHub sospende i workflow pianificati dei repository pubblici senza attività da 60 giorni e manda un'email; basta riattivarlo dalla scheda *Actions*.
+- Lo stesso comando funziona anche sul tuo computer, per esempio con cron: `node src/cli.js search -p <nome> --notify`. Le variabili vanno nel file `.env`; lì Indeed e InfoJobs restano disponibili, a meno di usare `--no-browser`.
+
 ## Fonti incluse
 
 | Fonte | Zona geografica | Full remote | Note |
@@ -274,6 +314,7 @@ Poi registralo in `src/sources/index.js`. Conviene separare una funzione `parse(
 src/
   cli.js           riga di comando
   doctor.js        controllo delle fonti
+  notify.js        riepilogo delle offerte nuove su Telegram ed email
   config.js        lettura e validazione del profilo
   search.js        orchestrazione: fonti → filtro → deduplica → ordinamento
   filter.js        corrispondenza delle parole chiave, punteggio, controllo di zona e remoto
@@ -298,4 +339,4 @@ npm test                         # test con il test runner integrato in Node
 npx prettier --write "src/**/*.js" "test/*.js"
 ```
 
-Per ricevere ogni giorno le offerte nuove puoi pianificare `node src/cli.js search -p <nome> --only-new` con cron (Linux/macOS) o con l'Utilità di pianificazione (Windows).
+Per ricevere ogni giorno le offerte nuove vedi [Ricerca automatica ogni giorno](#ricerca-automatica-ogni-giorno-github-actions).
