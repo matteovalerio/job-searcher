@@ -1,6 +1,7 @@
 import adzuna from './adzuna.js';
 import himalayas from './himalayas.js';
 import indeed from './indeed.js';
+import inpa from './inpa.js';
 import infojobs from './infojobs.js';
 import jobicy from './jobicy.js';
 import jooble from './jooble.js';
@@ -8,6 +9,8 @@ import linkedin from './linkedin.js';
 import remoteok from './remoteok.js';
 import remotive from './remotive.js';
 import weworkremotely from './weworkremotely.js';
+import { createGreenhouseSource, createLeverSource, createSmartRecruitersSource, createWorkdaySource } from './ats.js';
+import { createCareersSource } from './careers.js';
 import { createHtmlSource } from './html.js';
 import { createRssSource } from './rss.js';
 
@@ -25,6 +28,7 @@ export const builtinSources = [
   infojobs,
   adzuna,
   jooble,
+  inpa,
   remotive,
   remoteok,
   jobicy,
@@ -34,14 +38,27 @@ export const builtinSources = [
 
 /** Crea le fonti personalizzate dichiarate nel profilo ("customSources"). */
 export function createCustomSource(def) {
-  if (!def.name || !def.url) throw new Error('Ogni fonte personalizzata richiede "name" e "url"');
+  if (!def.name) throw new Error('Ogni fonte personalizzata richiede "name"');
+  if (['rss', 'html'].includes(def.type) && !def.url) throw new Error(`La fonte "${def.name}" richiede "url"`);
   switch (def.type) {
     case 'rss':
       return createRssSource(def);
     case 'html':
       return createHtmlSource(def);
+    case 'careers':
+      return createCareersSource(def);
+    case 'workday':
+      return createWorkdaySource(def);
+    case 'greenhouse':
+      return createGreenhouseSource(def);
+    case 'lever':
+      return createLeverSource(def);
+    case 'smartrecruiters':
+      return createSmartRecruitersSource(def);
     default:
-      throw new Error(`Tipo di fonte sconosciuto "${def.type}" per "${def.name}" (usa "rss" o "html")`);
+      throw new Error(
+        `Tipo di fonte sconosciuto "${def.type}" per "${def.name}" (tipi disponibili: rss, html, careers, workday, greenhouse, lever, smartrecruiters)`,
+      );
   }
 }
 

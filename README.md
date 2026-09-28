@@ -153,6 +153,7 @@ Per le fonti con chiave API aggiungi anche `ADZUNA_APP_ID`, `ADZUNA_APP_KEY` e `
 | Jobicy | | ✓ | API pubblica |
 | Himalayas | | ✓ | API pubblica |
 | We Work Remotely | | ✓ | feed RSS |
+| inPA | ✓ | | concorsi e avvisi di tutta la pubblica amministrazione (comuni, università, biblioteche, musei…), dal portale inpa.gov.it |
 
 Le fonti che richiedono una chiave vengono **saltate** se la chiave manca: la ricerca funziona lo stesso. Consiglio comunque di registrarti gratis su Adzuna e Jooble, perché sono il modo più affidabile per coprire i portali italiani. Subito blocca le letture automatiche delle sue pagine.
 
@@ -244,6 +245,8 @@ Un profilo è un file JSON dentro `profiles/`. Di solito si crea con `profile ne
 - **esclusi**: stage, tirocini e apprendistato (non adatti a 5 anni di esperienza), ruoli commerciali ("promotore editoriale", "agente", sales), video, SEO/social media, ruoli tecnici;
 - **bonus**: contesto scientifico e accademico (riviste, STM, medicina, università) ed editori scientifici/universitari, internazionali (Elsevier, Springer, Wiley, MDPI, Frontiers…) e del territorio (Piccin, Cedam, CLEUP, Il Poligrafo, Neri Pozza, Marsilio…).
 
+- **fonti in più**: le pagine "lavora con noi" di alcune case editrici di Padova, Vicenza e Venezia (Piccin, CLEUP, libreriauniversitaria.it, Neri Pozza, Marsilio) e le pagine delle offerte di Springer Nature ed Elsevier (vedi sotto, [Siti delle aziende e piattaforme di selezione](#siti-delle-aziende-e-piattaforme-di-selezione)). Gli indirizzi vanno confermati con `doctor -p redattore-padova`.
+
 Le opzioni da riga di comando `-k`, `-l` e `--remote` sostituiscono quelle del profilo. `-x` si aggiunge alle esclusioni del profilo.
 
 ### Perché un'offerta non compare?
@@ -289,6 +292,37 @@ Durante la ricerca, per ogni fonte vedi quante offerte sono state scartate e per
 
 Nell'URL puoi usare `{keyword}`, `{place}` e `{radiusKm}`. Senza `{keyword}` la pagina viene scaricata una sola volta e poi filtrata in locale. Nei selettori, la forma `selettore@attributo` legge un attributo invece del testo. Una fonte con `"remote": true` segna tutte le sue offerte come remote.
 
+### Siti delle aziende e piattaforme di selezione
+
+Molte aziende, soprattutto le case editrici, pubblicano le offerte solo sul proprio sito. Anche queste fonti si aggiungono in `customSources`, senza programmare.
+
+**Pagine "lavora con noi"** (`careers`): basta l'indirizzo del sito. Se non è già la pagina delle offerte, il programma cerca nella home il link "Lavora con noi" / "Careers" e lo segue. Dalla pagina legge le offerte strutturate (JSON-LD) se ci sono, altrimenti titoli e link. Menu e piè di pagina vengono scartati dal filtro sulle parole chiave, che guarda il titolo. `location` è la sede dell'azienda e serve al filtro per zona.
+
+```json
+{
+  "type": "careers",
+  "name": "editori-veneto",
+  "label": "Case editrici del Veneto",
+  "pages": [
+    { "company": "Piccin Nuova Libraria", "url": "https://www.piccin.it", "location": "Padova" },
+    { "company": "Neri Pozza", "url": "https://www.neripozza.it", "location": "Vicenza" }
+  ]
+}
+```
+
+Se una pagina non funziona, le altre vengono lette lo stesso e il riepilogo segnala quella che non va. Se il link "lavora con noi" non viene trovato, metti direttamente l'indirizzo della pagina delle offerte.
+
+**Piattaforme di selezione (ATS).** Le grandi aziende, compresi gli editori scientifici internazionali, usano piattaforme con interfacce pubbliche e stabili. Il nome dell'azienda si legge nell'indirizzo della sua pagina delle offerte.
+
+| Piattaforma | Indirizzo tipico della pagina offerte | Configurazione |
+|---|---|---|
+| Workday | `https://acme.wd3.myworkdayjobs.com/AcmeCareers` | `{ "type": "workday", "name": "acme", "employer": "Acme", "url": "<quell'indirizzo>" }` |
+| Greenhouse | `https://boards.greenhouse.io/acme` | `{ "type": "greenhouse", "name": "acme", "board": "acme" }` |
+| Lever | `https://jobs.lever.co/acme` (o `jobs.eu.lever.co`) | `{ "type": "lever", "name": "acme", "company": "acme" }` (aggiungi `"region": "eu"` per l'indirizzo europeo) |
+| SmartRecruiters | `https://jobs.smartrecruiters.com/Acme` | `{ "type": "smartrecruiters", "name": "acme", "company": "Acme" }` |
+
+Tutte queste fonti funzionano sia per le zone sia per il full remote. Un'offerta remota viene riconosciuta quando la piattaforma lo indica (per esempio "Remote - Europe").
+
 ### 2. Con un modulo JavaScript
 
 Crea un file in `src/sources/`, ispirandoti a `remotive.js`, che è il più semplice:
@@ -324,7 +358,7 @@ src/
   job.js           formato comune di un'offerta
   browser.js       browser vero (Playwright) per Indeed e InfoJobs
   profiles/        archivio dei profili, analisi del CV, procedura guidata, prompt per claude.ai, aree professionali (roles.js)
-  sources/         un modulo per portale + fonti generiche rss/html
+  sources/         un modulo per portale + fonti generiche (rss, html, careers, piattaforme di selezione)
   output/          terminale, HTML, CSV, JSON
 data/comuni.json   comuni italiani con coordinate (rigenerabile con npm run build:comuni)
 test/              test (npm test) con file d'esempio in test/fixtures/

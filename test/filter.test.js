@@ -103,6 +103,9 @@ test('area: filtra per distanza reale dai luoghi cercati (casi reali)', () => {
   assert.equal(at('Montecchio Maggiore, Provincia di Vicenza'), undefined);
   assert.equal(at('Provincia di Vicenza, Veneto'), undefined);
   assert.equal(at('Abano Terme'), undefined);
+  assert.equal(at('Comune di Vicenza'), undefined);
+  assert.equal(at('Università degli Studi di Padova'), undefined);
+  assert.equal(at('Comune di Milano'), REJECT.farAway);
   // Montagnana dista 36 km da Padova ma è in provincia: si tiene
   assert.equal(at('Montagnana (PD)'), undefined);
   assert.equal(at('Treviso, TV'), REJECT.farAway);
