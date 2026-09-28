@@ -86,6 +86,7 @@ export default {
   label: 'Indeed',
   supports: ['area', 'remote'],
   optIn: true,
+  browser: true,
   // Pause lunghe tra le pagine e l'eventuale verifica da risolvere a mano richiedono più tempo.
   timeoutMs: 15 * 60 * 1000,
   // Sostituibili nei test.

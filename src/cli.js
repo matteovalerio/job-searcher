@@ -24,6 +24,7 @@ import { renderJson } from './output/json.js';
 import { c, formatReasons, renderRejected, renderTerminal } from './output/terminal.js';
 import { runSearch } from './search.js';
 import { builtinSources, missingEnv } from './sources/index.js';
+import { notify } from './notify.js';
 import { SeenStore } from './store.js';
 
 const HELP = `
@@ -61,6 +62,8 @@ Opzioni di ricerca:
       --explain            elenca anche le offerte scartate e il motivo
       --limit <n>          massimo di offerte per target mostrate a terminale (default 50)
       --no-report          non generare il report HTML in reports/
+      --notify             manda le offerte nuove su Telegram e/o email (vedi README)
+      --no-browser         salta le fonti che usano il browser (Indeed, InfoJobs)
   -h, --help
 
 Esempi:
@@ -102,6 +105,8 @@ function parseCli(argv) {
       explain: { type: 'boolean' },
       limit: { type: 'string' },
       'no-report': { type: 'boolean' },
+      notify: { type: 'boolean' },
+      'no-browser': { type: 'boolean' },
       cv: { type: 'string' },
       name: { type: 'string' },
       yes: { type: 'boolean', short: 'y' },
@@ -136,6 +141,8 @@ function parseCli(argv) {
     explain: values.explain,
     limit: num(values.limit, 'limit') ?? 50,
     report: !values['no-report'],
+    notify: values.notify,
+    noBrowser: values['no-browser'] || ['1', 'true'].includes(process.env.JOB_SEARCHER_NO_BROWSER ?? ''),
   };
 }
 
@@ -230,7 +237,7 @@ function listSources() {
 
 async function search(opts) {
   const base = opts.profile ? await loadProfile(opts.profile) : {};
-  const profile = resolveProfile(applyOverrides(base, opts), { onlySources: opts.sources });
+  const profile = resolveProfile(applyOverrides(base, opts), { onlySources: opts.sources, noBrowser: opts.noBrowser });
 
   const log = (msg) => process.stderr.write(`${msg}\n`);
   log(c.bold(`Ricerca "${profile.name}"`));
@@ -253,7 +260,21 @@ async function search(opts) {
 
   const store = await SeenStore.forProfile(profile.name).load();
   for (const r of results) store.mark(r.jobs);
-  await store.save();
+  let saveSeen = true;
+  if (opts.notify) {
+    const outcome = await notify(results, {
+      profileName: profile.name,
+      firstRun: store.firstRun,
+      reportUrl: process.env.JOB_SEARCHER_REPORT_URL,
+    });
+    if (outcome.skipped) log(c.yellow(`Notifica non inviata: ${outcome.skipped}`));
+    if (outcome.sent.length) log(c.green(`Notifica inviata (${outcome.sent.join(', ')}): ${outcome.total} offerte`));
+    for (const e of outcome.errors) log(c.red(`Notifica non riuscita: ${e}`));
+    if (outcome.errors.length) process.exitCode = 1;
+    // Se nessun canale ha ricevuto il messaggio, le offerte non vengono segnate come viste: arriveranno la prossima volta.
+    if (outcome.errors.length && !outcome.sent.length) saveSeen = false;
+  }
+  if (saveSeen) await store.save();
   if (opts.onlyNew) for (const r of results) r.jobs = r.jobs.filter((j) => j.isNew);
 
   const format = formatFor(opts);

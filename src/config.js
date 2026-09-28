@@ -74,7 +74,7 @@ export function applyOverrides(profile = {}, opts = {}) {
  * Valida il profilo e calcola, per ogni target, parole chiave e fonti effettive.
  * @returns {{ name: string, targets: ResolvedTarget[] }}
  */
-export function resolveProfile(profile, { onlySources } = {}) {
+export function resolveProfile(profile, { onlySources, noBrowser = false } = {}) {
   const custom = (profile.customSources ?? []).map(createCustomSource);
   const all = [...builtinSources, ...custom];
   const byName = new Map(all.map((s) => [s.name, s]));
@@ -120,6 +120,8 @@ export function resolveProfile(profile, { onlySources } = {}) {
     }
     sources = sources.filter((s) => s.supports.includes(t.type));
     if (onlySources?.length) sources = sources.filter((s) => onlySources.includes(s.name));
+    // Senza browser (es. su GitHub Actions) si saltano le fonti che ne hanno bisogno.
+    if (noBrowser) sources = sources.filter((s) => !s.browser);
 
     return {
       ...t,
