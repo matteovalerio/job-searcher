@@ -53,8 +53,9 @@ test('indeed: pagine successive fino a esaurimento e browser sempre chiuso', asy
     openBrowser: async () => ({
       load: async (url) => {
         loaded.push(new URL(url).searchParams.get('start'));
-        return loaded.length === 1 ? { data: full } : { data: null, html: fixture('indeed.html') };
       },
+      evaluate: async () => (loaded.length === 1 ? full : null),
+      content: async () => fixture('indeed.html'),
       close: async () => {
         closed = true;
       },

@@ -15,15 +15,46 @@ cp .env.example .env   # opzionale: chiavi API gratuite per Adzuna e Jooble
 
 ## Uso rapido
 
-La ricerca "redattore casa editrice, zona Padova/Vicenza oppure full remote in tutto il mondo" è già pronta:
+### 1. Crea un profilo di ricerca
+
+Il profilo dice cosa cercare (ruoli, parole da escludere, lingue) e dove (città con raggio e/o full remote). Il modo più semplice per crearlo è partire dal CV:
 
 ```bash
-npm run search
+node src/cli.js profile new --cv ~/Documenti/cv.pdf
 ```
 
-È come scrivere `node src/cli.js search --profile profiles/redattore-padova.json`. Il comando:
+Il programma legge il CV e ne ricava:
+- aree professionali;
+- anni di esperienza (stage e tirocini esclusi);
+- titoli di studio;
+- lingue e livello;
+- competenze (InDesign, Excel, …);
+- città.
 
-1. interroga i portali per Padova e Vicenza (raggio 35 km) e per le offerte full remote;
+Poi propone le parole chiave e fa qualche domanda per confermarle o correggerle.
+
+- **Senza CV** basta `node src/cli.js profile new`: le domande sono le stesse, senza proposte ricavate dal CV.
+- **Per modificare una lista proposta:** invio conferma, `+parola` aggiunge, `-parola` toglie, oppure scrivi una lista nuova separata da virgole.
+- **Per accettare tutto senza domande:** `--yes` (solo con `--cv`).
+
+I profili sono salvati in `profiles/<nome>.json`, che puoi anche modificare a mano (vedi [Il profilo di ricerca](#il-profilo-di-ricerca)).
+
+```bash
+node src/cli.js profiles                         # elenca i profili salvati
+node src/cli.js profile show redattore-padova    # mostra un profilo
+```
+
+L'analisi del CV funziona a regole, senza inviare il CV a servizi esterni. Riconosce le aree elencate in `src/profiles/roles.js`, a cui se ne possono aggiungere altre. Non legge i CV scansionati come immagine: in quel caso usa la modalità senza CV.
+
+### 2. Cerca
+
+```bash
+node src/cli.js search -p redattore-padova
+```
+
+Con `-p` indichi il nome del profilo (oppure il percorso di un file JSON). `npm run search` lancia il profilo incluso `redattore-padova`; per un altro profilo: `npm run search -- -p <nome>`. Il comando:
+
+1. interroga i portali per le zone del profilo e per le offerte full remote;
 2. tiene solo le offerte pertinenti e dà loro un punteggio (e per ogni fonte ti dice quante ne ha scartate e perché);
 3. unisce i duplicati trovati su portali diversi;
 4. stampa i risultati e salva un report HTML in `reports/`, con un filtro testuale e l'opzione "solo nuove".
@@ -35,13 +66,13 @@ Altri esempi:
 node src/cli.js search -k "redattore,editor,correttore di bozze" -l "Padova,Vicenza" -r 40 --remote
 
 # mostra anche le offerte scartate e il motivo (utile per regolare il profilo)
-node src/cli.js search -p profiles/redattore-padova.json --explain
+node src/cli.js search -p redattore-padova --explain
 
 # solo le offerte mai viste prima, salvate anche in CSV (apribile con Excel)
-node src/cli.js search -p profiles/redattore-padova.json --only-new -o offerte.csv
+node src/cli.js search -p redattore-padova --only-new -o offerte.csv
 
 # solo alcune fonti
-node src/cli.js search -p profiles/redattore-padova.json -s linkedin,remotive
+node src/cli.js search -p redattore-padova -s linkedin,remotive
 
 # elenco delle fonti e del loro stato (es. chiave API mancante)
 node src/cli.js sources
@@ -49,7 +80,7 @@ node src/cli.js sources
 node src/cli.js --help
 ```
 
-Per installare il comando `job-searcher` globalmente, esegui `npm link`.
+Per installare il comando `job-searcher` globalmente, esegui `npm link`. La cartella dei profili si può cambiare con `JOB_SEARCHER_PROFILES`.
 
 ## Fonti incluse
 
@@ -57,6 +88,7 @@ Per installare il comando `job-searcher` globalmente, esegui `npm link`.
 |---|---|---|---|
 | LinkedIn | ✓ | ✓ | pagina pubblica delle offerte, senza login. Spesso ignora la località (i risultati vengono filtrati per distanza) e, se si fanno troppe richieste, risponde con errore 429 |
 | Indeed | ✓ | ✓ | **da attivare** (`"enableSources": ["indeed"]`, già attiva nel profilo incluso). Usa un vero browser: vedi sotto |
+| InfoJobs | ✓ | | **da attivare** (`"enableSources": ["infojobs"]`). Usa un vero browser: vedi sotto |
 | Adzuna | ✓ | ✓ | aggregatore con API gratuita, copre l'Italia (per il remoto cerca offerte italiane che citano il lavoro da remoto). Richiede `ADZUNA_APP_ID` e `ADZUNA_APP_KEY` |
 | Jooble | ✓ | | aggrega molti portali italiani (InfoJobs, Indeed, siti aziendali…). Richiede `JOOBLE_API_KEY`; se dà sempre 0 risultati prova `JOOBLE_HOST=it.jooble.org` |
 | Remotive | | ✓ | API pubblica |
@@ -65,26 +97,39 @@ Per installare il comando `job-searcher` globalmente, esegui `npm link`.
 | Himalayas | | ✓ | API pubblica |
 | We Work Remotely | | ✓ | feed RSS |
 
-Le fonti che richiedono una chiave vengono **saltate** se la chiave manca: la ricerca funziona lo stesso. Consiglio comunque di registrarti gratis su Adzuna e Jooble, perché sono il modo più affidabile per coprire i portali italiani. InfoJobs e Subito bloccano le letture automatiche delle loro pagine.
+Le fonti che richiedono una chiave vengono **saltate** se la chiave manca: la ricerca funziona lo stesso. Consiglio comunque di registrarti gratis su Adzuna e Jooble, perché sono il modo più affidabile per coprire i portali italiani. Subito blocca le letture automatiche delle sue pagine.
 
-### Indeed
+### Indeed e InfoJobs (con il browser)
 
-Indeed non ha un'API pubblica e blocca gli script con Cloudflare, quindi questa fonte apre **Chrome** (tramite Playwright, installato da `npm install`) e legge le pagine dei risultati come farebbe una persona.
+Indeed e InfoJobs non hanno un'API pubblica e bloccano gli script, quindi queste due fonti aprono **Chrome** (tramite Playwright, installato da `npm install`) e leggono le pagine dei risultati come farebbe una persona.
 
-- **Prima esecuzione**: si apre una finestra di Chrome. Se Indeed mostra la verifica "non sono un robot", risolvila a mano nella finestra (hai 2 minuti): il programma poi prosegue da solo. Il profilo del browser è salvato in `.job-searcher/indeed-browser`, quindi le volte successive la verifica di solito non ricompare.
-- **Più lenta delle altre fonti**: tra una pagina e l'altra fa pause di 3–6 secondi, perché Indeed è molto sensibile al traffico automatico.
+- **Prima esecuzione:** si apre una finestra di Chrome. Se il sito mostra la verifica "non sono un robot", risolvila a mano nella finestra (hai 2 minuti) e il programma prosegue da solo. Il profilo del browser è salvato in `.job-searcher/browser`, quindi le volte successive la verifica di solito non ricompare.
+- **Più lente delle altre fonti:** tra una pagina e l'altra fanno pause di 3–6 secondi.
+- **Se un sito cambia struttura** e non viene riconosciuta nessuna offerta, la pagina viene salvata in `.job-searcher/debug/` e il riepilogo lo segnala: quel file serve per aggiornare il riconoscimento.
 - **Variabili d'ambiente** (nel file `.env`):
-  - `INDEED_HEADLESS=1` nasconde la finestra (utile con cron), ma la verifica anti-robot in quel caso non si può risolvere;
-  - `INDEED_BROWSER=msedge` usa Edge invece di Chrome;
-  - `INDEED_BROWSER_PATH=/percorso/del/browser` usa un altro browser basato su Chromium (Brave, Chromium…);
-  - `INDEED_HOST=it.indeed.com` cambia il dominio del paese.
-- **Da sapere**: i termini d'uso di Indeed non consentono la lettura automatica del sito. Per questo la fonte è disattivata di default. Per un uso personale, con poche richieste, il rischio pratico è basso, ma la scelta è tua. Per disattivarla togli `"enableSources": ["indeed"]` dal profilo, oppure usa `-s` per scegliere le fonti.
+  - `JOB_SEARCHER_HEADLESS=1` nasconde la finestra (utile con cron), ma in quel caso la verifica anti-robot non si può risolvere;
+  - `JOB_SEARCHER_BROWSER=msedge` usa Edge invece di Chrome;
+  - `JOB_SEARCHER_BROWSER_PATH=/percorso/del/browser` usa un altro browser basato su Chromium (Brave, Chromium…);
+  - `INDEED_HOST=it.indeed.com` cambia il dominio di Indeed;
+  - `INFOJOBS_SEARCH_URL` cambia l'indirizzo della ricerca su InfoJobs (vedi sotto).
+- **Da sapere:** i termini d'uso di Indeed e InfoJobs non consentono la lettura automatica. Per questo le due fonti sono disattivate di default e si attivano con `"enableSources": ["indeed", "infojobs"]` nel profilo; la procedura guidata lo chiede. Per un uso personale, con poche richieste, il rischio pratico è basso, ma la scelta è tua.
+
+**InfoJobs: indirizzo della ricerca.** Il programma riconosce le offerte in tre modi:
+- dati strutturati JSON-LD;
+- dati della pagina;
+- in mancanza, i link alle schede delle offerte.
+
+L'indirizzo predefinito della ricerca non è stato provato sul sito vero. Se InfoJobs restituisce sempre 0 offerte:
+1. fai una ricerca a mano sul sito, per esempio "redattore" a "Padova";
+2. copia l'indirizzo dalla barra del browser;
+3. sostituisci la parola cercata con `{keyword}` e la città con `{place}`;
+4. mettilo in `INFOJOBS_SEARCH_URL` nel file `.env`, oppure in `"infojobsUrl"` nel target del profilo.
 
 Se un portale non risponde o cambia formato, la ricerca continua con gli altri. Nel riepilogo vedi quali fonti hanno funzionato, quante offerte hanno restituito e quante ne sono state tenute.
 
 ## Il profilo di ricerca
 
-Un profilo è un file JSON dentro `profiles/`. Per crearne un altro, copia `profiles/redattore-padova.json` e modificalo.
+Un profilo è un file JSON dentro `profiles/`. Di solito si crea con `profile new` (vedi sopra) e poi, se serve, si ritocca a mano.
 
 ```jsonc
 {
@@ -208,6 +253,8 @@ src/
   dedupe.js        unione delle offerte doppie
   store.js         memoria delle offerte già viste (.job-searcher/)
   job.js           formato comune di un'offerta
+  browser.js       browser vero (Playwright) per Indeed e InfoJobs
+  profiles/        archivio dei profili, analisi del CV, procedura guidata, aree professionali (roles.js)
   sources/         un modulo per portale + fonti generiche rss/html
   output/          terminale, HTML, CSV, JSON
 data/comuni.json   comuni italiani con coordinate (rigenerabile con npm run build:comuni)
@@ -223,4 +270,4 @@ npm test                         # test con il test runner integrato in Node
 npx prettier --write "src/**/*.js" "test/*.js"
 ```
 
-Per ricevere ogni giorno le offerte nuove puoi pianificare `npm run search -- --only-new` con cron (Linux/macOS) o con l'Utilità di pianificazione (Windows).
+Per ricevere ogni giorno le offerte nuove puoi pianificare `node src/cli.js search -p <nome> --only-new` con cron (Linux/macOS) o con l'Utilità di pianificazione (Windows).

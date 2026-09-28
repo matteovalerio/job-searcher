@@ -1,4 +1,3 @@
-import { readFile } from 'node:fs/promises';
 import { findComune } from './geo.js';
 import { builtinSources, createCustomSource } from './sources/index.js';
 
@@ -34,19 +33,7 @@ const unique = (list) => [
   ),
 ];
 
-export async function loadProfile(file) {
-  let text;
-  try {
-    text = await readFile(file, 'utf8');
-  } catch (err) {
-    throw new Error(`Impossibile leggere il profilo "${file}": ${err.message}`);
-  }
-  try {
-    return JSON.parse(text);
-  } catch (err) {
-    throw new Error(`Il profilo "${file}" non è JSON valido: ${err.message}`);
-  }
-}
+export { loadProfile } from './profiles/store.js';
 
 /** Applica le opzioni da riga di comando sopra (o al posto di) un profilo. */
 export function applyOverrides(profile = {}, opts = {}) {

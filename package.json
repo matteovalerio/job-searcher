@@ -1,23 +1,26 @@
 {
   "name": "job-searcher",
   "version": "0.1.0",
-  "description": "Cerca offerte di lavoro su più portali per parole chiave e area geografica (o full remote).",
+  "description": "Cerca offerte di lavoro su pi\u00f9 portali per parole chiave e area geografica (o full remote).",
   "type": "module",
   "bin": {
     "job-searcher": "src/cli.js"
   },
   "scripts": {
-    "search": "node src/cli.js search --profile profiles/redattore-padova.json",
+    "search": "node src/cli.js search -p redattore-padova",
     "sources": "node src/cli.js sources",
     "test": "node --test",
-    "build:comuni": "node scripts/build-comuni.js"
+    "build:comuni": "node scripts/build-comuni.js",
+    "profile": "node src/cli.js profile",
+    "profiles": "node src/cli.js profiles"
   },
   "engines": {
     "node": ">=20.12"
   },
   "license": "MIT",
   "dependencies": {
-    "cheerio": "^1.2.0"
+    "cheerio": "^1.2.0",
+    "unpdf": "^1.8.1"
   },
   "devDependencies": {
     "italian-cap-comuni-province": "^1.1.1"
