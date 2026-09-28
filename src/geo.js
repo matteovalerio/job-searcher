@@ -60,6 +60,9 @@ export function findComune(name, near = []) {
 
 const PROVINCE_PREFIX = /^(?:provincia di|province of|area metropolitana di|citta metropolitana di|greater)\s+/;
 const AREA_SUFFIX = /\s+(?:e dintorni|area|metropolitan area)$/;
+// Enti con il nome della città: "Comune di Padova", "Università degli Studi di Padova", "ULSS 6 Euganea - Padova".
+const ENTITY_PREFIX =
+  /^(?:comune di|citta di|universita(?: degli studi)? di|ateneo di|politecnico di|azienda ospedaliera(?: universitaria)? di|camera di commercio di)\s+/;
 
 /**
  * Interpreta la località di un'offerta. Restituisce il luogo più preciso riconosciuto:
@@ -78,7 +81,8 @@ export function locate(location, near = []) {
 
   let region = null;
   for (const part of parts) {
-    const comune = findComune(part, near);
+    const comune =
+      findComune(part, near) ?? (ENTITY_PREFIX.test(part) && findComune(part.replace(ENTITY_PREFIX, ''), near));
     if (comune) return comune;
     const isProvince = PROVINCE_PREFIX.test(part);
     const bare = part.replace(PROVINCE_PREFIX, '').replace(AREA_SUFFIX, '');

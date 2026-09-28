@@ -186,5 +186,52 @@
       "linkedinLocations": ["Italia", "Unione Europea"]
     }
   ],
-  "customSources": []
+  "customSources": [
+    {
+      "type": "careers",
+      "name": "editori-veneto",
+      "label": "Case editrici del Veneto",
+      "pages": [
+        {
+          "company": "Piccin Nuova Libraria",
+          "url": "https://www.piccin.it",
+          "location": "Padova"
+        },
+        {
+          "company": "CLEUP",
+          "url": "https://www.cleup.it",
+          "location": "Padova"
+        },
+        {
+          "company": "libreriauniversitaria.it",
+          "url": "https://www.libreriauniversitaria.it",
+          "location": "Padova"
+        },
+        {
+          "company": "Neri Pozza",
+          "url": "https://www.neripozza.it",
+          "location": "Vicenza"
+        },
+        {
+          "company": "Marsilio Editori",
+          "url": "https://www.marsilioeditori.it",
+          "location": "Venezia"
+        }
+      ]
+    },
+    {
+      "type": "workday",
+      "name": "springer-nature",
+      "label": "Springer Nature",
+      "employer": "Springer Nature",
+      "url": "https://springernature.wd3.myworkdayjobs.com/SpringerNature"
+    },
+    {
+      "type": "workday",
+      "name": "elsevier",
+      "label": "Elsevier (RELX)",
+      "employer": "Elsevier",
+      "url": "https://relx.wd3.myworkdayjobs.com/relx"
+    }
+  ]
 }
