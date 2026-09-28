@@ -5,6 +5,7 @@ import path from 'node:path';
 import { createInterface } from 'node:readline/promises';
 import { parseArgs } from 'node:util';
 import { applyOverrides, resolveProfile } from './config.js';
+import { runDoctor } from './doctor.js';
 import { readCvText } from './profiles/cv.js';
 import { buildPrompt, checkImported, extractJson } from './profiles/prompt.js';
 import {
@@ -36,6 +37,7 @@ Uso:
   job-searcher profile import [file]    salva il profilo scritto da Claude (da file o incollato nel terminale)
   job-searcher profile show <nome>      mostra un profilo
   job-searcher sources                  elenca le fonti disponibili
+  job-searcher doctor [-p nome] [-s f]  prova ogni fonte con una ricerca minima e dice cosa funziona
 
 Opzioni di "profile new", "profile prompt" e "profile import":
       --cv <file.pdf>      ricava le informazioni dal CV (con "prompt": include il testo del CV)
@@ -155,6 +157,60 @@ function render(format, results, title) {
       return renderTerminal(results);
     default:
       throw new Error(`Formato sconosciuto "${format}" (usa table, json, csv o html)`);
+  }
+}
+
+async function doctor(opts) {
+  // Fonti da provare: quelle scelte con -s, altrimenti quelle che userebbe il profilo (o tutte quelle base).
+  const profile = opts.profile ? resolveProfile(await loadProfile(opts.profile), { onlySources: opts.sources }) : null;
+  let sources;
+  if (opts.sources?.length) {
+    const all = new Map(
+      [...builtinSources, ...(profile?.targets.flatMap((t) => t.sources) ?? [])].map((s) => [s.name, s]),
+    );
+    const unknown = opts.sources.filter((name) => !all.has(name));
+    if (unknown.length)
+      throw new Error(`Fonte sconosciuta "${unknown.join(', ')}". Disponibili: ${[...all.keys()].join(', ')}`);
+    sources = opts.sources.map((name) => all.get(name));
+  } else if (profile) {
+    sources = [...new Map(profile.targets.flatMap((t) => t.sources).map((s) => [s.name, s])).values()];
+  } else {
+    sources = builtinSources.filter((s) => !s.optIn);
+  }
+
+  const icons = { ok: c.green('✓'), empty: c.yellow('?'), error: c.red('✗'), skipped: c.dim('-') };
+  if (opts.format !== 'json') {
+    console.log(c.bold(`Controllo di ${sources.length} fonti (una ricerca di prova ciascuna)`));
+    if (!opts.sources?.some((name) => builtinSources.find((s) => s.name === name)?.optIn) && !profile) {
+      console.log(c.dim('Indeed e InfoJobs aprono il browser: provale con "doctor -s indeed,infojobs".'));
+    }
+  }
+  const results = await runDoctor(sources, {
+    profile,
+    keyword: opts.keywords?.[0],
+    onResult: (r) => {
+      if (opts.format === 'json') return;
+      const head = `  ${icons[r.status]} ${r.label.padEnd(18)}`;
+      if (r.status === 'ok') {
+        console.log(`${head} ${String(r.count).padStart(3)} offerte  ${c.dim(`${r.query}, ${r.seconds}s`)}`);
+        console.log(c.dim(`     es. ${r.sample[0]}${r.detail ? ` — ${r.detail}` : ''}`));
+      } else if (r.status === 'empty') {
+        console.log(`${head}   0 offerte  ${c.dim(`${r.query}, ${r.seconds}s`)}`);
+      } else {
+        console.log(`${head} ${r.status === 'skipped' ? 'saltata' : 'errore'}: ${r.message}`);
+      }
+      if (r.hint) console.log(`     ${c.yellow(`→ ${r.hint}`)}`);
+      for (const w of r.warnings) console.log(c.dim(`     ! ${w}`));
+    },
+  });
+  if (opts.format === 'json') return console.log(JSON.stringify(results, null, 2));
+
+  const count = (status) => results.filter((r) => r.status === status).length;
+  console.log(
+    `\nRiepilogo: ${count('ok')} funzionanti, ${count('empty')} senza risultati, ${count('error')} in errore, ${count('skipped')} saltate.`,
+  );
+  if (count('empty') || count('error')) {
+    console.log(c.dim('Per sistemare una fonte serve questo riepilogo; con "-f json" lo ottieni completo.'));
   }
 }
 
@@ -319,6 +375,7 @@ async function main() {
   const opts = parseCli(process.argv.slice(2));
   if (opts.help) return console.log(HELP);
   if (opts.command === 'sources') return listSources();
+  if (opts.command === 'doctor') return doctor(opts);
   if (opts.command === 'search') return search(opts);
   if (opts.command === 'profiles') return listSavedProfiles();
   if (opts.command === 'profile') {

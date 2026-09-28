@@ -29,7 +29,9 @@ export async function request(url, { method = 'GET', headers = {}, body, timeout
         await sleep(1500 * (attempt + 1));
         continue;
       }
-      throw new Error(`Richiesta fallita (${url}): ${err.cause?.code ?? err.message}`);
+      const error = new Error(`Richiesta fallita (${url}): ${err.cause?.code ?? err.message}`);
+      error.code = err.cause?.code ?? err.name;
+      throw error;
     }
     if (res.ok) return res;
     if ((res.status === 429 || res.status >= 500) && attempt < retries) {
