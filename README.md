@@ -142,6 +142,16 @@ L'indirizzo predefinito della ricerca non è stato provato sul sito vero. Se Inf
 3. sostituisci la parola cercata con `{keyword}` e la città con `{place}`;
 4. mettilo in `INFOJOBS_SEARCH_URL` nel file `.env`, oppure in `"infojobsUrl"` nel target del profilo.
 
+### Controllare le fonti: `doctor`
+
+```bash
+node src/cli.js doctor                          # fonti base
+node src/cli.js doctor -p redattore-padova      # le fonti e le parole di un profilo
+node src/cli.js doctor -s indeed,infojobs       # solo alcune (queste due aprono il browser)
+```
+
+`doctor` fa una ricerca di prova con una sola parola, un solo luogo e una sola pagina su ogni fonte. Per ciascuna dice se funziona (con un esempio di offerta), se non restituisce nulla, se è in errore o se è stata saltata perché manca una chiave. Quando qualcosa non va aggiunge un suggerimento: chiave sbagliata, sito che blocca le richieste, indirizzo cambiato, troppe richieste. Per LinkedIn prova anche il download dei dettagli. Con `-f json` produce il riepilogo completo, utile per segnalare un problema.
+
 Se un portale non risponde o cambia formato, la ricerca continua con gli altri. Nel riepilogo vedi quali fonti hanno funzionato, quante offerte hanno restituito e quante ne sono state tenute.
 
 ## Il profilo di ricerca
@@ -263,6 +273,7 @@ Poi registralo in `src/sources/index.js`. Conviene separare una funzione `parse(
 ```
 src/
   cli.js           riga di comando
+  doctor.js        controllo delle fonti
   config.js        lettura e validazione del profilo
   search.js        orchestrazione: fonti → filtro → deduplica → ordinamento
   filter.js        corrispondenza delle parole chiave, punteggio, controllo di zona e remoto
