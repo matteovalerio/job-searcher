@@ -1,6 +1,7 @@
 import adzuna from './adzuna.js';
 import himalayas from './himalayas.js';
 import indeed from './indeed.js';
+import infojobs from './infojobs.js';
 import jobicy from './jobicy.js';
 import jooble from './jooble.js';
 import linkedin from './linkedin.js';
@@ -18,7 +19,18 @@ import { createRssSource } from './rss.js';
  *   async enrich(job)   (opz.) completa un'offerta già selezionata (es. con la descrizione)
  * e registrarlo qui sotto.
  */
-export const builtinSources = [linkedin, indeed, adzuna, jooble, remotive, remoteok, jobicy, himalayas, weworkremotely];
+export const builtinSources = [
+  linkedin,
+  indeed,
+  infojobs,
+  adzuna,
+  jooble,
+  remotive,
+  remoteok,
+  jobicy,
+  himalayas,
+  weworkremotely,
+];
 
 /** Crea le fonti personalizzate dichiarate nel profilo ("customSources"). */
 export function createCustomSource(def) {

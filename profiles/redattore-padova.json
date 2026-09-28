@@ -131,7 +131,7 @@
     "loescher",
     "pearson"
   ],
-  "enableSources": ["indeed"],
+  "enableSources": ["indeed", "infojobs"],
   "matchIn": "title",
   "maxAgeDays": 30,
   "targets": [
