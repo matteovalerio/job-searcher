@@ -1,7 +1,8 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { CopyIcon, ExternalIcon, RefreshIcon, SearchIcon, SparkIcon } from './icons.js';
 import JobCard from './JobCard.js';
 
 function formatEvent(e) {
@@ -60,6 +61,15 @@ function MatchPrompt({ profile, onClose }) {
     load(15);
   }, [load]);
 
+  // Esc chiude la finestra; all'apertura il focus va su «Chiudi».
+  const closeRef = useRef(null);
+  useEffect(() => {
+    closeRef.current?.focus();
+    const onKey = (e) => e.key === 'Escape' && onClose();
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
   async function copy() {
     await navigator.clipboard.writeText(state.prompt);
     setCopied(true);
@@ -67,52 +77,52 @@ function MatchPrompt({ profile, onClose }) {
   }
 
   return (
+    // biome-ignore lint/a11y/useKeyWithClickEvents: il clic sullo sfondo è una scorciatoia, Esc è gestito sul documento
     <div
       className="modal"
       role="dialog"
-      aria-label="Prompt per Claude"
+      aria-modal="true"
+      aria-labelledby="match-title"
       onClick={(e) => e.target === e.currentTarget && onClose()}
-      onKeyDown={(e) => e.key === 'Escape' && onClose()}
     >
-      <div className="card stack">
+      <div className="card">
         <div className="row">
-          <h2>Confronta CV e offerte con Claude</h2>
+          <h2 id="match-title">Confronta CV e offerte con Claude</h2>
           <span className="spacer" />
-          <button type="button" className="secondary" onClick={onClose}>
+          <button type="button" className="small" onClick={onClose} ref={closeRef}>
             Chiudi
           </button>
         </div>
         <p className="small muted">
-          Copia il testo, apri una nuova chat su claude.ai, <strong>allega il CV in PDF</strong> e incolla. Usa
-          l&apos;abbonamento, non l&apos;API. Claude ordina le offerte per affinità usando i codici tra parentesi
-          quadre, gli stessi che vedi qui.
+          Copia il testo, apri una nuova chat su claude.ai, <strong>allega il CV in PDF</strong> e incolla. Usa il tuo
+          abbonamento, non l&apos;API. Claude chiama le offerte con i codici tra parentesi quadre, gli stessi che vedi
+          qui.
         </p>
-        <div className="row">
-          <label className="small">
-            Offerte migliori:{' '}
-            <input
-              type="number"
-              min="1"
-              max="40"
-              value={top}
-              onChange={(e) => setTop(Number(e.target.value))}
-              onBlur={() => load(top)}
-              style={{ width: 70 }}
-            />
-          </label>
-          {state.count != null && <span className="muted small">{state.count} offerte nel testo</span>}
+        <div className="row small">
+          <label htmlFor="match-top">Offerte migliori</label>
+          <input
+            id="match-top"
+            type="number"
+            min="1"
+            max="40"
+            value={top}
+            onChange={(e) => setTop(Number(e.target.value))}
+            onBlur={() => load(top)}
+          />
+          {state.count != null && <span className="muted">{state.count} offerte nel testo</span>}
         </div>
         {state.loading && <p className="muted">Preparo il testo…</p>}
         {state.error && <div className="error-box">{state.error}</div>}
         {state.prompt && (
           <>
-            <textarea readOnly rows={14} value={state.prompt} aria-label="Testo per Claude" />
+            <textarea className="code" readOnly rows={14} value={state.prompt} aria-label="Testo per Claude" />
             <div className="row">
-              <button type="button" onClick={copy}>
-                {copied ? 'Copiato ✓' : 'Copia'}
+              <button type="button" className="primary" onClick={copy}>
+                <CopyIcon />
+                {copied ? 'Copiato' : 'Copia'}
               </button>
-              <a className="button secondary" href="https://claude.ai/new" target="_blank" rel="noreferrer">
-                Apri claude.ai
+              <a className="button" href="https://claude.ai/new" target="_blank" rel="noreferrer">
+                Apri claude.ai <ExternalIcon />
               </a>
             </div>
           </>
@@ -122,7 +132,9 @@ function MatchPrompt({ profile, onClose }) {
   );
 }
 
-export default function ResultsView({ profiles, selected, initialResults, statuses }) {
+const PAGE_SIZE = 30;
+
+export default function ResultsView({ profile, initialResults, statuses }) {
   const router = useRouter();
   const [results, setResults] = useState(initialResults);
   const [log, setLog] = useState([]);
@@ -131,11 +143,14 @@ export default function ResultsView({ profiles, selected, initialResults, status
   const [query, setQuery] = useState('');
   const [onlyNew, setOnlyNew] = useState(false);
   const [targetIndex, setTargetIndex] = useState(0);
+  const [shown, setShown] = useState(PAGE_SIZE);
   const [showMatch, setShowMatch] = useState(false);
+  const closeMatch = useCallback(() => setShowMatch(false), []);
 
   async function refresh() {
-    const res = await fetch(`/api/results?profile=${encodeURIComponent(selected)}`);
+    const res = await fetch(`/api/results?profile=${encodeURIComponent(profile.id)}`);
     setResults(await res.json());
+    router.refresh(); // aggiorna i numeri nella barra laterale
   }
 
   async function runSearch() {
@@ -145,7 +160,7 @@ export default function ResultsView({ profiles, selected, initialResults, status
       const res = await fetch('/api/search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ profile: selected, noBrowser }),
+        body: JSON.stringify({ profile: profile.id, noBrowser }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
@@ -190,6 +205,7 @@ export default function ResultsView({ profiles, selected, initialResults, status
           .filter((j) => !['scartata', 'rifiutata'].includes(j.tracking?.status)),
       })),
     }));
+    router.refresh();
   }
 
   const target = results?.targets[targetIndex] ?? results?.targets[0];
@@ -199,96 +215,140 @@ export default function ResultsView({ profiles, selected, initialResults, status
     return target.jobs.filter(
       (j) =>
         (!onlyNew || j.isNew) &&
-        (!q || [j.title, j.company, j.location, j.infoText, j.description].join(' ').toLowerCase().includes(q)),
+        (!q ||
+          [j.title, j.company, j.location, j.infoText, j.description, ...(j.tags ?? [])]
+            .join(' ')
+            .toLowerCase()
+            .includes(q)),
     );
   }, [target, query, onlyNew]);
 
-  const current = profiles.find((p) => p.id === selected);
-  return (
-    <div className="stack">
-      <div className="row">
-        <h1>Offerte</h1>
-        <span className="spacer" />
-        <select aria-label="Profilo" value={selected} onChange={(e) => router.push(`/?profile=${e.target.value}`)}>
-          {profiles.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name ?? p.id}
-            </option>
-          ))}
-        </select>
-      </div>
-      {current?.description && <p className="muted small">{current.description}</p>}
+  // Cambiando zona o filtri si riparte dalle prime offerte.
+  const resetPaging = (fn) => (value) => {
+    fn(value);
+    setShown(PAGE_SIZE);
+  };
 
-      <div className="card stack">
+  return (
+    <div className="page">
+      <header className="page-header">
+        <div className="intro">
+          <h1>Offerte</h1>
+          <p>{profile.description || profile.name || profile.id}</p>
+        </div>
         <div className="row">
-          <button type="button" onClick={runSearch} disabled={running}>
-            {running ? 'Ricerca in corso…' : 'Avvia ricerca'}
-          </button>
-          <label className="small muted">
-            <input type="checkbox" checked={noBrowser} onChange={(e) => setNoBrowser(e.target.checked)} /> senza Indeed
-            e InfoJobs (niente browser)
-          </label>
           {results && (
-            <button type="button" className="secondary" onClick={() => setShowMatch(true)} disabled={running}>
+            <button type="button" onClick={() => setShowMatch(true)} disabled={running}>
+              <SparkIcon />
               Prompt per Claude
             </button>
           )}
-          <span className="spacer" />
-          {results?.date && (
-            <span className="muted small">Ultima ricerca: {new Date(results.date).toLocaleString('it-IT')}</span>
-          )}
+          <button type="button" className="primary" onClick={runSearch} disabled={running}>
+            <RefreshIcon />
+            {running ? 'Ricerca in corso…' : 'Avvia ricerca'}
+          </button>
         </div>
-        {running && (
-          <p className="muted small">Può richiedere qualche minuto: alcune fonti rispondono lentamente di proposito.</p>
-        )}
-        {log.length > 0 && (
-          <div className="log" role="log">
-            {log.map((l, i) => (
-              // biome-ignore lint/suspicious/noArrayIndexKey: il registro cresce solo in coda
-              <div key={i} className={l.cls}>
-                {l.text}
-              </div>
-            ))}
-          </div>
+      </header>
+
+      <div className="statusbar">
+        <label>
+          <input type="checkbox" checked={noBrowser} onChange={(e) => setNoBrowser(e.target.checked)} />
+          Salta Indeed e InfoJobs (niente browser)
+        </label>
+        {running ? (
+          <span>Può richiedere qualche minuto: alcune fonti rispondono lentamente di proposito.</span>
+        ) : (
+          results?.date && (
+            <span className="when">
+              <span className="dot" />
+              Ultima ricerca{' '}
+              <span className="mono">
+                {new Date(results.date).toLocaleString('it-IT', { dateStyle: 'short', timeStyle: 'short' })}
+              </span>
+            </span>
+          )
         )}
       </div>
 
-      {showMatch && <MatchPrompt profile={selected} onClose={() => setShowMatch(false)} />}
+      {log.length > 0 && (
+        <div className="log" role="log">
+          {log.map((l, i) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: il registro cresce solo in coda
+            <div key={i} className={l.cls}>
+              {l.text}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {showMatch && <MatchPrompt profile={profile.id} onClose={closeMatch} />}
 
       {!results ? (
-        <div className="card empty">Nessuna ricerca ancora per questo profilo: premi «Avvia ricerca».</div>
+        <div className="empty">Nessuna ricerca ancora per questo profilo: premi «Avvia ricerca».</div>
       ) : (
         <>
-          <div className="tabs">
-            {results.targets.map((t, i) => (
-              <button
-                type="button"
-                key={t.target.id}
-                className={i === targetIndex ? 'active' : ''}
-                onClick={() => setTargetIndex(i)}
-              >
-                {t.target.label} ({t.jobs.length})
-              </button>
-            ))}
-          </div>
-          <div className="row">
-            <input
-              type="search"
-              placeholder="Filtra per testo…"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-            <label className="small">
-              <input type="checkbox" checked={onlyNew} onChange={(e) => setOnlyNew(e.target.checked)} /> solo nuove
+          <div className="toolbar">
+            <div className="segmented" role="tablist" aria-label="Zona">
+              {results.targets.map((t, i) => (
+                <button
+                  type="button"
+                  role="tab"
+                  key={t.target.id}
+                  aria-selected={t === target}
+                  onClick={() => resetPaging(setTargetIndex)(i)}
+                >
+                  {t.target.label} <span className="pill">{t.jobs.length}</span>
+                </button>
+              ))}
+            </div>
+            <div className="search">
+              <SearchIcon />
+              <label htmlFor="q" className="sr-only">
+                Filtra per testo
+              </label>
+              <input
+                id="q"
+                type="search"
+                placeholder="Filtra per titolo, azienda, parola chiave…"
+                value={query}
+                onChange={(e) => resetPaging(setQuery)(e.target.value)}
+              />
+            </div>
+            <label className="switch">
+              <input type="checkbox" checked={onlyNew} onChange={(e) => resetPaging(setOnlyNew)(e.target.checked)} />
+              Solo nuove
             </label>
             {target?.rejectedCount > 0 && (
-              <span className="muted small">{target.rejectedCount} scartate dai filtri</span>
+              <span className="faint small" title="Offerte trovate ma scartate dalle regole del profilo">
+                {target.rejectedCount} scartate dai filtri
+              </span>
             )}
           </div>
+
           {jobs.length === 0 ? (
-            <div className="card empty">Nessuna offerta con questi filtri.</div>
+            <div className="empty">Nessuna offerta con questi filtri.</div>
           ) : (
-            jobs.map((job) => <JobCard key={job.id} job={job} statuses={statuses} onTracked={onTracked} />)
+            <div className="jobs">
+              <div className="jobs-head overline" aria-hidden="true">
+                <span>Match</span>
+                <span>Offerta</span>
+                <span>Pubblicata</span>
+                <span>Stato</span>
+              </div>
+              {jobs.slice(0, shown).map((job) => (
+                <JobCard key={job.id} job={job} statuses={statuses} onTracked={onTracked} />
+              ))}
+              <div className="jobs-foot">
+                <span>
+                  {Math.min(shown, jobs.length)} di {jobs.length} offerte
+                </span>
+                {shown < jobs.length && (
+                  <button type="button" onClick={() => setShown((n) => n + PAGE_SIZE)}>
+                    Mostra altre
+                  </button>
+                )}
+              </div>
+            </div>
           )}
         </>
       )}

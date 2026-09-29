@@ -112,8 +112,9 @@ npm run dev            # poi apri http://localhost:3000
 
 Per un uso quotidiano è più veloce la versione compilata: `npm run build` una volta, poi `npm start`.
 
-- **Offerte:** scegli il profilo e premi «Avvia ricerca». L'avanzamento di ogni fonte compare mentre arriva. I risultati sono divisi per zona e si filtrano per testo o «solo nuove». Accanto a ogni offerta puoi scegliere uno stato e scrivere una nota; le offerte segnate «non mi interessa» o «non selezionata» spariscono.
-- **Candidature:** le offerte seguite, raggruppate per stato, con la cronologia. Da qui cambi stato e note o smetti di seguirle.
+- **Barra laterale:** le sezioni e il *profilo attivo*, che resta scelto anche chiudendo il browser.
+- **Offerte:** premi «Avvia ricerca». L'avanzamento di ogni fonte compare mentre arriva. I risultati sono divisi per zona e si filtrano per testo o «solo nuove». Accanto a ogni offerta puoi scegliere uno stato e scrivere una nota; le offerte segnate «non mi interessa» o «non selezionata» spariscono.
+- **Candidature:** una bacheca a colonne (da candidarsi, candidato, colloquio, chiuse). Sposti le offerte trascinandole o scegliendo lo stato, scrivi note o smetti di seguirle.
 - **Offerte → «Prompt per Claude»:** prepara il testo per confrontare il CV con le offerte migliori dell'ultima ricerca (vedi [Quali offerte scegliere](#quali-offerte-scegliere-con-laiuto-di-claude)). Lo copi, lo incolli su claude.ai e alleghi il CV.
 - **Profili:** l'elenco dei profili e la modifica del JSON, con gli stessi controlli della ricerca prima di salvare (per esempio i comuni).
 - **Profili → «Nuovo profilo»:** crea un profilo in due modi, come dalla riga di comando.

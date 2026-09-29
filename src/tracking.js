@@ -35,6 +35,7 @@ const snapshot = (job) => ({
   url: job.url,
   source: job.source,
   postedAt: job.postedAt,
+  ...(job.score != null ? { score: job.score } : {}),
   ...(job.info ? { info: job.info } : {}),
 });
 

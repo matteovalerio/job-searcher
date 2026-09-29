@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { activeProfileId } from '../lib/active-profile.js';
 import { core, resultsForPage } from '../lib/core.js';
 import ResultsView from './ResultsView.js';
 
@@ -10,18 +11,21 @@ export default async function Home({ searchParams }) {
   const profiles = await listProfiles();
   if (!profiles.length) {
     return (
-      <div className="card empty">
-        Nessun profilo ancora. <Link href="/profili/nuovo">Crea il primo profilo</Link>.
+      <div className="page">
+        <h1>Offerte</h1>
+        <div className="empty">
+          Nessun profilo ancora. <Link href="/profili/nuovo">Crea il primo profilo</Link> per iniziare a cercare.
+        </div>
       </div>
     );
   }
-  const selected = profiles.find((p) => p.id === params.profile)?.id ?? profiles[0].id;
+  const selected = await activeProfileId(profiles, params.profile);
+  const profile = profiles.find((p) => p.id === selected);
   const results = await resultsForPage(selected);
   return (
     <ResultsView
       key={selected}
-      profiles={profiles.map(({ id, name, description }) => ({ id, name, description }))}
-      selected={selected}
+      profile={{ id: profile.id, name: profile.name, description: profile.description }}
       initialResults={results}
       statuses={STATUSES}
     />

@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { core } from '../../lib/core.js';
+import { PlusIcon } from '../icons.js';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,27 +17,37 @@ export default async function Profili() {
   const { listProfiles } = await core();
   const profiles = await listProfiles();
   return (
-    <div className="stack">
-      <div className="row">
-        <h1>Profili</h1>
-        <span className="spacer" />
-        <Link href="/profili/nuovo" className="button">
+    <div className="page">
+      <header className="page-header">
+        <div className="intro">
+          <h1>Profili</h1>
+          <p>Ogni profilo dice cosa cercare e dove. Quello attivo si sceglie nella barra laterale.</p>
+        </div>
+        <Link href="/profili/nuovo" className="button primary">
+          <PlusIcon />
           Nuovo profilo
         </Link>
-      </div>
-      {profiles.map((p) => (
-        <div key={p.id} className="card">
-          <div className="row">
-            <strong>{p.name ?? p.id}</strong>
-            <code className="muted small">{p.id}</code>
-            <span className="spacer" />
-            <Link href={`/?profile=${p.id}`}>Offerte</Link>
-            <Link href={`/profili/${p.id}`}>Modifica</Link>
+      </header>
+      {!profiles.length && <div className="empty">Nessun profilo ancora: creane uno.</div>}
+      <div className="profile-list">
+        {profiles.map((p) => (
+          <div key={p.id} className="card profile-item">
+            <div className="row">
+              <strong>{p.name ?? p.id}</strong>
+              <code className="faint small">{p.id}</code>
+              <span className="spacer" />
+              <Link href={`/?profile=${p.id}`} className="button small">
+                Offerte
+              </Link>
+              <Link href={`/profili/${p.id}`} className="button small">
+                Modifica
+              </Link>
+            </div>
+            {p.description && <p className="muted small">{p.description}</p>}
+            <p className="faint small">{describeTargets(p.targets)}</p>
           </div>
-          {p.description && <p className="meta">{p.description}</p>}
-          <p className="meta">{describeTargets(p.targets)}</p>
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 }
