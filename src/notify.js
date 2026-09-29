@@ -107,6 +107,11 @@ ${reportUrl ? `<p><a href="${esc(reportUrl)}">Report completo</a></p>` : ''}
     ]),
     ...(reportUrl ? ['', `<a href="${esc(reportUrl)}">Report completo</a>`] : []),
   ];
+  return { subject, text, html, telegram: splitTelegram(lines) };
+}
+
+/** Righe HTML per Telegram, unite in messaggi entro il limite di lunghezza. */
+export function splitTelegram(lines) {
   const telegram = [];
   let current = '';
   for (const line of lines) {
@@ -117,9 +122,10 @@ ${reportUrl ? `<p><a href="${esc(reportUrl)}">Report completo</a></p>` : ''}
     current += (current ? '\n' : '') + line;
   }
   if (current) telegram.push(current);
-
-  return { subject, text, html, telegram };
+  return telegram;
 }
+
+export { esc as escapeHtml };
 
 export async function sendTelegram(messages, env = process.env) {
   for (const text of messages) {
@@ -158,6 +164,16 @@ export async function notify(results, { profileName, firstRun, reportUrl, env = 
   const digest = selectForDigest(results, { firstRun });
   if (!digest.total) return { sent: [], errors: [], skipped: 'nessuna offerta nuova' };
   const message = buildDigest(digest, { profileName, reportUrl });
+  return { ...(await sendMessage(message, { env, senders })), total: digest.total };
+}
+
+/**
+ * Manda un messaggio già pronto ({ subject, text, html, telegram: [..] }) su tutti i canali configurati.
+ * @returns {Promise<{ sent: string[], errors: string[], skipped?: string }>}
+ */
+export async function sendMessage(message, { env = process.env, senders = {} } = {}) {
+  const channels = configuredChannels(env);
+  if (!channels.length) return { sent: [], errors: [], skipped: 'nessun canale configurato' };
   const send = { telegram: sendTelegram, email: sendEmail, ...senders };
   const sent = [];
   const errors = [];
@@ -169,5 +185,5 @@ export async function notify(results, { profileName, firstRun, reportUrl, env = 
       errors.push(`${channel}: ${err.message}`);
     }
   }
-  return { sent, errors, total: digest.total };
+  return { sent, errors };
 }

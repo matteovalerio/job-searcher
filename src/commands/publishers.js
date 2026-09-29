@@ -1,12 +1,22 @@
 import { readFile, writeFile } from 'node:fs/promises';
+import { sendMessage } from '../notify.js';
 import { c } from '../output/terminal.js';
 import { loadProfile } from '../profiles/store.js';
+import { autoPublishers } from '../publishers/auto.js';
 import { candidateText as candidate } from '../publishers/candidate.js';
 import { checkPublisherSite, discoverPublishers } from '../publishers/discover.js';
 import { buildAffinePrompt, buildPublishersPrompt, parsePublisherList } from '../publishers/import.js';
 import { affineSectors, resolveSectors, sectorById, suggestSectors } from '../publishers/sectors.js';
 import { PUBLISHER_KINDS, specialtyLabel } from '../publishers/specialties.js';
 import { needsFollowUp, PUBLISHER_STATUSES, Publishers } from '../publishers/store.js';
+import {
+  buildWatchMessage,
+  describeEvent,
+  loadWatch,
+  saveWatch,
+  watchable,
+  watchPublishers,
+} from '../publishers/watch.js';
 
 export const PUBLISHERS_HELP = `
 Case editrici e aziende affini (candidature spontanee):
@@ -25,6 +35,12 @@ Case editrici e aziende affini (candidature spontanee):
   job-searcher publishers check [id]          visita i siti: specializzazione, email, pagina "lavora con noi"
   job-searcher publishers <id> <stato> [--date 2026-09-29] [--note "…"]
                                               stati: ${Object.keys(PUBLISHER_STATUSES).join(', ')}
+  job-searcher publishers watch [-p profilo] [--notify]
+                                              sorveglia le aziende dell'elenco: nuovi annunci nelle pagine "lavora con
+                                              noi", avvisi di ricerca di personale, pagine comparse o cambiate
+  job-searcher publishers auto -p profilo [--notify] [--every 7]
+                                              giro automatico (GitHub Actions): ogni 7 giorni cerca nuove aziende nella
+                                              zona del profilo (editoria e settori affini), ogni volta le sorveglia
   job-searcher publishers clean               toglie le voci di Wikidata senza sito mai toccate (editori storici)
   job-searcher publishers <id>                scheda completa; "publishers <id> rimuovi" la toglie
 `;
@@ -74,6 +90,70 @@ function printItem(p, { full = false } = {}) {
 async function candidateText(opts) {
   const profile = opts.profile ? await loadProfile(opts.profile) : null;
   return { ...(await candidate(profile)), profile };
+}
+
+function printEvents(events) {
+  for (const e of events) {
+    const mark =
+      e.type === 'annuncio' && e.relevant ? c.green('★') : e.type === 'pagina-cambiata' ? c.dim('·') : c.yellow('!');
+    console.log(`${mark} ${c.bold(e.name)}: ${describeEvent(e)}`);
+    if (e.url) console.log(c.dim(`    ${e.url}`));
+  }
+}
+
+async function sendIfAsked(opts, message) {
+  if (!opts.notify || !message) return;
+  const outcome = await sendMessage(message);
+  if (outcome.skipped) console.error(c.yellow(`Notifica non inviata: ${outcome.skipped}.`));
+  for (const err of outcome.errors) console.error(c.red(`Notifica non inviata (${err})`));
+  if (outcome.sent.length) console.log(c.green(`Notifica inviata: ${outcome.sent.join(', ')}.`));
+}
+
+async function watch(opts, store) {
+  const profile = opts.profile ? await loadProfile(opts.profile) : null;
+  const state = await loadWatch();
+  const count = watchable(store).length;
+  if (!count) return console.log("Nessuna azienda da sorvegliare (servono aziende con un sito nell'elenco).");
+  console.error(c.dim(`Controllo ${count} aziende…`));
+  const firstTime = Object.keys(state.byId).length === 0;
+  const { events, checked, problems } = await watchPublishers(store, state, { profile });
+  await store.save();
+  await saveWatch(state);
+  for (const p of problems) console.error(c.yellow(`! ${p}`));
+  if (!events.length) {
+    console.log(
+      firstTime
+        ? `Controllate ${checked} aziende: istantanee salvate, le novità si vedranno dal prossimo controllo.`
+        : `Controllate ${checked} aziende: nessuna novità.`,
+    );
+    return;
+  }
+  console.log(`Controllate ${checked} aziende, ${events.length} novità:\n`);
+  printEvents(events);
+  await sendIfAsked(opts, buildWatchMessage({ events, profileName: profile?.name }));
+}
+
+async function auto(opts, store) {
+  if (!opts.profile) throw new Error('Indica il profilo: job-searcher publishers auto -p <nome>');
+  const profile = await loadProfile(opts.profile);
+  const state = await loadWatch();
+  const result = await autoPublishers({ profile, store, state, everyDays: opts.every ?? 7 });
+  await store.save();
+  await saveWatch(state);
+  const { config } = result;
+  if (result.discovered) {
+    console.log(
+      `Ricerca aziende (${config.places.join(', ')}, ${config.radiusKm} km, ${config.sectors.length} settori): ${result.added.length} nuove.`,
+    );
+  } else {
+    console.log(
+      c.dim(`Ricerca aziende: fatta il ${state.lastDiscovery.slice(0, 10)}, la prossima tra qualche giorno.`),
+    );
+  }
+  for (const p of result.problems) console.error(c.yellow(`! ${p}`));
+  console.log(`Sorveglianza: ${result.checked} aziende controllate, ${result.events.length} novità.`);
+  printEvents(result.events);
+  await sendIfAsked(opts, buildWatchMessage({ events: result.events, added: result.added, profileName: profile.name }));
 }
 
 async function sectors(opts) {
@@ -252,6 +332,8 @@ export async function publishersCommand(opts) {
   if (first === 'check' || first === 'controlla') return check(second, store);
   if (first === 'prompt') return prompt(opts, store);
   if (first === 'sectors' || first === 'settori') return sectors(opts);
+  if (first === 'watch' || first === 'sorveglia') return watch(opts, store);
+  if (first === 'auto') return auto(opts, store);
   if (first === 'clean' || first === 'pulisci') {
     const stale = store.staleFromWikidata();
     for (const p of stale) store.remove(p.id);
