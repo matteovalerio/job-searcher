@@ -1,13 +1,14 @@
 import { existsSync } from 'node:fs';
 import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { homeDir } from '../paths.js';
 
 /*
  * Archivio dei profili di ricerca: file JSON nella cartella profiles/ (o in JOB_SEARCHER_PROFILES).
  * Un profilo si indica per nome ("redattore-padova") oppure con il percorso di un file.
  */
 
-export const profilesDir = () => process.env.JOB_SEARCHER_PROFILES || 'profiles';
+export const profilesDir = () => path.resolve(homeDir(), process.env.JOB_SEARCHER_PROFILES || 'profiles');
 
 /** "Redattrice Padova!" -> "redattrice-padova" */
 export function slugify(name) {

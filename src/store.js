@@ -1,5 +1,6 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { stateDir } from './paths.js';
 
 /**
  * Memoria delle offerte già viste tra un'esecuzione e l'altra, per evidenziare le nuove.
@@ -11,7 +12,7 @@ export class SeenStore {
     this.seen = {};
   }
 
-  static forProfile(profileName, dir = '.job-searcher') {
+  static forProfile(profileName, dir = stateDir()) {
     const slug =
       profileName
         .toLowerCase()
