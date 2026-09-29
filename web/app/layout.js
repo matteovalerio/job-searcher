@@ -1,6 +1,7 @@
 import './globals.css';
 import { activeProfileId, PROFILE_COOKIE } from '../lib/active-profile.js';
 import { core, resultsForPage } from '../lib/core.js';
+import { BusyProvider } from './Busy.js';
 import Sidebar from './Sidebar.js';
 
 export const metadata = {
@@ -39,10 +40,10 @@ export default async function RootLayout({ children }) {
         />
       </head>
       <body>
-        <div className="shell">
+        <BusyProvider>
           <Sidebar {...data} cookieName={PROFILE_COOKIE} />
           <main className="content">{children}</main>
-        </div>
+        </BusyProvider>
       </body>
     </html>
   );

@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useBusy } from './Busy.js';
 import { CopyIcon, ExternalIcon, RefreshIcon, SearchIcon, SparkIcon } from './icons.js';
 import JobCard from './JobCard.js';
 import Modal from './Modal.js';
@@ -125,6 +126,12 @@ export default function ResultsView({ profile, initialResults, statuses }) {
   const closeMatch = useCallback(() => setShowMatch(false), []);
   const [tailor, setTailor] = useState(null);
   const closeTailor = useCallback(() => setTailor(null), []);
+
+  // Durante la ricerca la pagina è bloccata: l'ultima riga dell'avanzamento compare sotto la rotella.
+  const { setDetail } = useBusy();
+  useEffect(() => {
+    if (running) setDetail(log.at(-1)?.text);
+  }, [running, log, setDetail]);
 
   async function refresh() {
     const res = await fetch(`/api/results?profile=${encodeURIComponent(profile.id)}`);
