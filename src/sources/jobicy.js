@@ -1,6 +1,7 @@
 import { getJson } from '../http.js';
 import { makeJob } from '../job.js';
 import { eachQuery } from './queries.js';
+import { expectList } from './shape.js';
 
 const URL = 'https://jobicy.com/api/v2/remote-jobs';
 
@@ -28,7 +29,8 @@ export default {
   async search({ keywords, warn }) {
     return eachQuery(
       keywords,
-      async (keyword) => parse(await getJson(`${URL}?${new URLSearchParams({ count: '100', tag: keyword })}`)),
+      async (keyword) =>
+        parse(expectList(await getJson(`${URL}?${new URLSearchParams({ count: '100', tag: keyword })}`), ['jobs'])),
       warn,
     );
   },

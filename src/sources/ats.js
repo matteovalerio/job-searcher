@@ -1,6 +1,7 @@
 import { getJson, request } from '../http.js';
 import { makeJob } from '../job.js';
 import { eachQuery } from './queries.js';
+import { expectList } from './shape.js';
 
 /*
  * Piattaforme di selezione del personale (ATS) usate da molte aziende, anche dai grandi editori
@@ -71,7 +72,11 @@ export function createWorkdaySource({ name, label, url, employer, supports = ['a
             headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
             body: JSON.stringify({ appliedFacets: {}, limit: 20, offset: 0, searchText: keyword }),
           });
-          return parseWorkday(await res.json(), { base, employer: employer ?? label ?? name, source: name });
+          return parseWorkday(expectList(await res.json(), ['jobPostings']), {
+            base,
+            employer: employer ?? label ?? name,
+            source: name,
+          });
         },
         warn,
       );
@@ -156,7 +161,10 @@ export function createGreenhouseSource({ name, label, board, employer, supports 
     supports,
     fetchAll: async () =>
       parseGreenhouse(
-        await getJson(`https://boards-api.greenhouse.io/v1/boards/${encodeURIComponent(board)}/jobs?content=true`),
+        expectList(
+          await getJson(`https://boards-api.greenhouse.io/v1/boards/${encodeURIComponent(board)}/jobs?content=true`),
+          ['jobs'],
+        ),
         {
           employer: employer ?? label ?? name,
           source: name,
@@ -173,10 +181,13 @@ export function createLeverSource({ name, label, company, employer, region, supp
     label,
     supports,
     fetchAll: async () =>
-      parseLever(await getJson(`https://${host}/v0/postings/${encodeURIComponent(company)}?mode=json`), {
-        employer: employer ?? label ?? name,
-        source: name,
-      }),
+      parseLever(
+        expectList(await getJson(`https://${host}/v0/postings/${encodeURIComponent(company)}?mode=json`), ['']),
+        {
+          employer: employer ?? label ?? name,
+          source: name,
+        },
+      ),
   });
 }
 
@@ -191,8 +202,11 @@ export function createSmartRecruitersSource({ name, label, company, employer, su
         keywords,
         async (keyword) =>
           parseSmartRecruiters(
-            await getJson(
-              `https://api.smartrecruiters.com/v1/companies/${encodeURIComponent(company)}/postings?${new URLSearchParams({ q: keyword, limit: '100' })}`,
+            expectList(
+              await getJson(
+                `https://api.smartrecruiters.com/v1/companies/${encodeURIComponent(company)}/postings?${new URLSearchParams({ q: keyword, limit: '100' })}`,
+              ),
+              ['content'],
             ),
             { company, employer: employer ?? label ?? name, source: name },
           ),

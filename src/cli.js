@@ -199,13 +199,17 @@ async function doctor(opts) {
       if (opts.format === 'json') return;
       const head = `  ${icons[r.status]} ${r.label.padEnd(18)}`;
       if (r.status === 'ok') {
-        console.log(`${head} ${String(r.count).padStart(3)} offerte  ${c.dim(`${r.query}, ${r.seconds}s`)}`);
+        const relevant = r.relevant === undefined ? '' : `, ${r.relevant} pertinenti al profilo`;
+        console.log(
+          `${head} ${String(r.count).padStart(3)} risultati${relevant}  ${c.dim(`${r.query}, ${r.seconds}s`)}`,
+        );
         console.log(c.dim(`     es. ${r.sample[0]}${r.detail ? ` — ${r.detail}` : ''}`));
       } else if (r.status === 'empty') {
-        console.log(`${head}   0 offerte  ${c.dim(`${r.query}, ${r.seconds}s`)}`);
+        console.log(`${head}   0 risultati  ${c.dim(`${r.query}, ${r.seconds}s`)}`);
       } else {
         console.log(`${head} ${r.status === 'skipped' ? 'saltata' : 'errore'}: ${r.message}`);
       }
+      for (const page of r.pages ?? []) console.log(c.dim(`     pagina: ${page}`));
       if (r.hint) console.log(`     ${c.yellow(`→ ${r.hint}`)}`);
       for (const w of r.warnings) console.log(c.dim(`     ! ${w}`));
     },

@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
@@ -26,21 +27,67 @@ async function loadPlaywright() {
   }
 }
 
-/** Avvia il browser scelto, altrimenti Chrome, altrimenti il Chromium di Playwright. */
+// Browser basati su Chromium installati di solito, oltre a Chrome ed Edge (che Playwright trova da solo).
+const KNOWN_BROWSERS = {
+  linux: [
+    '/usr/bin/google-chrome-stable',
+    '/usr/bin/google-chrome',
+    '/usr/bin/chromium',
+    '/usr/bin/chromium-browser',
+    '/snap/bin/chromium',
+    '/usr/bin/brave-browser',
+    '/usr/bin/brave',
+    '/usr/bin/microsoft-edge',
+    '/usr/bin/vivaldi',
+    '/usr/bin/opera',
+  ],
+  darwin: [
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+    '/Applications/Chromium.app/Contents/MacOS/Chromium',
+    '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser',
+    '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
+    '/Applications/Vivaldi.app/Contents/MacOS/Vivaldi',
+  ],
+  win32: [
+    `${process.env.LOCALAPPDATA}\\BraveSoftware\\Brave-Browser\\Application\\brave.exe`,
+    `${process.env.PROGRAMFILES}\\BraveSoftware\\Brave-Browser\\Application\\brave.exe`,
+    `${process.env.LOCALAPPDATA}\\Chromium\\Application\\chrome.exe`,
+    `${process.env.LOCALAPPDATA}\\Vivaldi\\Application\\vivaldi.exe`,
+  ],
+};
+
+/** Percorsi dei browser trovati su questo computer. */
+export function installedBrowsers(platform = process.platform, exists = existsSync) {
+  return (KNOWN_BROWSERS[platform] ?? []).filter((p) => !p.includes('undefined') && exists(p));
+}
+
+/**
+ * Avvia il browser: quello indicato, altrimenti Chrome, Edge, un altro browser Chromium installato
+ * (Chromium, Brave, Vivaldi…) e infine il Chromium scaricato con "npx playwright-core install chromium".
+ */
 async function launch(chromium, userDataDir, options) {
   if (env('BROWSER_PATH')) {
     return chromium.launchPersistentContext(userDataDir, { ...options, executablePath: env('BROWSER_PATH') });
   }
-  try {
-    return await chromium.launchPersistentContext(userDataDir, { ...options, channel: env('BROWSER') || 'chrome' });
-  } catch (err) {
+  const attempts = [
+    ...(env('BROWSER') ? [{ channel: env('BROWSER') }] : [{ channel: 'chrome' }, { channel: 'msedge' }]),
+    ...installedBrowsers().map((executablePath) => ({ executablePath })),
+    {}, // Chromium di Playwright
+  ];
+  // Errori dei browser trovati sul computer ma che non partono: aiutano a capire il problema.
+  const failures = [];
+  for (const attempt of attempts) {
     try {
-      // Nessun Chrome installato: prova il Chromium di Playwright (npx playwright install chromium).
-      return await chromium.launchPersistentContext(userDataDir, options);
-    } catch {
-      throw new Error(`impossibile avviare il browser (${err.message.split('\n')[0]}). Installa Chrome.`);
+      return await chromium.launchPersistentContext(userDataDir, { ...options, ...attempt });
+    } catch (err) {
+      if (attempt.executablePath) failures.push(`${attempt.executablePath}: ${err.message.split('\n')[0]}`);
     }
   }
+  throw new Error(
+    (failures.length ? `nessun browser è partito (${failures.join('; ')}). ` : 'nessun browser trovato. ') +
+      'Installa Chrome o Chromium, oppure scarica il browser di Playwright con "npm run browser:install", ' +
+      'oppure indica il percorso con JOB_SEARCHER_BROWSER_PATH',
+  );
 }
 
 /**

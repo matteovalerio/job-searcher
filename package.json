@@ -12,7 +12,8 @@
     "test": "node --test",
     "build:comuni": "node scripts/build-comuni.js",
     "profile": "node src/cli.js profile",
-    "profiles": "node src/cli.js profiles"
+    "profiles": "node src/cli.js profiles",
+    "browser:install": "playwright-core install chromium"
   },
   "engines": {
     "node": ">=20.12"

@@ -1,5 +1,6 @@
 import { getJson } from '../http.js';
 import { makeJob } from '../job.js';
+import { expectList } from './shape.js';
 
 const URL = 'https://remoteok.com/api';
 
@@ -28,6 +29,6 @@ export default {
   label: 'Remote OK',
   supports: ['remote'],
   async search() {
-    return parse(await getJson(URL));
+    return parse(expectList(await getJson(URL), ['']));
   },
 };

@@ -1,6 +1,7 @@
 import { request } from '../http.js';
 import { makeJob } from '../job.js';
 import { eachQuery } from './queries.js';
+import { expectList } from './shape.js';
 
 /*
  * inPA (inpa.gov.it): il portale dove per legge vengono pubblicati concorsi e avvisi di tutta la pubblica
@@ -63,7 +64,7 @@ export default {
           headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
           body: JSON.stringify({ text: keyword, status: ['OPEN'] }),
         });
-        return parse(await res.json());
+        return parse(expectList(await res.json(), ['content', 'items', '']));
       },
       warn,
     );

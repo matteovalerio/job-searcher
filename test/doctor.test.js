@@ -75,3 +75,52 @@ test('doctor: tempo scaduto e suggerimenti', async () => {
   assert.match(hintFor(new HttpError(429, 'u'), {}), /troppe richieste/);
   assert.match(hintFor(Object.assign(new Error('x'), { code: 'ENOTFOUND' }), {}), /rete/);
 });
+
+test('doctor: con un profilo conta le offerte pertinenti e, se in zona non trova nulla, riprova col remoto', async () => {
+  const { resolveProfile } = await import('../src/config.js');
+  const profile = resolveProfile({
+    keywords: ['editor', 'redattore'],
+    targets: [
+      { type: 'area', place: 'Padova', searchKeywords: ['redattore'] },
+      { type: 'remote', searchKeywords: ['editor'] },
+    ],
+  });
+  const calls = [];
+  const international = source('ats', {
+    search: async ({ keywords, target }) => {
+      calls.push([keywords[0], target.type]);
+      if (target.type === 'area') return []; // "redattore" su un sito in inglese
+      return [
+        makeJob('ats', { title: 'Copy Editor', location: 'Remote - Europe', remote: true }),
+        makeJob('ats', { title: 'Sales Manager', location: 'Remote - Europe', remote: true }),
+      ];
+    },
+  });
+  const pages = source('editori', {
+    resolved: new Map([['Piccin', { url: 'https://piccin.it/lavora-con-noi', via: 'mappa del sito' }]]),
+    search: async () => [
+      makeJob('editori', { title: 'Catalogo' }),
+      makeJob('editori', { title: 'Redattore', location: 'Padova' }),
+    ],
+  });
+  const [ats, careers] = await runDoctor([international, pages], { profile });
+  assert.deepEqual(calls, [
+    ['redattore', 'area'],
+    ['editor', 'remote'],
+  ]);
+  assert.equal(ats.query, '"redattore" a Padova, poi "editor" full remote');
+  assert.deepEqual([ats.count, ats.relevant, ats.sample[0]], [2, 1, 'Copy Editor · Remote - Europe']);
+  assert.deepEqual([careers.count, careers.relevant, careers.sample[0]], [2, 1, 'Redattore · Padova']);
+  assert.deepEqual(careers.pages, ['Piccin: https://piccin.it/lavora-con-noi (mappa del sito)']);
+});
+
+test('formato della risposta: lista vuota ok, lista mancante è un errore chiaro', async () => {
+  const { expectList } = await import('../src/sources/shape.js');
+  assert.deepEqual(expectList({ jobs: [] }, ['jobs']), { jobs: [] });
+  assert.deepEqual(expectList([], ['']), []);
+  assert.throws(
+    () => expectList({ totalCount: 0, message: 'Invalid key' }, ['jobs']),
+    /formato inatteso \(manca "jobs"; campi presenti: totalCount, message\)\. Messaggio del servizio: "Invalid key"/,
+  );
+  assert.match(hintFor(new Error('risposta in un formato inatteso (manca "jobs")'), {}), /cambiato formato/);
+});

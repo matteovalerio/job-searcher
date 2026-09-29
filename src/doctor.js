@@ -1,3 +1,4 @@
+import { buildMatcher, evaluate } from './filter.js';
 import { findComune } from './geo.js';
 import { missingEnv } from './sources/index.js';
 
@@ -12,7 +13,14 @@ const TIMEOUT_MS = 90000;
 /** Suggerimento leggibile per un errore di una fonte. */
 export function hintFor(err, source) {
   const status = err.status;
-  if (/playwright|browser|Chrome/i.test(err.message)) return 'installa Chrome oppure imposta JOB_SEARCHER_BROWSER_PATH';
+  if (/nessun browser|playwright|browser/i.test(err.message)) {
+    return 'installa Chrome o Chromium, oppure esegui "npm run browser:install" per scaricare il browser di Playwright';
+  }
+  if (/formato inatteso/.test(err.message))
+    return 'il servizio ha cambiato formato: la fonte va aggiornata (manda questo messaggio)';
+  if (/nessuna pagina "lavora con noi"/.test(err.message))
+    return 'nessuna pagina trovata: vedi il messaggio per le alternative';
+  if (/Certificato del sito incompleto/.test(err.message)) return 'il sito ha un certificato HTTPS configurato male';
   if (/anti-robot/i.test(err.message)) return 'lancia senza JOB_SEARCHER_HEADLESS e risolvi la verifica nella finestra';
   if ((status === 401 || status === 403) && source.env?.length)
     return `controlla ${source.env.join(' e ')} nel file .env`;
@@ -28,10 +36,12 @@ export function hintFor(err, source) {
   return '';
 }
 
-/** Target di prova per una fonte: il primo target compatibile del profilo, ridotto al minimo. */
-function probeTarget(source, profile) {
-  const fromProfile = profile?.targets.find((t) => source.supports.includes(t.type));
-  const type = fromProfile?.type ?? (source.supports.includes('area') ? 'area' : 'remote');
+/** Target di prova per una fonte: un target compatibile del profilo (il primo, o del tipo indicato), ridotto al minimo. */
+function probeTarget(source, profile, wantedType) {
+  const fromProfile = profile?.targets.find(
+    (t) => source.supports.includes(t.type) && (!wantedType || t.type === wantedType),
+  );
+  const type = fromProfile?.type ?? wantedType ?? (source.supports.includes('area') ? 'area' : 'remote');
   if (type === 'remote') {
     return {
       ...(fromProfile ?? { type: 'remote', id: 'remote', label: 'Full remote' }),
@@ -62,14 +72,34 @@ function withTimeout(promise, ms) {
  * @param {{ profile?: object, keyword?: string, onResult?: (r: object) => void, timeoutMs?: number }} [options]
  * @returns {Promise<object[]>} un risultato per fonte: { source, status: 'ok'|'empty'|'error'|'skipped', ... }
  */
+/** Una ricerca di prova su un target; con un profilo conta anche le offerte che il filtro terrebbe. */
+async function probe(source, target, { word, profile, timeoutMs, warnings }) {
+  const jobs = await withTimeout(
+    source.search({ keywords: [word], target, maxAgeDays: 30, maxPages: 1, warn: (w) => warnings.push(w) }),
+    timeoutMs,
+  );
+  const profileTarget = profile?.targets.find((t) => t.id === target.id);
+  const relevant = profileTarget ? jobs.filter((j) => !evaluate(j, buildMatcher(profileTarget)).rejected) : null;
+  return { jobs, relevant };
+}
+
+const describe = (j) => [j.title, j.company, j.location].filter(Boolean).join(' · ');
+
+/**
+ * Controlla le fonti indicate.
+ * @param {object[]} sources
+ * @param {{ profile?: object, keyword?: string, onResult?: (r: object) => void, timeoutMs?: number }} [options]
+ * @returns {Promise<object[]>} un risultato per fonte: { source, status: 'ok'|'empty'|'error'|'skipped', ... }
+ */
 export async function runDoctor(sources, { profile, keyword, onResult = () => {}, timeoutMs = TIMEOUT_MS } = {}) {
   const results = [];
   for (const source of sources) {
     const result = { source: source.name, label: source.label };
     const missing = missingEnv(source);
-    const target = probeTarget(source, profile);
-    const word = keyword ?? target.queryKeywords?.[0] ?? profile?.targets[0]?.queryKeywords?.[0] ?? 'editor';
-    result.query = `"${word}" ${target.type === 'remote' ? 'full remote' : `a ${target.place}`}`;
+    let target = probeTarget(source, profile);
+    const wordFor = (t) => keyword ?? t.queryKeywords?.[0] ?? profile?.targets[0]?.queryKeywords?.[0] ?? 'editor';
+    const queryFor = (t) => `"${wordFor(t)}" ${t.type === 'remote' ? 'full remote' : `a ${t.place}`}`;
+    result.query = queryFor(target);
     const started = Date.now();
     const warnings = [];
     try {
@@ -80,15 +110,29 @@ export async function runDoctor(sources, { profile, keyword, onResult = () => {}
           hint: 'vedi .env.example',
         });
       } else {
-        const jobs = await withTimeout(
-          source.search({ keywords: [word], target, maxAgeDays: 30, maxPages: 1, warn: (w) => warnings.push(w) }),
-          timeoutMs,
-        );
+        let { jobs, relevant } = await probe(source, target, { word: wordFor(target), profile, timeoutMs, warnings });
+        // Nessun risultato cercando in zona (spesso parole italiane su un sito internazionale): si riprova col remoto.
+        const remote = profile && !jobs.length && target.type === 'area' && probeTarget(source, profile, 'remote');
+        if (
+          remote?.type === 'remote' &&
+          profile.targets.some((t) => t.type === 'remote') &&
+          source.supports.includes('remote')
+        ) {
+          target = remote;
+          result.query += `, poi ${queryFor(target)}`;
+          ({ jobs, relevant } = await probe(source, target, { word: wordFor(target), profile, timeoutMs, warnings }));
+        }
         result.count = jobs.length;
-        result.sample = jobs.slice(0, 2).map((j) => [j.title, j.company, j.location].filter(Boolean).join(' · '));
+        if (relevant) result.relevant = relevant.length;
+        // Come esempio meglio un'offerta pertinente al profilo che una voce qualsiasi.
+        result.sample = [...(relevant ?? []), ...jobs].slice(0, 2).map(describe);
         result.status = jobs.length ? 'ok' : 'empty';
-        if (!jobs.length)
+        if (!jobs.length) {
           result.hint = 'nessuna offerta: se succede con parole diverse, il sito potrebbe essere cambiato';
+        }
+        if (source.resolved?.size) {
+          result.pages = [...source.resolved].map(([company, r]) => `${company}: ${r.url} (${r.via})`);
+        }
         // Le fonti che scaricano i dettagli (LinkedIn) vanno provate anche su quello.
         if (jobs.length && source.enrich) {
           const detailed = await withTimeout(source.enrich(jobs[0]), timeoutMs).catch((err) => err);

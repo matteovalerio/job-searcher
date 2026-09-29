@@ -1,5 +1,6 @@
 import { getJson } from '../http.js';
 import { makeJob } from '../job.js';
+import { expectList } from './shape.js';
 
 // Remotive chiede poche richieste al giorno: scarichiamo tutto una volta e filtriamo in locale.
 const URL = 'https://remotive.com/api/remote-jobs';
@@ -26,6 +27,6 @@ export default {
   label: 'Remotive',
   supports: ['remote'],
   async search() {
-    return parse(await getJson(URL));
+    return parse(expectList(await getJson(URL), ['jobs']));
   },
 };
