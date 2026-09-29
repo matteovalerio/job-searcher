@@ -289,13 +289,13 @@ function ClaudeTab({ prompt, onImported, job }) {
 }
 
 /** Stato della candidatura: invio, solleciti programmati, esito. */
-function StatusBar({ item, statuses, onChange }) {
+function StatusBar({ item, job, statuses, onChange }) {
   const [sentAt, setSentAt] = useState(new Date().toISOString().slice(0, 10));
   const [error, setError] = useState('');
   async function update(body) {
     setError('');
     try {
-      onChange(await send('/api/tracking', 'POST', { job: item.job, ...body }));
+      onChange(await send('/api/tracking', 'POST', { job: item?.job ?? job, ...body }));
     } catch (err) {
       setError(err.message);
     }
@@ -304,11 +304,24 @@ function StatusBar({ item, statuses, onChange }) {
   return (
     <div className="kit-status">
       <span className="small">
-        Stato: <strong>{statuses[item.status] ?? item.status}</strong>
-        {item.sentAt && item.status === 'candidatura' && <span className="muted"> dal {shortDate(item.sentAt)}</span>}
+        {item ? (
+          <>
+            Stato: <strong>{statuses[item.status] ?? item.status}</strong>
+            {item.sentAt && item.status === 'candidatura' && (
+              <span className="muted"> dal {shortDate(item.sentAt)}</span>
+            )}
+          </>
+        ) : (
+          <span className="muted">Non stai seguendo questa offerta</span>
+        )}
       </span>
-      {item.status !== 'candidatura' && !['colloquio', 'offerta', 'rifiutata', 'nessuna'].includes(item.status) && (
+      {item?.status !== 'candidatura' && !['colloquio', 'offerta', 'rifiutata', 'nessuna'].includes(item?.status) && (
         <span className="row" style={{ gap: 8 }}>
+          {!item && (
+            <button type="button" className="small ghost" onClick={() => update({ status: 'interessante' })}>
+              Mi interessa
+            </button>
+          )}
           <input
             type="date"
             value={sentAt}
@@ -322,7 +335,7 @@ function StatusBar({ item, statuses, onChange }) {
           </button>
         </span>
       )}
-      {item.status === 'candidatura' && (
+      {item?.status === 'candidatura' && (
         <span className="row" style={{ gap: 8 }}>
           {item.followUpAt ? (
             <span className={`small ${item.followUpAt <= today ? 'due' : 'muted'}`}>
@@ -443,7 +456,7 @@ export default function KitModal({ job, title, onClose, onTracked }) {
               }}
             />
           )}
-          {item && statuses && <StatusBar item={item} statuses={statuses} onChange={onChange} />}
+          {statuses && <StatusBar item={item} job={kit.job} statuses={statuses} onChange={onChange} />}
         </>
       )}
     </Modal>

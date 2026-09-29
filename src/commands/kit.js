@@ -8,12 +8,13 @@ import {
   findCompany,
   importKitAnswer,
 } from '../kit.js';
+import { loadTrackingAndKits } from '../kit-store.js';
 import { c } from '../output/terminal.js';
 import { readCvText } from '../profiles/cv.js';
 import { checkPublisherSite } from '../publishers/discover.js';
 import { Publishers } from '../publishers/store.js';
 import { loadCvText } from '../tailor.js';
-import { findInLastResults, Tracking } from '../tracking.js';
+import { findInLastResults, shortId } from '../tracking.js';
 
 export const KIT_HELP = `
 Kit di candidatura per un'offerta (il codice è quello tra [ ] nei risultati):
@@ -35,19 +36,21 @@ async function readInput(file) {
   return text;
 }
 
-/** L'offerta: negli ultimi risultati o tra quelle seguite (con il testo salvato nel kit). */
-async function findJob(ref, tracking) {
+/** L'offerta: negli ultimi risultati, tra quelle seguite o tra i kit già fatti (con il testo salvato). */
+async function findJob(ref, tracking, kits) {
   const item = tracking.find(ref);
-  const job = (await findInLastResults(ref)) ?? (item ? { ...item.job, description: item.kit?.offerText ?? '' } : null);
+  const saved = kits.find(ref);
+  const known = item?.job ?? saved?.job;
+  const job = (await findInLastResults(ref)) ?? (known ? { ...known, description: saved?.offerText ?? '' } : null);
   if (!job) {
     throw new Error(`Offerta "${ref}" non trovata: rilancia la ricerca e usa il codice tra [ ] accanto all'offerta.`);
   }
-  return { job, item };
+  return { job, item, saved };
 }
 
 const rule = (title) => console.log(`\n${c.bold(c.cyan(`── ${title} `.padEnd(60, '─')))}`);
 
-function printKit(kit, item) {
+function printKit(kit, code) {
   rule('Cosa chiede l’annuncio e cosa mostra il CV');
   for (const r of kit.covered) {
     console.log(`  ${c.green('✓')} ${r.requirement}${r.task ? c.dim(' (mansione)') : ''}`);
@@ -76,9 +79,7 @@ function printKit(kit, item) {
   console.log(`${c.dim('Oggetto:')} ${kit.followUp.subject}\n`);
   console.log(kit.followUp.body);
   console.log(
-    c.dim(
-      `\nKit salvato nella candidatura [${item.shortId}]. Dopo l'invio: job-searcher track ${item.shortId} candidatura`,
-    ),
+    c.dim(`\nKit salvato (l'offerta non viene seguita). Dopo l'invio: job-searcher track ${code} candidatura`),
   );
 }
 
@@ -88,15 +89,15 @@ export async function kitCommand(opts) {
     console.log(KIT_HELP);
     return;
   }
-  const tracking = await new Tracking().load();
-  const { job, item } = await findJob(ref, tracking);
+  const { tracking, kits } = await loadTrackingAndKits();
+  const { job, item, saved } = await findJob(ref, tracking, kits);
   const cvText = opts.cv ? await readCvText(opts.cv) : ((await loadCvText()) ?? '');
 
   if (action === 'import') {
-    if (!item?.kit) throw new Error(`Prepara prima il kit: job-searcher kit ${ref}`);
-    const claude = importKitAnswer(await readInput(file), { cvText, offerText: item.kit.offerText });
-    tracking.setKit(item.job, { ...item.kit, claude: { ...claude, importedAt: new Date().toISOString() } });
-    await tracking.save();
+    if (!saved) throw new Error(`Prepara prima il kit: job-searcher kit ${ref}`);
+    const claude = importKitAnswer(await readInput(file), { cvText, offerText: saved.offerText });
+    kits.set(saved.job, { ...saved, claude: { ...claude, importedAt: new Date().toISOString() } });
+    await kits.save();
     for (const w of claude.warnings) console.error(c.yellow(`! ${w}`));
     rule('CV di Claude');
     console.log(claude.cv);
@@ -108,26 +109,26 @@ export async function kitCommand(opts) {
 
   const text = opts.text ? await readFile(opts.text, 'utf8') : undefined;
   const publishers = await new Publishers().load();
-  let site = item?.kit?.site ?? null;
+  let site = saved?.site ?? null;
   const website = companySiteFromJob(job);
   if (!site && website && !findCompany(job, publishers.items)) {
     const found = await checkPublisherSite({ website });
     site = found.problem ? { website, problem: found.problem } : { website, ...found };
   }
-  const kit = buildKit({ job, text: text ?? item?.kit?.offerText, cvText, publishers: publishers.items, site });
-  const saved = tracking.setKit(job, {
+  const kit = buildKit({ job, text: text ?? saved?.offerText, cvText, publishers: publishers.items, site });
+  kits.set(job, {
     ...kit,
     site,
-    claude: item?.kit?.claude ?? null,
-    createdAt: item?.kit?.createdAt ?? new Date().toISOString(),
+    claude: saved?.claude ?? null,
+    createdAt: saved?.createdAt ?? new Date().toISOString(),
   });
-  await tracking.save();
-  if (saved.sentAt) {
+  await kits.save();
+  if (item?.sentAt) {
     kit.followUp = buildFollowUp({
       job,
       company: kit.company,
       contacts: cvContacts(cvText),
-      sentAt: saved.sentAt,
+      sentAt: item.sentAt,
       language: kit.language,
     });
   }
@@ -140,5 +141,5 @@ export async function kitCommand(opts) {
     } else console.log(prompt);
     return;
   }
-  printKit(kit, saved);
+  printKit(kit, shortId(job));
 }

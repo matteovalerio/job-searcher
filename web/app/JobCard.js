@@ -31,6 +31,22 @@ export default function JobCard({ job, statuses, onTracked, onKit }) {
     }
   }
 
+  // Torna "non toccata": la candidatura si toglie (il kit, se c'è, resta).
+  async function untrack() {
+    setSaving(true);
+    setError('');
+    try {
+      const res = await fetch(`/api/tracking?id=${encodeURIComponent(job.id)}`, { method: 'DELETE' });
+      if (!res.ok && res.status !== 404) throw new Error((await res.json()).error);
+      setNote('');
+      onTracked?.(job.id, null);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
   const tags = [...(job.tags ?? []), ...(job.infoText ? job.infoText.split(' · ') : [])];
   return (
     <article className="job">
@@ -81,9 +97,10 @@ export default function JobCard({ job, statuses, onTracked, onKit }) {
           onChange={(e) => {
             setStatus(e.target.value);
             if (e.target.value) save({ status: e.target.value, note });
+            else untrack();
           }}
         >
-          <option value="">Segui…</option>
+          <option value="">{status ? 'Non seguire più' : 'Segui…'}</option>
           {Object.entries(statuses).map(([key, label]) => (
             <option key={key} value={key}>
               {label}

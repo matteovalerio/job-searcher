@@ -176,10 +176,31 @@ test('solleciti: una settimana dopo l’invio, poi dieci giorni, poi basta; si f
   tracking.set(job, { status: 'nessuna' });
   assert.equal(tracking.get(job.id).followUpAt, null);
   assert.throws(() => tracking.followedUp(job.id), /candidature inviate/);
+});
 
-  // Il kit si salva nella candidatura (e la crea se non c'era).
-  const other = { ...job, id: 'job-2', title: 'Editor' };
-  const saved = tracking.setKit(other, { language: 'it' });
-  assert.equal(saved.status, 'interessante');
-  assert.equal(saved.kit.language, 'it');
+test('kit separati dalle candidature; quelle create solo aprendo un kit (versioni precedenti) si tolgono', async () => {
+  const { KitStore, migrateKits } = await import('../src/kit-store.js');
+  const kits = new KitStore('/dev/null');
+  kits.save = async () => {};
+  const tracking = new Tracking('/dev/null');
+  tracking.save = async () => {};
+  const at = '2026-09-29T10:00:00.000Z';
+  // Creata aprendo il kit: nessun cambio di stato, nessuna nota.
+  const auto = { ...job, id: 'auto', title: 'Auto' };
+  tracking.set(auto, {}, at);
+  tracking.items.auto.kit = { job: auto, language: 'it', createdAt: at };
+  // Seguita davvero: stato cambiato dopo.
+  const real = { ...job, id: 'real', title: 'Vera' };
+  tracking.set(real, { status: 'interessante', note: 'mi piace' }, at);
+  tracking.items.real.kit = { job: real, language: 'it', createdAt: at };
+
+  assert.deepEqual(await migrateKits(tracking, kits), { moved: 2, removed: 1 });
+  assert.equal(tracking.get('auto'), null);
+  assert.equal(tracking.get('real').kit, undefined);
+  assert.equal(tracking.get('real').note, 'mi piace');
+  assert.deepEqual(kits.ids().sort(), ['auto', 'real']);
+  assert.equal(kits.find(real.url).job.id, 'auto', 'stesso indirizzo di prova: vale il primo');
+  assert.equal(kits.find('real').job.title, 'Vera');
+  // Una seconda volta non cambia niente.
+  assert.deepEqual(await migrateKits(tracking, kits), { moved: 0, removed: 0 });
 });
