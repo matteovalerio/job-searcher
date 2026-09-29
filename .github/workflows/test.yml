@@ -30,7 +30,8 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm ci --omit=optional
+      # senza --omit=optional: l'eseguibile di Biome per la piattaforma è una dipendenza opzionale
+      - run: npm ci
       - run: npx biome ci .
 
   web:
