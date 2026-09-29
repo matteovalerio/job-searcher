@@ -143,6 +143,7 @@ function createListSource({ name, label, supports = ['area', 'remote'], fetchAll
     name,
     label: label ?? name,
     supports,
+    usesKeywords: false,
     async search() {
       cached ??= fetchAll().catch((err) => {
         cached = undefined;

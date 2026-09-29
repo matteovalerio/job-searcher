@@ -26,6 +26,7 @@ export default {
   name: 'remotive',
   label: 'Remotive',
   supports: ['remote'],
+  usesKeywords: false, // scarica tutte le offerte e le filtra in locale
   async search() {
     return parse(expectList(await getJson(URL), ['jobs']));
   },

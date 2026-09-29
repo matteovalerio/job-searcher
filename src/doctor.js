@@ -83,6 +83,33 @@ async function probe(source, target, { word, profile, timeoutMs, warnings }) {
   return { jobs, relevant };
 }
 
+/**
+ * Nessun risultato: la fonte non funziona o non ci sono offerte per quella parola? Se la fonte cerca per
+ * parola chiave si riprova con una parola comunissima; se scarica sempre tutto (feed, pagine) lo si dice.
+ */
+async function explainEmpty(source, target, { profile, timeoutMs }) {
+  if (source.usesKeywords === false) {
+    return {
+      hint: 'la fonte non ha restituito niente in questo momento (per un Google Alert è normale se non ci sono notizie recenti)',
+    };
+  }
+  const word = source.controlKeyword ?? (target.type === 'remote' ? 'manager' : 'impiegato');
+  try {
+    const { jobs } = await probe(source, target, { word, profile, timeoutMs, warnings: [] });
+    return jobs.length
+      ? {
+          control: { word, count: jobs.length },
+          hint: `la fonte funziona (con "${word}" trova ${jobs.length} offerte): per questa parola semplicemente non c'è niente`,
+        }
+      : {
+          control: { word, count: 0 },
+          hint: `nessun risultato neanche con "${word}": probabilmente la fonte non funziona (chiave, indirizzo o parametri)`,
+        };
+  } catch (err) {
+    return { control: { word, error: err.message }, hint: hintFor(err, source) };
+  }
+}
+
 const describe = (j) => [j.title, j.company, j.location].filter(Boolean).join(' · ');
 
 /**
@@ -127,9 +154,7 @@ export async function runDoctor(sources, { profile, keyword, onResult = () => {}
         // Come esempio meglio un'offerta pertinente al profilo che una voce qualsiasi.
         result.sample = [...(relevant ?? []), ...jobs].slice(0, 2).map(describe);
         result.status = jobs.length ? 'ok' : 'empty';
-        if (!jobs.length) {
-          result.hint = 'nessuna offerta: se succede con parole diverse, il sito potrebbe essere cambiato';
-        }
+        if (!jobs.length) Object.assign(result, await explainEmpty(source, target, { profile, timeoutMs }));
         if (source.resolved?.size) {
           result.pages = [...source.resolved].map(([company, r]) => `${company}: ${r.url} (${r.via})`);
         }

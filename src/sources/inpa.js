@@ -54,6 +54,8 @@ export default {
   name: 'inpa',
   label: 'inPA (concorsi pubblici)',
   supports: ['area'],
+  // Parola che compare in molti bandi: serve a "doctor" per capire se la fonte risponde davvero.
+  controlKeyword: 'istruttore',
   async search({ keywords, warn }) {
     const api = process.env.INPA_API_URL || DEFAULT_API;
     return eachQuery(

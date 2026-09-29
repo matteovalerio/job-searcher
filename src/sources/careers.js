@@ -200,6 +200,7 @@ export function createCareersSource({ name, label, pages = [], supports = ['area
     name,
     label: label ?? name,
     supports,
+    usesKeywords: false,
     resolved,
     async search({ warn }) {
       const jobs = [];
