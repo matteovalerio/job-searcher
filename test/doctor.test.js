@@ -35,7 +35,9 @@ test('doctor: stato di ogni fonte, con la ricerca minima', async () => {
   assert.equal(results[0].count, 1);
   assert.deepEqual(results[0].sample, ['Redattrice · Piccin · Padova']);
   assert.equal(results[0].detail, 'dettagli ok');
-  assert.match(results[1].hint, /potrebbe essere cambiato/);
+  // senza risultati riprova con una parola comune: anche lì niente, quindi la fonte probabilmente non funziona
+  assert.match(results[1].hint, /neanche con "impiegato"/);
+  assert.deepEqual(results[1].control, { word: 'impiegato', count: 0 });
   assert.match(results[2].hint, /blocca le richieste/);
   assert.match(results[3].message, /JOB_SEARCHER_TEST_NO_KEY/);
   // una sola parola, un solo luogo, una sola pagina
@@ -57,10 +59,14 @@ test('doctor: usa il primo target compatibile del profilo, ridotto al minimo', a
     ],
   };
   await runDoctor([remoteOnly, source('area', { search: async (ctx) => (calls.push(ctx), []) })], { profile });
-  assert.deepEqual(calls[0].keywords, ['copy editor']);
+  // Fonte solo remota: parola del remoto, poi quella di controllo. Fonte area+remoto: zona vuota, quindi
+  // riprova col remoto, poi il controllo sul remoto.
+  assert.deepEqual(
+    calls.map((c) => c.keywords[0]),
+    ['copy editor', 'manager', 'redattrice', 'copy editor', 'manager'],
+  );
   assert.deepEqual(calls[0].target.linkedinLocations, ['Italia']);
-  assert.deepEqual(calls[1].keywords, ['redattrice']);
-  assert.equal(calls[1].target.place, 'Vicenza');
+  assert.equal(calls[2].target.place, 'Vicenza');
 });
 
 test('doctor: tempo scaduto e suggerimenti', async () => {
@@ -123,4 +129,37 @@ test('formato della risposta: lista vuota ok, lista mancante è un errore chiaro
     /formato inatteso \(manca "jobs"; campi presenti: totalCount, message\)\. Messaggio del servizio: "Invalid key"/,
   );
   assert.match(hintFor(new Error('risposta in un formato inatteso (manca "jobs")'), {}), /cambiato formato/);
+});
+
+test('doctor: distingue "nessuna offerta per questa parola" da "fonte che non funziona"', async () => {
+  const onlyCommon = source('scarsa', {
+    controlKeyword: 'istruttore',
+    search: async ({ keywords }) => (keywords[0] === 'istruttore' ? [makeJob('scarsa', { title: 'Istruttore' })] : []),
+  });
+  const feed = source('feed', { usesKeywords: false, search: async () => [] });
+  const [scarsa, vuoto] = await runDoctor([onlyCommon, feed], { keyword: 'redattore' });
+  assert.deepEqual(scarsa.control, { word: 'istruttore', count: 1 });
+  assert.match(scarsa.hint, /la fonte funziona .* semplicemente non c'è niente/);
+  assert.equal(vuoto.control, undefined, 'un feed non cerca per parola: nessuna prova di controllo');
+  assert.match(vuoto.hint, /Google Alert è normale/);
+});
+
+test('jooble: se jooble.org non trova nulla prova il dominio del paese', async (t) => {
+  const { default: jooble } = await import('../src/sources/jooble.js');
+  process.env.JOOBLE_API_KEY ??= 'k';
+  const hosts = [];
+  t.mock.method(globalThis, 'fetch', async (url) => {
+    const host = new URL(url).host;
+    hosts.push(host);
+    return Response.json({
+      totalCount: 0,
+      jobs: host === 'it.jooble.org' ? [{ id: 1, title: 'Redattore', link: 'https://j/1' }] : [],
+    });
+  });
+  const jobs = await jooble.search({
+    keywords: ['redattore'],
+    target: { type: 'area', place: 'Padova', country: 'it' },
+  });
+  assert.deepEqual(hosts, ['jooble.org', 'it.jooble.org']);
+  assert.equal(jobs.length, 1);
 });

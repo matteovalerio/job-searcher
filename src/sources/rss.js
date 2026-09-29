@@ -68,6 +68,7 @@ export function createRssSource({ name, label, url, supports = ['area', 'remote'
     });
   return {
     name,
+    usesKeywords: url.includes('{keyword}'),
     label: label ?? name,
     supports,
     async search({ keywords, target, warn }) {
