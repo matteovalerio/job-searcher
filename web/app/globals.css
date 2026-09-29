@@ -1838,3 +1838,30 @@ ul.week-bars {
   gap: 4px;
   overflow-wrap: anywhere;
 }
+
+/* Eventi e associazioni */
+.events-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+.event {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.event-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.event-name {
+  font-weight: 600;
+  font-size: 16px;
+}
+@media (max-width: 860px) {
+  .events-grid {
+    grid-template-columns: 1fr;
+  }
+}

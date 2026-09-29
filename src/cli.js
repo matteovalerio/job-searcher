@@ -7,6 +7,7 @@ import { parseArgs } from 'node:util';
 import { searchProfile } from './app.js';
 import { browserArgs, isWsl, openInteractive } from './browser.js';
 import { CV_HELP, cvCommand } from './commands/cv.js';
+import { EVENTS_HELP, eventsCommand } from './commands/events.js';
 import { KIT_HELP, kitCommand } from './commands/kit.js';
 import { MARKET_HELP, marketCommand } from './commands/market.js';
 import { PLAN_HELP, planCommand } from './commands/plan.js';
@@ -99,7 +100,7 @@ Esempi:
   job-searcher search -p redattore-padova --only-new -o offerte.csv
 
 Le chiavi API opzionali (Adzuna, Jooble) si leggono da variabili d'ambiente o dal file .env.
-${PUBLISHERS_HELP}${KIT_HELP}${CV_HELP}${MARKET_HELP}${WHY_HELP}${PLAN_HELP}`;
+${PUBLISHERS_HELP}${KIT_HELP}${CV_HELP}${MARKET_HELP}${WHY_HELP}${PLAN_HELP}${EVENTS_HELP}`;
 
 const list = (value) =>
   value
@@ -612,6 +613,7 @@ async function main() {
   if (opts.command === 'kit') return kitCommand(opts);
   if (opts.command === 'perche' || opts.command === 'why') return whyCommand(opts);
   if (opts.command === 'piano' || opts.command === 'plan') return planCommand(opts);
+  if (opts.command === 'eventi' || opts.command === 'events') return eventsCommand(opts);
   if (opts.command === 'market' || opts.command === 'mercato') return marketCommand(opts);
   if (opts.command === 'browser') return openBrowserCommand(opts);
   if (opts.command === 'search') return search(opts);

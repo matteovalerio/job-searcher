@@ -47,6 +47,7 @@ export async function core() {
     load('kit-store.js'),
     load('plan.js'),
     load('publishers/people.js'),
+    load('events.js'),
   ]).then(
     ([
       app,
@@ -73,7 +74,12 @@ export async function core() {
       kitStore,
       plan,
       people,
+      events,
     ]) => ({
+      upcomingEvents: events.upcomingEvents,
+      associations: events.associations,
+      reminderIcs: events.reminderIcs,
+      buildEventPrompt: events.buildEventPrompt,
       findPeople: people.findPeople,
       bestContact: people.bestContact,
       buildPlan: plan.buildPlan,
