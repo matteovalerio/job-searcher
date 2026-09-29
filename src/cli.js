@@ -29,6 +29,7 @@ import {
   slugify,
 } from './profiles/store.js';
 import { runWizard } from './profiles/wizard.js';
+import { checkGoogleMaps } from './publishers/maps.js';
 import { builtinSources, missingEnv } from './sources/index.js';
 import { findInLastResults, HIDDEN_STATUSES, loadLastResults, STATUSES, Tracking } from './tracking.js';
 
@@ -265,6 +266,28 @@ async function doctor(opts) {
   );
   if (count('empty') || count('error')) {
     console.log(c.dim('Per sistemare una fonte serve questo riepilogo; con "-f json" lo ottieni completo.'));
+  }
+  if (!opts.sources?.length) await doctorGoogleMaps();
+}
+
+/** Ricerca delle aziende su Google Maps: si prova la chiave, se c'è, con una sola ricerca. */
+async function doctorGoogleMaps() {
+  console.log(c.bold('\nRicerca delle aziende'));
+  if (!process.env.GOOGLE_MAPS_API_KEY) {
+    console.log(`  ${c.dim('-')} Google Maps       saltata: manca GOOGLE_MAPS_API_KEY (facoltativa, vedi README)`);
+    return;
+  }
+  const { results, problems, seconds, calls } = await checkGoogleMaps();
+  if (problems.length) {
+    console.log(`  ${c.red('✗')} Google Maps       errore: ${problems.join(' ')}`);
+  } else if (!calls) {
+    console.log(`  ${c.yellow('?')} Google Maps       nessuna ricerca fatta`);
+  } else {
+    console.log(
+      `  ${c.green('✓')} Google Maps       ${String(results.length).padStart(3)} risultati  ${c.dim(`casa editrice Padova, ${seconds}s`)}`,
+    );
+    if (results[0])
+      console.log(c.dim(`     es. ${results[0].name}${results[0].website ? ` — ${results[0].website}` : ''}`));
   }
 }
 

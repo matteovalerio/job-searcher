@@ -302,10 +302,11 @@ function DiscoverModal({ defaultPlace, kinds, sectors, specialtyLabel, onAdded, 
               ! {p}
             </p>
           ))}
-          {state.results && !state.webSearch && (
+          {state.results && !state.webSearch && !state.googleMaps && (
             <p className="small faint">
-              Mappe e Wikidata non conoscono molte piccole aziende: per trovarne di più usa «Con Claude o da un elenco»,
-              oppure attiva la ricerca web con la chiave BRAVE_SEARCH_API_KEY (vedi README).
+              OpenStreetMap e Wikidata non conoscono molte piccole aziende: per trovarne di più usa «Con Claude o da un
+              elenco», oppure attiva Google Maps (GOOGLE_MAPS_API_KEY) o la ricerca web (BRAVE_SEARCH_API_KEY), vedi
+              README.
             </p>
           )}
           {state.results && (

@@ -7,7 +7,7 @@ export async function POST(request) {
   const { place, radiusKm = 30, sectors } = await request.json().catch(() => ({}));
   const { discoverPublishers, Publishers, resolveSectors } = await core();
   try {
-    const [{ center, results, problems, webSearch }, store] = await Promise.all([
+    const [{ center, results, problems, webSearch, googleMaps }, store] = await Promise.all([
       discoverPublishers({ place, radiusKm: Number(radiusKm) || 30, sectors: resolveSectors(sectors) }),
       new Publishers().load(),
     ]);
@@ -15,6 +15,7 @@ export async function POST(request) {
       center,
       problems,
       webSearch,
+      googleMaps,
       results: results.map((r) => ({ ...r, known: store.has(r) })),
     });
   } catch (err) {

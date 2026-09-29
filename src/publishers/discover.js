@@ -7,6 +7,7 @@ import { getJson, getText, sleep } from '../http.js';
 import { stateDir } from '../paths.js';
 import { findCareersLink } from '../sources/careers.js';
 import { normalize } from '../text.js';
+import { searchGoogleMaps } from './maps.js';
 import { PUBLISHING_SECTORS, SECTORS, sectorById } from './sectors.js';
 import { detectSpecialties, guessKind } from './specialties.js';
 import { normalizeWebsite, publisherKey } from './store.js';
@@ -396,9 +397,10 @@ function nearest(p, centers) {
 
 /**
  * Cerca aziende dei settori indicati (predefiniti: case editrici, studi editoriali e librerie) entro
- * `radiusKm` da una o più città: OpenStreetMap, Wikidata e, se c'è la chiave BRAVE_SEARCH_API_KEY, il web.
+ * `radiusKm` da una o più città: OpenStreetMap, Wikidata e, se ci sono le chiavi, Google Maps
+ * (GOOGLE_MAPS_API_KEY) e il web (BRAVE_SEARCH_API_KEY).
  * @param {{ places?: string[], place?: string, radiusKm?: number, sectors?: string[] }} options
- * @returns {Promise<{ centers, results: object[], problems: string[], webSearch: boolean }>}
+ * @returns {Promise<{ centers, results: object[], problems: string[], webSearch: boolean, googleMaps: boolean }>}
  */
 export async function discoverPublishers({
   places,
@@ -409,6 +411,7 @@ export async function discoverPublishers({
   // Cartella della memoria di OpenStreetMap (null per non usarla, come nei test).
   osmCache = stateDir('osm-cache'),
   web = searchWeb,
+  maps = searchGoogleMaps,
 } = {}) {
   const names = (places ?? String(place ?? '').split(',')).map((p) => p.trim()).filter(Boolean);
   if (!names.length) throw new Error('Indica almeno una città, es. Padova.');
@@ -423,16 +426,26 @@ export async function discoverPublishers({
       return next;
     },
   };
-  const [maps, fromWeb] = await Promise.all([
+  const [openData, fromGoogle, fromWeb] = await Promise.all([
     Promise.all(centers.map((c) => searchMaps(c, radiusKm, sectors, http, problems, osmCache, osm))),
+    maps(centers, { sectors, radiusKm }),
     web(
       centers.map((c) => c.name),
       { sectors },
     ),
   ]);
-  problems.push(...fromWeb.problems);
-  const results = mergeResults([...maps, fromWeb.results].map((list) => list.map((p) => nearest(p, centers))));
-  return { center: centers[0], centers, results, problems, webSearch: !fromWeb.skipped };
+  problems.push(...fromGoogle.problems, ...fromWeb.problems);
+  const results = mergeResults(
+    [...openData, fromGoogle.results, fromWeb.results].map((list) => list.map((p) => nearest(p, centers))),
+  );
+  return {
+    center: centers[0],
+    centers,
+    results,
+    problems,
+    webSearch: !fromWeb.skipped,
+    googleMaps: !fromGoogle.skipped,
+  };
 }
 
 // Email da preferire per una candidatura: prima quelle del personale o della redazione.
