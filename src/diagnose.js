@@ -48,7 +48,7 @@ function advise(job, result) {
   switch (verdict.rejected) {
     case REJECT.noKeyword:
       out.push(
-        `Il titolo «${job.title}» non contiene nessuna parola chiave del profilo${result.matchIn === 'title' ? ' (si guarda solo il titolo: "matchIn": "title")' : ''}: aggiungi a "keywords" (o "relatedKeywords") una parola del titolo, per esempio «${words.split(' ')[0].toLowerCase()}».`,
+        `Né il titolo «${job.title}» né il testo dell'annuncio contengono una parola chiave del profilo: aggiungi a "keywords" (o "relatedKeywords") una parola che descrive il ruolo, per esempio «${words.split(' ')[0].toLowerCase()}».`,
       );
       break;
     case REJECT.excluded:
@@ -73,6 +73,11 @@ function advise(job, result) {
       break;
     default:
       out.push(`Il filtro la scarta: ${verdict.rejected}. Controlla la sezione "filters" del profilo.`);
+  }
+  if (verdict.fromText) {
+    out.push(
+      `Il titolo non ha parole chiave, ma il testo sì (${verdict.matched.join(', ')}): la tiene con pochi punti e l'etichetta «trovata nel testo». Nella ricerca normale il testo si legge per le ${result.maxEnrichText} offerte più recenti di questo tipo ("maxEnrichText" nella zona); per darle più peso aggiungi a "relatedKeywords" una parola del titolo, per esempio «${words.toLowerCase()}».`,
+    );
   }
   if (search && !search.found) {
     if (search.byTitle?.found) {
@@ -100,7 +105,11 @@ export async function diagnoseLinkedin(ref, profile, { get, pause = 1500, maxPag
   const same = (j) => j.id.split(':').pop() === id;
   const targets = [];
   for (const target of profile.targets) {
-    const result = { target: { id: target.id, label: target.label, type: target.type }, matchIn: target.matchIn };
+    const result = {
+      target: { id: target.id, label: target.label, type: target.type },
+      matchIn: target.matchIn,
+      maxEnrichText: target.maxEnrichText ?? 30,
+    };
     result.verdict = filterVerdict(job, target, now);
     const linkedin = target.sources?.some((s) => s.name === 'linkedin');
     if (!linkedin) {

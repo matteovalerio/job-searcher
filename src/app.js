@@ -1,7 +1,9 @@
 import path from 'node:path';
 import { applyOverrides, loadProfile, resolveProfile } from './config.js';
+import { DetailsCache } from './details-cache.js';
 import { updateHistory } from './market/index.js';
 import { notify } from './notify.js';
+import { stateDir } from './paths.js';
 import { slugify } from './profiles/store.js';
 import { runSearch } from './search.js';
 import { SeenStore } from './store.js';
@@ -35,7 +37,10 @@ export async function searchProfile({
   const profileId = profileRef ? slugify(path.basename(profileRef, '.json')) : 'ricerca';
 
   onProgress({ type: 'begin', profile, profileId });
-  const results = await runSearch(profile, { onProgress });
+  // I testi delle offerte già scaricati restano da una ricerca all'altra (vedi details-cache.js).
+  const cache = await new DetailsCache(stateDir('details-cache.json')).load();
+  const results = await runSearch(profile, { onProgress, cache });
+  await cache.save();
 
   // Offerte scartate o non selezionate spariscono; le altre seguite portano il loro stato.
   const tracking = await new Tracking().load();

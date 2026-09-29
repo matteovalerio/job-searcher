@@ -49,8 +49,35 @@ test('scarta: parole escluse, nessuna corrispondenza, offerte vecchie', () => {
   assert.ok(!evaluate(job({ title: 'Redattore', postedAt: null }), m, NOW).rejected);
 });
 
-test('matchIn "title" ignora la descrizione', () => {
+test('matchIn "title": il titolo conta di più; un ruolo nominato solo nel testo resta, con pochi punti', () => {
   const m = buildMatcher(target({ matchIn: 'title' }));
+  const inTitle = evaluate(job({ title: 'Redattore', description: 'casa editrice' }), m, NOW);
+  const inText = evaluate(
+    job({ title: 'Specialista comunicazione', description: 'Si occuperà della redattore di testi per newsletter' }),
+    m,
+    NOW,
+  );
+  assert.ok(!inText.rejected);
+  assert.equal(inText.fromText, true);
+  assert.ok(inText.warnings.includes('trovata nel testo'));
+  assert.ok(inText.score < inTitle.score, 'sotto le offerte con la parola nel titolo');
+  assert.equal(
+    evaluate(job({ title: 'Assistente', description: 'contabilità e fatture' }), m, NOW).rejected,
+    'nessuna parola chiave',
+  );
+  // Le esclusioni valgono comunque sul titolo.
+  assert.equal(
+    evaluate(
+      job({ title: 'Stage comunicazione', description: 'redattore' }),
+      buildMatcher(target({ matchIn: 'title', excludeKeywords: ['stage'] })),
+      NOW,
+    ).rejected,
+    'parola esclusa nel titolo',
+  );
+});
+
+test('matchIn "title-only" ignora la descrizione', () => {
+  const m = buildMatcher(target({ matchIn: 'title-only' }));
   assert.equal(
     evaluate(job({ title: 'Assistente', description: 'redattore' }), m, NOW).rejected,
     'nessuna parola chiave',

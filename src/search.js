@@ -1,5 +1,5 @@
 import { dedupe } from './dedupe.js';
-import { buildMatcher, evaluate } from './filter.js';
+import { buildMatcher, evaluate, REJECT } from './filter.js';
 import { missingEnv } from './sources/index.js';
 
 const SOURCE_TIMEOUT_MS = 180000;
@@ -12,17 +12,29 @@ function withTimeout(promise, ms, label) {
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
-/** Completa fino a `limit` offerte con i dettagli; se una richiesta fallisce si tiene l'offerta com'è. */
-async function enrichAll(source, jobs, { limit, warn }) {
+/**
+ * Completa fino a `limit` offerte con i dettagli; se una richiesta fallisce si tiene l'offerta com'è.
+ * I dettagli già scaricati in una ricerca precedente (cache) non si riscaricano e non contano nel limite.
+ */
+async function enrichAll(source, jobs, { limit, warn, cache }) {
   const out = [];
+  let fetched = 0;
   let failures = 0;
-  for (const [i, job] of jobs.entries()) {
-    if (i >= limit || failures >= 3) {
+  for (const job of jobs) {
+    const known = cache?.get(job.id);
+    if (known) {
+      out.push({ ...job, description: known.description || job.description, tags: [...job.tags, ...known.tags] });
+      continue;
+    }
+    if (fetched >= limit || failures >= 3) {
       out.push(job);
       continue;
     }
+    fetched++;
     try {
-      out.push(await source.enrich(job));
+      const enriched = await source.enrich(job);
+      cache?.set(job.id, { description: enriched.description, tags: enriched.tags.slice(job.tags.length) });
+      out.push(enriched);
     } catch (err) {
       failures++;
       if (failures === 3) warn(`dettagli non disponibili (${err.message}): uso solo i titoli`);
@@ -31,6 +43,8 @@ async function enrichAll(source, jobs, { limit, warn }) {
   }
   return out;
 }
+
+const newestFirst = (a, b) => (Date.parse(b.postedAt ?? 0) || 0) - (Date.parse(a.postedAt ?? 0) || 0);
 
 /** Per un'area con più luoghi la fonte viene interrogata una volta per luogo. */
 function placeVariants(target) {
@@ -46,7 +60,7 @@ function placeVariants(target) {
  * @param {{ name: string, targets: import('./config.js').ResolvedTarget[] }} profile
  * @param {{ onProgress?: (event: object) => void, now?: number }} [options]
  */
-export async function runSearch(profile, { onProgress = () => {}, now = Date.now() } = {}) {
+export async function runSearch(profile, { onProgress = () => {}, now = Date.now(), cache = null } = {}) {
   const results = [];
   for (const target of profile.targets) {
     const matcher = buildMatcher(target);
@@ -88,6 +102,7 @@ export async function runSearch(profile, { onProgress = () => {}, now = Date.now
           for (const err of errors) warn(err.message);
 
           let candidates = [];
+          const untitled = [];
           const reasons = {};
           const reject = (job, reason) => {
             reasons[reason] = (reasons[reason] ?? 0) + 1;
@@ -95,14 +110,28 @@ export async function runSearch(profile, { onProgress = () => {}, now = Date.now
           };
           for (const job of raw) {
             const verdict = evaluate(job, matcher, now);
-            if (verdict.rejected) reject(job, verdict.rejected);
+            // Senza parola chiave nel titolo e senza testo (LinkedIn nei risultati non lo dà): il ruolo può
+            // essere nominato nell'annuncio ("Specialista comunicazione" che fa "redazione di testi").
+            const readText =
+              verdict.rejected === REJECT.noKeyword && source.enrich && matcher.matchIn === 'title' && !job.description;
+            if (readText) untitled.push(job);
+            else if (verdict.rejected) reject(job, verdict.rejected);
             else candidates.push(job);
           }
 
-          // Alcune fonti (LinkedIn) nei risultati non hanno la descrizione: la scarichiamo solo per le offerte
-          // già passate dal filtro sul titolo, e poi le rivalutiamo.
+          // Alcune fonti (LinkedIn) nei risultati non hanno la descrizione: la scarichiamo per le offerte già
+          // passate dal filtro sul titolo, e poi le rivalutiamo.
           if (source.enrich && candidates.length) {
-            candidates = await enrichAll(source, dedupe(candidates), { limit: target.maxEnrich ?? 40, warn });
+            candidates = await enrichAll(source, dedupe(candidates), { limit: target.maxEnrich ?? 40, warn, cache });
+          }
+          // Poi, entro un limite, il testo delle più recenti tra quelle che la fonte ha trovato con le nostre parole
+          // ma che non le hanno nel titolo. Quelle rimaste senza testo vengono scartate come prima.
+          if (untitled.length) {
+            const known = new Set(candidates.map((j) => j.id));
+            const others = dedupe(untitled)
+              .filter((j) => !known.has(j.id))
+              .sort(newestFirst);
+            candidates.push(...(await enrichAll(source, others, { limit: target.maxEnrichText ?? 30, warn, cache })));
           }
 
           const kept = [];

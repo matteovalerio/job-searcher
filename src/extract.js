@@ -146,6 +146,9 @@ export function parseSalary(fieldText, text) {
       candidates.push({ c: m[0], at: m.index });
     }
   }
+  // Il campo dedicato prima; poi gli importi nell'ordine in cui compaiono nel testo (di solito la fascia viene
+  // prima delle spiegazioni: "26.800 € - 28.800 € … un minimo di €26.800").
+  candidates.sort((x, y) => (x.at ?? -1) - (y.at ?? -1));
   for (const { c, at } of candidates) {
     const m = c.match(new RegExp(RANGE));
     if (!m) continue;
