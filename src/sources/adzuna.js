@@ -1,6 +1,7 @@
 import { getJson } from '../http.js';
 import { makeJob } from '../job.js';
 import { eachQuery } from './queries.js';
+import { expectList } from './shape.js';
 
 // API gratuita con chiave: https://developer.adzuna.com/ (copre anche l'Italia).
 export function parse(data) {
@@ -47,7 +48,11 @@ export default {
             params.set('distance', String(target.radiusKm ?? 30));
           }
           if (maxAgeDays) params.set('max_days_old', String(maxAgeDays));
-          const found = parse(await getJson(`https://api.adzuna.com/v1/api/jobs/${country}/search/${page}?${params}`));
+          const found = parse(
+            expectList(await getJson(`https://api.adzuna.com/v1/api/jobs/${country}/search/${page}?${params}`), [
+              'results',
+            ]),
+          );
           jobs.push(...found);
           if (found.length < 50) break;
         }

@@ -161,7 +161,8 @@ Le fonti che richiedono una chiave vengono **saltate** se la chiave manca: la ri
 
 Indeed e InfoJobs non hanno un'API pubblica e bloccano gli script, quindi queste due fonti aprono **Chrome** (tramite Playwright, installato da `npm install`) e leggono le pagine dei risultati come farebbe una persona.
 
-- **Prima esecuzione:** si apre una finestra di Chrome. Se il sito mostra la verifica "non sono un robot", risolvila a mano nella finestra (hai 2 minuti) e il programma prosegue da solo. Il profilo del browser è salvato in `.job-searcher/browser`, quindi le volte successive la verifica di solito non ricompare.
+- **Quale browser:** Chrome o Edge se ci sono, altrimenti un altro browser basato su Chromium installato (Chromium, Brave, Vivaldi…). Se non ce n'è nessuno, `npm run browser:install` scarica il Chromium di Playwright, circa 150 MB.
+- **Prima esecuzione:** si apre una finestra del browser. Se il sito mostra la verifica "non sono un robot", risolvila a mano nella finestra (hai 2 minuti) e il programma prosegue da solo. Il profilo del browser è salvato in `.job-searcher/browser`, quindi le volte successive la verifica di solito non ricompare.
 - **Più lente delle altre fonti:** tra una pagina e l'altra fanno pause di 3–6 secondi.
 - **Se un sito cambia struttura** e non viene riconosciuta nessuna offerta, la pagina viene salvata in `.job-searcher/debug/` e il riepilogo lo segnala: quel file serve per aggiornare il riconoscimento.
 - **Variabili d'ambiente** (nel file `.env`):
@@ -191,7 +192,7 @@ node src/cli.js doctor -p redattore-padova      # le fonti e le parole di un pro
 node src/cli.js doctor -s indeed,infojobs       # solo alcune (queste due aprono il browser)
 ```
 
-`doctor` fa una ricerca di prova con una sola parola, un solo luogo e una sola pagina su ogni fonte. Per ciascuna dice se funziona (con un esempio di offerta), se non restituisce nulla, se è in errore o se è stata saltata perché manca una chiave. Quando qualcosa non va aggiunge un suggerimento: chiave sbagliata, sito che blocca le richieste, indirizzo cambiato, troppe richieste. Per LinkedIn prova anche il download dei dettagli. Con `-f json` produce il riepilogo completo, utile per segnalare un problema.
+`doctor` fa una ricerca di prova con una sola parola, un solo luogo e una sola pagina su ogni fonte. Per ciascuna dice se funziona, se non restituisce nulla, se è in errore o se è stata saltata perché manca una chiave. Con un profilo (`-p`) dice anche quanti risultati sono pertinenti, cioè passerebbero i filtri, e mostra come esempio uno di questi. Se in zona non trova nulla, riprova con le parole del remoto: così un sito in inglese non risulta vuoto solo perché ha cercato "redattore". Per le pagine "lavora con noi" indica quale pagina ha usato e come l'ha trovata. Se un servizio risponde in un formato diverso da quello atteso lo segnala, invece di mostrare semplicemente 0 risultati. Quando qualcosa non va aggiunge un suggerimento: chiave sbagliata, sito che blocca le richieste, indirizzo cambiato, troppe richieste. Per LinkedIn prova anche il download dei dettagli. Con `-f json` produce il riepilogo completo, utile per segnalare un problema.
 
 Se un portale non risponde o cambia formato, la ricerca continua con gli altri. Nel riepilogo vedi quali fonti hanno funzionato, quante offerte hanno restituito e quante ne sono state tenute.
 
@@ -310,7 +311,14 @@ Molte aziende, soprattutto le case editrici, pubblicano le offerte solo sul prop
 }
 ```
 
-Se una pagina non funziona, le altre vengono lette lo stesso e il riepilogo segnala quella che non va. Se il link "lavora con noi" non viene trovato, metti direttamente l'indirizzo della pagina delle offerte.
+La pagina delle offerte si cerca, in quest'ordine:
+1. tra i link della home, preferendo "Lavora con noi" e "Careers" a indizi più vaghi come "Opportunità";
+2. nella mappa del sito (`sitemap.xml`);
+3. tra gli indirizzi più comuni (`/lavora-con-noi`, `/careers`…).
+
+Se non si trova, forse l'azienda non ha una pagina offerte. Se invece esiste con un indirizzo insolito, indicalo aggiungendo `"direct": true` alla pagina. Se una pagina non funziona, le altre vengono lette lo stesso e il riepilogo segnala quella che non va.
+
+Alcuni siti hanno un certificato HTTPS configurato male: manca il certificato "intermedio" e Node rifiuta la connessione, mentre i browser la accettano. Il programma fa come i browser: scarica il certificato mancante dall'indirizzo indicato nel certificato del sito e verifica la catena completa, senza disattivare nessun controllo di sicurezza.
 
 **Piattaforme di selezione (ATS).** Le grandi aziende, compresi gli editori scientifici internazionali, usano piattaforme con interfacce pubbliche e stabili. Il nome dell'azienda si legge nell'indirizzo della sua pagina delle offerte.
 
@@ -348,6 +356,7 @@ Poi registralo in `src/sources/index.js`. Conviene separare una funzione `parse(
 src/
   cli.js           riga di comando
   doctor.js        controllo delle fonti
+  tls-chain.js     completamento dei certificati HTTPS incompleti
   notify.js        riepilogo delle offerte nuove su Telegram ed email
   config.js        lettura e validazione del profilo
   search.js        orchestrazione: fonti → filtro → deduplica → ordinamento

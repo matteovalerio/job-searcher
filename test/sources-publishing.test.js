@@ -12,7 +12,7 @@ import {
   workdayApi,
   workdayDate,
 } from '../src/sources/ats.js';
-import { createCareersSource, findCareersLink, parseCareersPage } from '../src/sources/careers.js';
+import { createCareersSource, discoverCareersPage, findCareersLink, parseCareersPage } from '../src/sources/careers.js';
 import { parse as parseInpa } from '../src/sources/inpa.js';
 
 const fixture = (name) => readFileSync(new URL(`./fixtures/careers/${name}`, import.meta.url), 'utf8');
@@ -241,5 +241,49 @@ test('le nuove fonti si configurano nel profilo', () => {
         customSources: [{ type: 'careers', name: 'c' }],
       }),
     /almeno una pagina/,
+  );
+});
+
+test('careers: sceglie il link più affidabile', () => {
+  const html = `<a href="/opportunita-di-lavoro">Opportunità di lavoro</a> <a href="https://esterno.it/jobs">Jobs</a>
+    <a href="/chi-siamo/lavora-con-noi">Lavora con noi</a> <a href="/autori">Opportunità per gli autori</a>`;
+  assert.equal(findCareersLink(html, 'https://editore.it/'), 'https://editore.it/chi-siamo/lavora-con-noi');
+  assert.equal(findCareersLink('<a href="/proposte">Invia un manoscritto</a>', 'https://editore.it/'), null);
+});
+
+test('careers: se la home non ha il link, prova la mappa del sito e poi gli indirizzi comuni', async () => {
+  const site = (pages) => async (url) => {
+    if (url in pages) return pages[url];
+    throw new Error(`HTTP 404 su ${url}`);
+  };
+  const viaSitemap = await discoverCareersPage(
+    { company: 'A', url: 'https://a.it' },
+    site({
+      'https://a.it': '<a href="/catalogo">Catalogo</a>',
+      'https://a.it/robots.txt': 'User-agent: *\nSitemap: https://a.it/wp-sitemap.xml',
+      'https://a.it/wp-sitemap.xml':
+        '<sitemapindex><sitemap><loc>https://a.it/wp-sitemap-posts-post-1.xml</loc></sitemap><sitemap><loc>https://a.it/wp-sitemap-posts-page-1.xml</loc></sitemap></sitemapindex>',
+      'https://a.it/wp-sitemap-posts-page-1.xml':
+        '<urlset><url><loc>https://a.it/contatti/</loc></url><url><loc>https://a.it/chi-siamo/lavora-con-noi/</loc></url></urlset>',
+      'https://a.it/chi-siamo/lavora-con-noi/': '<h2>Redattore</h2>',
+    }),
+  );
+  assert.deepEqual([viaSitemap.url, viaSitemap.via], ['https://a.it/chi-siamo/lavora-con-noi/', 'mappa del sito']);
+
+  const viaPath = await discoverCareersPage(
+    { company: 'B', url: 'https://b.it' },
+    site({ 'https://b.it': '<p>Benvenuti</p>', 'https://b.it/careers': '<h1>Careers</h1><h2>Editor</h2>' }),
+  );
+  assert.deepEqual([viaPath.url, viaPath.via], ['https://b.it/careers', 'indirizzo comune']);
+
+  const direct = await discoverCareersPage(
+    { company: 'C', url: 'https://c.it/pagina/42', direct: true },
+    site({ 'https://c.it/pagina/42': 'x' }),
+  );
+  assert.equal(direct.via, 'indirizzo indicato');
+
+  await assert.rejects(
+    discoverCareersPage({ company: 'D', url: 'https://d.it' }, site({ 'https://d.it': '<p>niente</p>' })),
+    /D: nessuna pagina "lavora con noi" trovata.*"direct": true/,
   );
 });

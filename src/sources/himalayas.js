@@ -1,6 +1,7 @@
 import { getJson } from '../http.js';
 import { makeJob } from '../job.js';
 import { eachQuery } from './queries.js';
+import { expectList } from './shape.js';
 
 const URL = 'https://himalayas.app/jobs/api/search';
 
@@ -29,7 +30,7 @@ export default {
   async search({ keywords, warn }) {
     return eachQuery(
       keywords,
-      async (keyword) => parse(await getJson(`${URL}?${new URLSearchParams({ q: keyword })}`)),
+      async (keyword) => parse(expectList(await getJson(`${URL}?${new URLSearchParams({ q: keyword })}`), ['jobs'])),
       warn,
     );
   },

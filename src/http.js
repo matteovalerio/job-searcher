@@ -1,3 +1,5 @@
+import { INCOMPLETE_CHAIN, fetchCompletingChain } from './tls-chain.js';
+
 const DEFAULT_UA = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36';
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -25,6 +27,23 @@ export async function request(url, { method = 'GET', headers = {}, body, timeout
         signal: AbortSignal.timeout(timeoutMs),
       });
     } catch (err) {
+      // Sito che non invia la catena completa del certificato: la si completa come fanno i browser.
+      if (INCOMPLETE_CHAIN.has(err.cause?.code) && String(url).startsWith('https:')) {
+        try {
+          res = await fetchCompletingChain(url, {
+            method,
+            body,
+            timeoutMs,
+            headers: { 'User-Agent': DEFAULT_UA, 'Accept-Language': 'it-IT,it;q=0.9,en;q=0.8', ...headers },
+          });
+        } catch (chainErr) {
+          const error = new Error(`Certificato del sito incompleto e non riparabile (${url}): ${chainErr.message}`);
+          error.code = err.cause.code;
+          throw error;
+        }
+        if (res.ok) return res;
+        throw new HttpError(res.status, url);
+      }
       if (attempt < retries) {
         await sleep(1500 * (attempt + 1));
         continue;

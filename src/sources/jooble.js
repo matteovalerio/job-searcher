@@ -1,6 +1,7 @@
 import { request } from '../http.js';
 import { makeJob } from '../job.js';
 import { eachQuery } from './queries.js';
+import { expectList } from './shape.js';
 
 // API gratuita con chiave: https://jooble.org/api/about. Aggrega molti portali italiani.
 // Jooble accetta solo alcuni raggi (km).
@@ -46,7 +47,7 @@ export default {
               page: String(page),
             }),
           });
-          const found = parse(await res.json());
+          const found = parse(expectList(await res.json(), ['jobs']));
           jobs.push(...found);
           if (found.length < 20) break;
         }
