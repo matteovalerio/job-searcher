@@ -13,7 +13,8 @@
     "build:comuni": "node scripts/build-comuni.js",
     "profile": "node src/cli.js profile",
     "profiles": "node src/cli.js profiles",
-    "browser:install": "playwright-core install chromium"
+    "browser:install": "playwright-core install chromium",
+    "web": "npm --prefix web run dev"
   },
   "engines": {
     "node": ">=20.12"
