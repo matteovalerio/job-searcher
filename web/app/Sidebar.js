@@ -1,9 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useRef } from 'react';
-import { BoardIcon, BookIcon, BriefcaseIcon, SearchIcon, UserIcon } from './icons.js';
+import { usePathname, useRouter } from 'next/navigation';
+import { useEffect, useRef, useState } from 'react';
+import { BoardIcon, BookIcon, BriefcaseIcon, ChartIcon, SearchIcon, UserIcon } from './icons.js';
 
 /** Il profilo scelto resta in un cookie: così tutte le pagine sanno qual è quello attivo. */
 function rememberProfile(cookieName, id) {
@@ -13,9 +13,13 @@ function rememberProfile(cookieName, id) {
 
 export default function Sidebar({ profiles, active, counts, cookieName }) {
   const pathname = usePathname();
-  const params = useSearchParams();
   const router = useRouter();
-  const fromUrl = pathname === '/' ? params.get('profile') : null;
+  // Il profilo nell'indirizzo (?profile=…) si legge solo nel browser: così la barra fa parte dell'HTML iniziale
+  // e non compare in ritardo (con useSearchParams Next la renderebbe solo lato client).
+  const [fromUrl, setFromUrl] = useState(null);
+  useEffect(() => {
+    setFromUrl(pathname === '/' ? new URLSearchParams(window.location.search).get('profile') : null);
+  }, [pathname]);
   const current = profiles.find((p) => p.id === (fromUrl ?? active)) ?? profiles[0];
 
   // Aprendo le offerte di un altro profilo (per esempio appena creato), diventa quello attivo.
@@ -31,8 +35,10 @@ export default function Sidebar({ profiles, active, counts, cookieName }) {
 
   function change(id) {
     rememberProfile(cookieName, id);
-    if (pathname === '/') router.push(`/?profile=${encodeURIComponent(id)}`);
-    else router.refresh();
+    if (pathname === '/') {
+      setFromUrl(id);
+      router.push(`/?profile=${encodeURIComponent(id)}`);
+    } else router.refresh();
   }
 
   const links = [
@@ -51,6 +57,7 @@ export default function Sidebar({ profiles, active, counts, cookieName }) {
       count: counts.publishers,
       match: (p) => p.startsWith('/case-editrici'),
     },
+    { href: '/mercato', label: 'Mercato', icon: ChartIcon, match: (p) => p.startsWith('/mercato') },
     { href: '/profili', label: 'Profili', icon: UserIcon, match: (p) => p.startsWith('/profili') },
   ];
 

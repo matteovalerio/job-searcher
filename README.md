@@ -484,6 +484,23 @@ node src/cli.js publishers edizioni-esempio sollecitata
 
 `editori` è un sinonimo di `publishers`. I dati sono in `.job-searcher/publishers.json`. Nell'interfaccia web c'è la pagina **Case editrici**, con i filtri per stato e specializzazione. In «Cerca nuove» ci sono due schede. In «Mappe e web» si scelgono i settori, con quelli consigliati per il profilo in evidenza. In «Con Claude o da un elenco» si può chiedere a Claude di proporre le case editrici oppure le aziende affini al CV.
 
+## Analisi del mercato
+
+Cosa chiedono davvero gli annunci trovati per un profilo, e come si confronta il tuo CV:
+- **competenze e strumenti**, con la percentuale di annunci che li nominano: InDesign, correzione di bozze, LaTeX, SEO…;
+- **lingue**, con il livello tipico richiesto;
+- **esperienza, contratti e stipendi**, quando gli annunci li indicano;
+- **lacune**: quello che molti annunci chiedono e che il CV non nomina. Ognuna ha una priorità, che dipende da quanto spesso compare, i modi per colmarla (risorse, spesso gratuite, e tempo indicativo) e il modo di mostrarla nel CV o in un portfolio.
+
+Le caratteristiche di ogni offerta si accumulano a ogni ricerca in `.job-searcher/market-<profilo>.json`, per gli ultimi 180 giorni. Più ricerche fai, più i numeri sono affidabili. Si contano solo gli annunci con una descrizione. Il catalogo delle competenze, con le risorse, è in `src/market/catalog.js`.
+
+```bash
+node src/cli.js market -p redattore-padova             # l'analisi nel terminale
+node src/cli.js market -p redattore-padova --prompt    # testo per farsi fare da Claude un piano personale
+```
+
+Il prompt passa a Claude i dati e il CV. Claude distingue i requisiti che fanno scartare da quelli graditi e propone un piano di 4-8 settimane con risorse concrete, senza inventarle. Suggerisce anche progetti da portfolio e il modo di valorizzare nel CV quello che sai già fare. Nell'interfaccia web è la pagina **Mercato**, con il pulsante «Piano personale con Claude».
+
 ## Sorvegliare le aziende
 
 Molte case editrici e aziende pubblicano un annuncio solo sul proprio sito, e per pochi giorni. La sorveglianza controlla le aziende dell'elenco e segnala:
@@ -539,6 +556,7 @@ src/
   tracking.js      candidature e ultimi risultati
   match.js         testo per confrontare CV e offerte su claude.ai
   tailor.js        CV su misura: cosa valorizzare e testo per claude.ai
+  market/          analisi del mercato: competenze richieste, lacune e come colmarle
   publishers/      case editrici e aziende affini: archivio, settori, ricerca (OpenStreetMap, Wikidata, web),
                    specializzazioni, sorveglianza dei siti (watch.js) e giro automatico (auto.js)
   commands/        comandi publishers e cv della riga di comando
