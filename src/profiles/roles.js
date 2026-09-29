@@ -11,7 +11,7 @@
  *
  * Per aggiungere un'area basta aggiungere un oggetto qui sotto.
  */
-// prettier-ignore
+// biome-ignore format: elenco lungo, più leggibile compatto
 export const ROLE_FAMILIES = [
   {
     id: 'editoria',
@@ -203,11 +203,11 @@ export const JUNIOR_EXCLUDES = [
 ];
 
 /** Software e competenze riconosciute nel CV (diventano parole "bonus"). */
-// prettier-ignore
+// biome-ignore format: elenco lungo, più leggibile compatto
 export const SKILLS = ['indesign', 'photoshop', 'illustrator', 'quarkxpress', 'acrobat', 'microsoft word', 'excel', 'powerpoint', 'latex', 'wordpress', 'trados', 'memoq', 'matecat', 'canva', 'figma', 'sql', 'python', 'javascript', 'typescript', 'java', 'react', 'sap', 'salesforce', 'google analytics', 'power bi', 'tableau', 'autocad', 'zucchetti', 'jira', 'notion'];
 
 /** Lingue: nome italiano -> forme usate negli annunci e nei CV. */
-// prettier-ignore
+// biome-ignore format: elenco lungo, più leggibile compatto
 export const LANGUAGE_NAMES = {
   italiano: ['italiano', 'italiana', 'italian'],
   inglese: ['inglese', 'english'],

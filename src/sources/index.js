@@ -1,18 +1,18 @@
 import adzuna from './adzuna.js';
+import { createGreenhouseSource, createLeverSource, createSmartRecruitersSource, createWorkdaySource } from './ats.js';
+import { createCareersSource } from './careers.js';
 import himalayas from './himalayas.js';
+import { createHtmlSource } from './html.js';
 import indeed from './indeed.js';
-import inpa from './inpa.js';
 import infojobs from './infojobs.js';
+import inpa from './inpa.js';
 import jobicy from './jobicy.js';
 import jooble from './jooble.js';
 import linkedin from './linkedin.js';
 import remoteok from './remoteok.js';
 import remotive from './remotive.js';
-import weworkremotely from './weworkremotely.js';
-import { createGreenhouseSource, createLeverSource, createSmartRecruitersSource, createWorkdaySource } from './ats.js';
-import { createCareersSource } from './careers.js';
-import { createHtmlSource } from './html.js';
 import { createRssSource } from './rss.js';
+import weworkremotely from './weworkremotely.js';
 
 /**
  * Fonti integrate. Per aggiungerne una nuova basta un oggetto con:

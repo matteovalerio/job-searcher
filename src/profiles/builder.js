@@ -1,5 +1,5 @@
 import { normalize } from '../text.js';
-import { JUNIOR_EXCLUDES, LANGUAGE_NAMES, familyById } from './roles.js';
+import { familyById, JUNIOR_EXCLUDES, LANGUAGE_NAMES } from './roles.js';
 import { slugify } from './store.js';
 
 const unique = (list) => {

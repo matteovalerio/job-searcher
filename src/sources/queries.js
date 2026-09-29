@@ -18,6 +18,6 @@ export async function eachQuery(queries, fn, warn = () => {}) {
     }
   }
   if (queries.length && failures === queries.length) throw firstError;
-  warnings.forEach((w) => warn(w));
+  for (const w of warnings) warn(w);
   return jobs;
 }

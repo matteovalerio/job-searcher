@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import JobCard from './JobCard.js';
 
 function formatEvent(e) {
@@ -42,20 +42,23 @@ function MatchPrompt({ profile, onClose }) {
   const [state, setState] = useState({ loading: true });
   const [copied, setCopied] = useState(false);
 
-  async function load(n) {
-    setState({ loading: true });
-    const res = await fetch('/api/match', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ profile, top: n }),
-    });
-    const data = await res.json();
-    setState(res.ok ? data : { error: data.error });
-  }
+  const load = useCallback(
+    async (n) => {
+      setState({ loading: true });
+      const res = await fetch('/api/match', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profile, top: n }),
+      });
+      const data = await res.json();
+      setState(res.ok ? data : { error: data.error });
+    },
+    [profile],
+  );
 
   useEffect(() => {
     load(15);
-  }, [profile]);
+  }, [load]);
 
   async function copy() {
     await navigator.clipboard.writeText(state.prompt);
@@ -69,12 +72,13 @@ function MatchPrompt({ profile, onClose }) {
       role="dialog"
       aria-label="Prompt per Claude"
       onClick={(e) => e.target === e.currentTarget && onClose()}
+      onKeyDown={(e) => e.key === 'Escape' && onClose()}
     >
       <div className="card stack">
         <div className="row">
           <h2>Confronta CV e offerte con Claude</h2>
           <span className="spacer" />
-          <button className="secondary" onClick={onClose}>
+          <button type="button" className="secondary" onClick={onClose}>
             Chiudi
           </button>
         </div>
@@ -104,7 +108,9 @@ function MatchPrompt({ profile, onClose }) {
           <>
             <textarea readOnly rows={14} value={state.prompt} aria-label="Testo per Claude" />
             <div className="row">
-              <button onClick={copy}>{copied ? 'Copiato ✓' : 'Copia'}</button>
+              <button type="button" onClick={copy}>
+                {copied ? 'Copiato ✓' : 'Copia'}
+              </button>
               <a className="button secondary" href="https://claude.ai/new" target="_blank" rel="noreferrer">
                 Apri claude.ai
               </a>
@@ -215,7 +221,7 @@ export default function ResultsView({ profiles, selected, initialResults, status
 
       <div className="card stack">
         <div className="row">
-          <button onClick={runSearch} disabled={running}>
+          <button type="button" onClick={runSearch} disabled={running}>
             {running ? 'Ricerca in corso…' : 'Avvia ricerca'}
           </button>
           <label className="small muted">
@@ -223,7 +229,7 @@ export default function ResultsView({ profiles, selected, initialResults, status
             e InfoJobs (niente browser)
           </label>
           {results && (
-            <button className="secondary" onClick={() => setShowMatch(true)} disabled={running}>
+            <button type="button" className="secondary" onClick={() => setShowMatch(true)} disabled={running}>
               Prompt per Claude
             </button>
           )}
@@ -238,6 +244,7 @@ export default function ResultsView({ profiles, selected, initialResults, status
         {log.length > 0 && (
           <div className="log" role="log">
             {log.map((l, i) => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: il registro cresce solo in coda
               <div key={i} className={l.cls}>
                 {l.text}
               </div>
@@ -254,7 +261,12 @@ export default function ResultsView({ profiles, selected, initialResults, status
         <>
           <div className="tabs">
             {results.targets.map((t, i) => (
-              <button key={t.target.id} className={i === targetIndex ? 'active' : ''} onClick={() => setTargetIndex(i)}>
+              <button
+                type="button"
+                key={t.target.id}
+                className={i === targetIndex ? 'active' : ''}
+                onClick={() => setTargetIndex(i)}
+              >
                 {t.target.label} ({t.jobs.length})
               </button>
             ))}

@@ -7,6 +7,12 @@ import { parseArgs } from 'node:util';
 import { searchProfile } from './app.js';
 import { resolveProfile } from './config.js';
 import { runDoctor } from './doctor.js';
+import { buildMatchPrompt, pickJobs } from './match.js';
+import { renderCsv } from './output/csv.js';
+import { renderHtml } from './output/html.js';
+import { renderJson } from './output/json.js';
+import { c, formatReasons, renderRejected, renderTerminal } from './output/terminal.js';
+import { envFile, reportsDir } from './paths.js';
 import { readCvText } from './profiles/cv.js';
 import { buildPrompt, checkImported, extractJson } from './profiles/prompt.js';
 import {
@@ -19,14 +25,8 @@ import {
   slugify,
 } from './profiles/store.js';
 import { runWizard } from './profiles/wizard.js';
-import { renderCsv } from './output/csv.js';
-import { renderHtml } from './output/html.js';
-import { renderJson } from './output/json.js';
-import { c, formatReasons, renderRejected, renderTerminal } from './output/terminal.js';
 import { builtinSources, missingEnv } from './sources/index.js';
-import { envFile, reportsDir } from './paths.js';
-import { HIDDEN_STATUSES, STATUSES, Tracking, findInLastResults, loadLastResults } from './tracking.js';
-import { buildMatchPrompt, pickJobs } from './match.js';
+import { findInLastResults, HIDDEN_STATUSES, loadLastResults, STATUSES, Tracking } from './tracking.js';
 
 const HELP = `
 job-searcher — cerca offerte di lavoro su più portali
@@ -418,7 +418,10 @@ async function newProfile(opts) {
   const io = {
     async ask(question) {
       process.stdout.write(question);
-      if (!lines) return (process.stdout.write('\n'), '');
+      if (!lines) {
+        process.stdout.write('\n');
+        return '';
+      }
       const { value, done } = await lines.next();
       if (done) throw new Error('risposte terminate prima della fine della procedura');
       if (!process.stdin.isTTY) process.stdout.write(`${value}\n`);

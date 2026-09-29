@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 import { makeJob } from '../src/job.js';
-import { Tracking, findInLastResults, loadLastResults, saveLastResults, shortId } from '../src/tracking.js';
+import { findInLastResults, loadLastResults, saveLastResults, shortId, Tracking } from '../src/tracking.js';
 
 const job = (title) =>
   makeJob('linkedin', { id: title, title, company: 'Piccin', location: 'Padova', url: `https://x/${title}` });

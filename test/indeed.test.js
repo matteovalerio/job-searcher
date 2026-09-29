@@ -42,7 +42,10 @@ test("indeed: schede lette dall'HTML se mancano i dati incorporati", () => {
 });
 
 test('indeed: pagine successive fino a esaurimento e browser sempre chiuso', async (t) => {
-  t.mock.method(globalThis, 'setTimeout', (fn) => (fn(), 0));
+  t.mock.method(globalThis, 'setTimeout', (fn) => {
+    fn();
+    return 0;
+  });
   const loaded = [];
   let closed = false;
   const full = { metaData: { mosaicProviderJobCardsModel: { results: [] } } };

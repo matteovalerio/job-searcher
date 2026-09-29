@@ -26,7 +26,12 @@ function Item({ item, statuses, onChange, onRemove }) {
             </option>
           ))}
         </select>
-        <button className="danger" onClick={() => onRemove(item)} title="Smetti di seguire questa offerta">
+        <button
+          type="button"
+          className="danger"
+          onClick={() => onRemove(item)}
+          title="Smetti di seguire questa offerta"
+        >
           Rimuovi
         </button>
       </div>

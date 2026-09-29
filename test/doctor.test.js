@@ -50,7 +50,10 @@ test('doctor: usa il primo target compatibile del profilo, ridotto al minimo', a
   const calls = [];
   const remoteOnly = source('remota', {
     supports: ['remote'],
-    search: async (ctx) => (calls.push(ctx), []),
+    search: async (ctx) => {
+      calls.push(ctx);
+      return [];
+    },
   });
   const profile = {
     targets: [
@@ -58,7 +61,18 @@ test('doctor: usa il primo target compatibile del profilo, ridotto al minimo', a
       { type: 'remote', queryKeywords: ['copy editor'], linkedinLocations: ['Italia', 'Unione Europea'] },
     ],
   };
-  await runDoctor([remoteOnly, source('area', { search: async (ctx) => (calls.push(ctx), []) })], { profile });
+  await runDoctor(
+    [
+      remoteOnly,
+      source('area', {
+        search: async (ctx) => {
+          calls.push(ctx);
+          return [];
+        },
+      }),
+    ],
+    { profile },
+  );
   // Fonte solo remota: parola del remoto, poi quella di controllo. Fonte area+remoto: zona vuota, quindi
   // riprova col remoto, poi il controllo sul remoto.
   assert.deepEqual(

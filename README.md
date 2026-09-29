@@ -469,7 +469,10 @@ Il cuore del programma non dipende dalla riga di comando: il percorso completo d
 
 ```bash
 npm test                         # test con il test runner integrato in Node
-npx prettier --write "src/**/*.js" "test/*.js"
+npm run format                   # formatta e sistema import e piccoli problemi (Biome)
+npm run lint                     # controllo di formattazione e linter, come in CI
 ```
+
+Formattazione e linter sono di [Biome](https://biomejs.dev), configurato in `biome.json`: controlla anche l'interfaccia web. Con l'estensione Biome per VS Code la formattazione avviene al salvataggio.
 
 Per ricevere ogni giorno le offerte nuove vedi [Ricerca automatica ogni giorno](#ricerca-automatica-ogni-giorno-github-actions).

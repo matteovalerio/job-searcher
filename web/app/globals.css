@@ -33,9 +33,9 @@ body {
   background: var(--bg);
   color: var(--fg);
   font:
-    15px/1.5 system-ui,
+    15px / 1.5 system-ui,
     -apple-system,
-    'Segoe UI',
+    "Segoe UI",
     sans-serif;
 }
 a {
@@ -143,21 +143,21 @@ button:disabled {
   cursor: default;
 }
 select,
-input[type='text'],
-input[type='search'],
+input[type="text"],
+input[type="search"],
 textarea {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 6px 10px;
 }
-input[type='search'] {
+input[type="search"] {
   min-width: 240px;
   flex: 1;
 }
 textarea {
   width: 100%;
-  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
   font-size: 13px;
 }
 .tabs {
@@ -218,7 +218,7 @@ textarea {
 .track {
   margin-top: 8px;
 }
-.track input[type='text'] {
+.track input[type="text"] {
   flex: 1;
   min-width: 180px;
 }
@@ -279,7 +279,7 @@ details p {
     gap: 12px;
     padding: 10px 16px;
   }
-  input[type='search'] {
+  input[type="search"] {
     min-width: 0;
     flex: 1 1 100%;
   }

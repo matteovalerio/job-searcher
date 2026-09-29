@@ -46,7 +46,10 @@ export function parseNextData($, baseUrl) {
   const seen = new Set();
   const visit = (node, depth) => {
     if (!node || typeof node !== 'object' || depth > 12) return;
-    if (Array.isArray(node)) return node.forEach((n) => visit(n, depth + 1));
+    if (Array.isArray(node)) {
+      for (const n of node) visit(n, depth + 1);
+      return;
+    }
     const title = node.title ?? node.jobTitle;
     const link = node.link ?? node.url ?? node.offerUrl;
     const company = text(node.company ?? node.companyName ?? node.author);
@@ -139,7 +142,7 @@ export default {
             ready: () =>
               Boolean(
                 document.querySelector('script[type="application/ld+json"], script#__NEXT_DATA__') ||
-                [...document.querySelectorAll('a[href]')].some((a) => /\/of-[a-z0-9]{6,}/i.test(a.href)),
+                  [...document.querySelectorAll('a[href]')].some((a) => /\/of-[a-z0-9]{6,}/i.test(a.href)),
               ),
           });
           const html = await browser.content();

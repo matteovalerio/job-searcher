@@ -70,10 +70,16 @@ test('infojobs: se non riconosce nulla salva la pagina e lo segnala', async () =
       content: async () => '<html>nuovo layout</html>',
       close: async () => {},
     }),
-    saveDebugPage: async (name, html) => (saved.push(html), `.job-searcher/debug/${name}.html`),
+    saveDebugPage: async (name, html) => {
+      saved.push(html);
+      return `.job-searcher/debug/${name}.html`;
+    },
   };
   const origSetTimeout = globalThis.setTimeout;
-  globalThis.setTimeout = (fn) => (fn(), 0);
+  globalThis.setTimeout = (fn) => {
+    fn();
+    return 0;
+  };
   try {
     const jobs = await source.search({
       keywords: ['redattore'],

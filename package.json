@@ -10,6 +10,8 @@
     "search": "node src/cli.js search -p redattore-padova",
     "sources": "node src/cli.js sources",
     "test": "node --test",
+    "lint": "biome ci .",
+    "format": "biome check --write .",
     "build:comuni": "node scripts/build-comuni.js",
     "profile": "node src/cli.js profile",
     "profiles": "node src/cli.js profiles",
@@ -26,6 +28,7 @@
     "unpdf": "^1.8.1"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.5.14",
     "italian-cap-comuni-province": "^1.1.1"
   },
   "optionalDependencies": {

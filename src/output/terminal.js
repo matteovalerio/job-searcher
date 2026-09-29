@@ -1,4 +1,5 @@
 import { describeInfo } from '../extract.js';
+
 const useColor = process.stdout.isTTY && !process.env.NO_COLOR;
 const paint = (code) => (text) => (useColor ? `\x1b[${code}m${text}\x1b[0m` : String(text));
 export const c = {

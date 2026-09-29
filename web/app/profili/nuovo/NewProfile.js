@@ -102,7 +102,8 @@ function Guided({ options, cv, onCv, onSaved }) {
     setSearch({ searchArea: toText(suggestion.searchArea), searchRemote: toText(suggestion.searchRemote) });
   }
 
-  // Dati ricavati dal CV: si precompila il modulo.
+  // Dati ricavati dal CV: si precompila il modulo, solo quando arriva un nuovo CV.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: non deve ripartire quando cambiano le opzioni
   useEffect(() => {
     if (!cv) return;
     setFamilies(cv.families);
@@ -284,7 +285,7 @@ function Guided({ options, cv, onCv, onSaved }) {
       </details>
 
       <div className="row">
-        <button onClick={() => save()} disabled={saving || !name.trim() || !lists.keywords.trim()}>
+        <button type="button" onClick={() => save()} disabled={saving || !name.trim() || !lists.keywords.trim()}>
           {saving ? 'Salvataggio…' : 'Crea il profilo'}
         </button>
         {message && <span className={message.error ? 'error-box' : 'ok-box'}>{message.text}</span>}
@@ -330,7 +331,9 @@ function WithClaude({ cv, onCv, onSaved }) {
       </p>
       <CvUpload onAnalyzed={onCv} />
       <div className="row">
-        <button onClick={makePrompt}>1. Prepara il testo da incollare</button>
+        <button type="button" onClick={makePrompt}>
+          1. Prepara il testo da incollare
+        </button>
         {cv ? (
           <span className="muted small">il testo del CV è incluso</span>
         ) : (
@@ -341,7 +344,7 @@ function WithClaude({ cv, onCv, onSaved }) {
         <>
           <textarea rows={10} readOnly value={prompt} />
           <div className="row">
-            <button className="secondary" onClick={copy}>
+            <button type="button" className="secondary" onClick={copy}>
               {copied ? 'Copiato ✓' : 'Copia'}
             </button>
             <a href="https://claude.ai/new" target="_blank" rel="noopener noreferrer">
@@ -355,7 +358,7 @@ function WithClaude({ cv, onCv, onSaved }) {
         <textarea rows={10} value={answer} onChange={(e) => setAnswer(e.target.value)} />
       </label>
       <div className="row">
-        <button onClick={() => importAnswer()} disabled={saving || !answer.trim()}>
+        <button type="button" onClick={() => importAnswer()} disabled={saving || !answer.trim()}>
           {saving ? 'Salvataggio…' : '4. Salva il profilo'}
         </button>
         {error && <span className="error-box small">{error}</span>}
@@ -381,10 +384,10 @@ export default function NewProfile() {
     <div className="stack">
       <h1>Nuovo profilo</h1>
       <div className="tabs">
-        <button className={mode === 'guided' ? 'active' : ''} onClick={() => setMode('guided')}>
+        <button type="button" className={mode === 'guided' ? 'active' : ''} onClick={() => setMode('guided')}>
           Procedura guidata
         </button>
-        <button className={mode === 'claude' ? 'active' : ''} onClick={() => setMode('claude')}>
+        <button type="button" className={mode === 'claude' ? 'active' : ''} onClick={() => setMode('claude')}>
           Con l&apos;aiuto di Claude
         </button>
       </div>
