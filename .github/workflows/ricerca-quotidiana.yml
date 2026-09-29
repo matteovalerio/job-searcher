@@ -1,6 +1,6 @@
 # Ricerca quotidiana: cerca le offerte e manda quelle nuove su Telegram e/o email.
 # Configurazione (segreti e variabili del repository): vedi il README, sezione "Ricerca automatica ogni giorno".
-# Indeed e InfoJobs sono esclusi: richiedono un browser e la verifica anti-robot.
+# InfoJobs è escluso: richiede un browser e la verifica anti-robot.
 name: Ricerca quotidiana
 
 on:

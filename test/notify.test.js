@@ -105,15 +105,15 @@ test('memoria: riconosce la prima esecuzione', async () => {
   assert.equal((await SeenStore.forProfile('Prova', dir).load()).firstRun, false);
 });
 
-test('--no-browser esclude Indeed e InfoJobs', () => {
+test('--no-browser esclude InfoJobs', () => {
   const profile = {
     keywords: ['editor'],
-    enableSources: ['indeed', 'infojobs'],
+    enableSources: ['infojobs'],
     targets: [{ type: 'area', place: 'Padova' }],
   };
   const names = (opts) => resolveProfile(profile, opts).targets[0].sources.map((s) => s.name);
-  assert.ok(names().includes('indeed') && names().includes('infojobs'));
-  assert.ok(!names({ noBrowser: true }).some((n) => n === 'indeed' || n === 'infojobs'));
+  assert.ok(names().includes('infojobs'));
+  assert.ok(!names({ noBrowser: true }).includes('infojobs'));
   assert.ok(names({ noBrowser: true }).includes('linkedin'));
 });
 

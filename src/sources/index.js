@@ -3,7 +3,6 @@ import { createGreenhouseSource, createLeverSource, createSmartRecruitersSource,
 import { createCareersSource } from './careers.js';
 import himalayas from './himalayas.js';
 import { createHtmlSource } from './html.js';
-import indeed from './indeed.js';
 import infojobs from './infojobs.js';
 import inpa from './inpa.js';
 import jobicy from './jobicy.js';
@@ -24,7 +23,6 @@ import weworkremotely from './weworkremotely.js';
  */
 export const builtinSources = [
   linkedin,
-  indeed,
   infojobs,
   adzuna,
   jooble,

@@ -131,7 +131,7 @@
     "loescher",
     "pearson"
   ],
-  "enableSources": ["indeed", "infojobs"],
+  "enableSources": ["infojobs"],
   "matchIn": "title",
   "filters": {
     "maxYearsRequired": 10,

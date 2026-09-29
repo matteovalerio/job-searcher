@@ -67,7 +67,7 @@ export function buildPrompt({ cvText = '' } = {}) {
         `   - ${s.label}: acceptedRegions ${JSON.stringify(s.regions)}, linkedinLocations ${JSON.stringify(s.linkedin)}`,
     )
     .join('\n');
-  return `Aiutami a creare un profilo di ricerca lavoro per il programma "job-searcher", che cerca offerte su LinkedIn, Indeed, InfoJobs e altri portali e le filtra con le regole del profilo.
+  return `Aiutami a creare un profilo di ricerca lavoro per il programma "job-searcher", che cerca offerte su LinkedIn, InfoJobs e altri portali e le filtra con le regole del profilo.
 
 ${cvText ? `Ecco il CV del candidato (testo estratto dal PDF):\n\n<cv>\n${cvText.trim()}\n</cv>` : 'Il CV del candidato è allegato a questo messaggio.'}
 
