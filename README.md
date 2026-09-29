@@ -576,6 +576,29 @@ node src/cli.js kit 3359919 import risposta.txt    # importa (e controlla) la ri
 
 Il kit si salva in `.job-searcher/kits.json`, insieme al testo dell'annuncio. Aprire il kit **non** vuol dire seguire l'offerta: la candidatura nasce solo quando scegli uno stato («Mi interessa», «Segna come inviata»…).
 
+## Piano settimanale e statistiche
+
+La pagina **Piano** (o `node src/cli.js piano`) tiene il ritmo della ricerca:
+
+- **Obiettivi della settimana:** quante candidature a offerte e quante spontanee (predefiniti: 5 e 3; si cambiano nella pagina o con `piano obiettivi 5 3`), con quante ne hai fatte da lunedì.
+- **Da fare:** i solleciti in scadenza (con il testo pronto nel kit), le offerte segnate «interessante» a cui non ti sei ancora candidata/o e le aziende «da contattare». Accanto a «Piano», nella barra laterale, c'è il numero dei solleciti da fare.
+- **Come sta andando:**
+  - candidature inviate, risposte, colloqui e tempo di risposta (mediana);
+  - l'andamento delle ultime 8 settimane;
+  - i numeri **per canale** (LinkedIn, InfoJobs, candidature spontanee…) e, per le spontanee, **per settore**. Così si vede cosa funziona e si insiste lì.
+
+  Nei tassi contano solo le candidature inviate da almeno una settimana, perché prima è presto per una risposta.
+
+Tutto si ricava dai dati che il programma salva già (candidature, aziende e solleciti); gli obiettivi stanno in `.job-searcher/plan.json`.
+
+```bash
+node src/cli.js piano                  # la settimana, cosa fare, come sta andando
+node src/cli.js piano obiettivi 4 2    # 4 candidature a offerte e 2 spontanee a settimana
+node src/cli.js piano --notify         # manda il riepilogo su Telegram o per email
+```
+
+Il promemoria su Telegram va lanciato dal tuo computer (per esempio ogni lunedì con cron o con l'Utilità di pianificazione di Windows): la ricerca automatica su GitHub non vede le candidature, che restano sul computer.
+
 ## CV su misura
 
 Lo stesso CV non va bene per tutti. Per un editore di libri per bambini conviene valorizzare il processo editoriale, i rapporti con autori e illustratori e l'impaginazione in InDesign, più dei contenuti scientifici curati. Per un editore accademico vale il contrario. Il lavoro è diviso in due parti:
@@ -609,6 +632,7 @@ src/
   match.js         testo per confrontare CV e offerte su claude.ai
   tailor.js        CV su misura: cosa valorizzare e testo per claude.ai
   kit.js           kit di candidatura: analisi, CV riordinato, email, sollecito, prompt e controllo
+  plan.js          piano settimanale: obiettivi, cose da fare, statistiche per canale e settore
   market/          analisi del mercato: competenze richieste, lacune e come colmarle
   publishers/      case editrici e aziende affini: archivio, settori, ricerca (OpenStreetMap, Wikidata, web),
                    specializzazioni, sorveglianza dei siti (watch.js) e giro automatico (auto.js)

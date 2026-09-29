@@ -1,6 +1,6 @@
 import './globals.css';
 import { activeProfileId, PROFILE_COOKIE } from '../lib/active-profile.js';
-import { core, resultsForPage } from '../lib/core.js';
+import { core, currentPlan, resultsForPage } from '../lib/core.js';
 import { BusyProvider } from './Busy.js';
 import Sidebar from './Sidebar.js';
 
@@ -14,16 +14,23 @@ async function sidebarData() {
   const { listProfiles, Tracking, Publishers } = await core();
   const profiles = await listProfiles();
   const active = await activeProfileId(profiles);
-  const [results, tracking, publishers] = await Promise.all([
+  const [results, tracking, publishers, plan] = await Promise.all([
     active ? resultsForPage(active) : null,
     new Tracking().load(),
     new Publishers().load(),
+    currentPlan(),
   ]);
   const offers = new Set(results?.targets.flatMap((t) => t.jobs.map((j) => j.id)) ?? []).size;
   return {
     profiles: profiles.map(({ id, name }) => ({ id, name })),
     active,
-    counts: { offers, tracked: tracking.list().length, publishers: publishers.items.length },
+    // Accanto a «Piano»: i solleciti da fare.
+    counts: {
+      offers,
+      tracked: tracking.list().length,
+      publishers: publishers.items.length,
+      due: plan.todo.followUps.length,
+    },
   };
 }
 

@@ -43,6 +43,7 @@ di Next. La CI (`.github/workflows/test.yml`) esegue test su Node 20 e 22, lint 
 - **Stato:** tutto quello che il programma salva sta in `.job-searcher/` (ignorato da git):
   - `tracking.json`: candidature alle offerte;
   - `kits.json`: kit di candidatura (separati: aprire un kit non segue l'offerta);
+  - `plan.json`: obiettivi settimanali;
   - `publishers.json`: case editrici e aziende;
   - `cv.txt`: testo del CV;
   - `results-<profilo>.json`: ultimi risultati;
@@ -74,6 +75,7 @@ di Next. La CI (`.github/workflows/test.yml`) esegue test su Node 20 e 22, lint 
 - `src/market/` fa l'analisi del mercato: le offerte viste si accumulano per profilo; `catalog.js` elenca le
   competenze con le risorse per colmarle.
 - `src/match.js` prepara il confronto tra CV e offerte; `src/tracking.js` segue le candidature.
+- `src/plan.js` fa il piano settimanale (obiettivi, cose da fare, statistiche per canale e settore; pagina Piano).
 - `src/diagnose.js` spiega perché un'offerta di LinkedIn non compare (comando `perche`, casella nella pagina Offerte).
 - `src/commands/` contiene i comandi `publishers` e `cv`; gli altri sono in `src/cli.js`.
 - `web/app/` contiene pagine, componenti e route `/api`; lo stile è tutto in `web/app/globals.css` (token di colore
