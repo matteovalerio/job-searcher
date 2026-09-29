@@ -88,6 +88,18 @@ function Analysis({ kit, onRedo }) {
             {c.kindLabel && <span className="muted"> · {c.kindLabel}</span>}
             {c.known && <span className="muted"> · è nel tuo elenco</span>}
           </p>
+          {c.contact && (
+            <p className="small" style={{ margin: 0 }}>
+              A chi scrivere: <strong>{c.contact.name}</strong>
+              <span className="muted"> · {c.contact.role}</span>
+              {c.contact.email && <span className="muted"> · {c.contact.email}</span>}
+            </p>
+          )}
+          {c.known && !c.contact && (
+            <p className="small faint" style={{ margin: 0 }}>
+              Per scrivere a una persona invece che all'azienda: «Chi contattare» nella pagina Case editrici e affini.
+            </p>
+          )}
           {c.website && (
             <a className="small" href={c.website} target="_blank" rel="noreferrer">
               {c.website} <ExternalIcon />

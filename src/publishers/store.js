@@ -184,6 +184,17 @@ export class Publishers {
     return p;
   }
 
+  /** Persone trovate sul sito (vedi people.js): nome, ruolo, email. */
+  setPeople(id, { people = [], problem = null }, now = new Date().toISOString()) {
+    const p = this.get(id);
+    if (!p) throw new Error(`Casa editrice "${id}" non trovata.`);
+    // Se il sito non risponde si tengono le persone trovate le volte precedenti.
+    if (!problem) p.people = people;
+    p.peopleCheckedAt = now;
+    p.peopleProblem = problem;
+    return p;
+  }
+
   /** Aggiunge dati trovati sul sito senza sovrascrivere quelli scritti a mano. */
   enrich(id, found, now = new Date().toISOString()) {
     const p = this.get(id);

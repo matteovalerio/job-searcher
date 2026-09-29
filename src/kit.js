@@ -3,6 +3,7 @@ import { MARKET_SKILLS } from './market/catalog.js';
 import { findSkills } from './market/index.js';
 import { analyzeCv, findLanguages } from './profiles/cv.js';
 import { extractJson } from './profiles/prompt.js';
+import { bestContact } from './publishers/people.js';
 import { PUBLISHER_KINDS } from './publishers/specialties.js';
 import { emphasisFor } from './tailor.js';
 import { normalize } from './text.js';
@@ -367,6 +368,18 @@ function signature(contacts) {
   return [contacts.name, contacts.phone, contacts.email].filter(Boolean).join('\n');
 }
 
+/** Saluto e forma di cortesia: a una persona ("Gentile Anna De Luca, le scrivo") o all'azienda ("vi scrivo"). */
+function salutation(company, job, language) {
+  const who = companyName(company.name ?? job.company) || null;
+  const person = company.contact?.name;
+  if (language === 'en') return { dear: `Dear ${person ?? (who ? `${who} team` : 'Hiring Manager')},` };
+  return {
+    dear: `Gentile ${person ?? (who ? `team di ${who}` : 'Responsabile della selezione')},`,
+    write: person ? 'le scrivo' : 'vi scrivo',
+    attached: person ? 'In allegato trova il mio CV' : 'In allegato trovate il mio CV',
+  };
+}
+
 /**
  * Email di candidatura (oggetto e testo). Le attività citate sono frasi del CV, non riscritte.
  * @returns {{ to: string|null, subject: string, body: string }}
@@ -375,14 +388,15 @@ export function buildEmail({ job, company = {}, match, contacts = {}, language =
   const highlights = [...new Set(match.covered.map((c) => c.highlight).filter(Boolean))]
     .slice(0, 3)
     .map((h) => h.replace(/[.;]$/, ''));
-  const who = companyName(company.name ?? job.company) || null;
+  const hello = salutation(company, job, language);
+  const to = company.contact?.email ?? company.email ?? null;
   const where = SOURCE_LABELS[job.source];
   if (language === 'en') {
     return {
-      to: company.email ?? null,
+      to,
       subject: `Application for ${job.title}${contacts.name ? ` – ${contacts.name}` : ''}`,
       body: [
-        `Dear ${who ? `${who} team` : 'Hiring Manager'},`,
+        hello.dear,
         '',
         `I am writing to apply for the ${job.title} position${where ? ` I found on ${where}` : ''}.`,
         highlights.length
@@ -400,17 +414,17 @@ export function buildEmail({ job, company = {}, match, contacts = {}, language =
     };
   }
   return {
-    to: company.email ?? null,
+    to,
     subject: `Candidatura per la posizione di ${job.title}${contacts.name ? ` – ${contacts.name}` : ''}`,
     body: [
-      `Gentile ${who ? `team di ${who}` : 'Responsabile della selezione'},`,
+      hello.dear,
       '',
-      `vi scrivo per candidarmi alla posizione di ${job.title}${where ? ` che ho visto su ${where}` : ''}.`,
+      `${hello.write} per candidarmi alla posizione di ${job.title}${where ? ` che ho visto su ${where}` : ''}.`,
       highlights.length
         ? `Tra le attività che ho svolto, quelle più vicine a ciò che cercate sono:\n${highlights.map((h) => `- ${h}`).join('\n')}`
         : null,
       '',
-      'In allegato trovate il mio CV. Sarei felice di approfondire in un colloquio, anche online.',
+      `${hello.attached}. Sarei felice di approfondire in un colloquio, anche online.`,
       '',
       'Cordiali saluti,',
       signature(contacts),
@@ -423,13 +437,13 @@ export function buildEmail({ job, company = {}, match, contacts = {}, language =
 
 /** Email di sollecito, da mandare se non rispondono (vedi i solleciti in tracking.js). */
 export function buildFollowUp({ job, company = {}, contacts = {}, sentAt = null, language = 'it' }) {
-  const who = companyName(company.name ?? job.company) || null;
+  const hello = salutation(company, job, language);
   const date = sentAt ? new Date(sentAt).toLocaleDateString(language === 'en' ? 'en-GB' : 'it-IT') : null;
   if (language === 'en') {
     return {
       subject: `Follow-up: application for ${job.title}`,
       body: [
-        `Dear ${who ? `${who} team` : 'Hiring Manager'},`,
+        hello.dear,
         '',
         `I am following up on my application for the ${job.title} position${date ? `, sent on ${date}` : ''}.`,
         'I am still very interested in the role and happy to provide any further information or to arrange an interview.',
@@ -446,9 +460,9 @@ export function buildFollowUp({ job, company = {}, contacts = {}, sentAt = null,
   return {
     subject: `Sollecito: candidatura per ${job.title}`,
     body: [
-      `Gentile ${who ? `team di ${who}` : 'Responsabile della selezione'},`,
+      hello.dear,
       '',
-      `vi scrivo per sapere se ci sono novità sulla mia candidatura alla posizione di ${job.title}${date ? `, inviata il ${date}` : ''}.`,
+      `${hello.write} per sapere se ci sono novità sulla mia candidatura alla posizione di ${job.title}${date ? `, inviata il ${date}` : ''}.`,
       'La posizione mi interessa ancora molto e resto a disposizione per un colloquio o per qualsiasi informazione.',
       '',
       'Grazie per l’attenzione.',
@@ -514,6 +528,8 @@ export function buildKit({ job, text, cvText = '', publishers = [], site = null 
     description: known?.description ?? site?.description ?? null,
     about: offer.company,
     known: Boolean(known),
+    // La persona a cui scrivere, se è stata trovata sul sito (vedi people.js).
+    contact: bestContact(known?.people),
   };
   const emphasis = emphasisFor({
     specialties: company.specialties,
@@ -551,6 +567,7 @@ export function buildKitPrompt(kit, cvText = '') {
   const company = [
     c.name && `- Nome: ${c.name}${c.kindLabel ? ` (${c.kindLabel})` : ''}`,
     c.website && `- Sito: ${c.website}`,
+    c.contact && `- Persona a cui scrivere (dal sito): ${c.contact.name}, ${c.contact.role}`,
     c.specialties?.length && `- Specializzazioni riconosciute dal sito: ${c.specialties.join(', ')}`,
     c.description && `- Come si descrive: ${clip(c.description, 500)}`,
     kit.offer.company.length && `- Dall'annuncio: ${clip(kit.offer.company.join(' '), 500)}`,

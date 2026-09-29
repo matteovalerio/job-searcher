@@ -25,6 +25,7 @@ const LABELS = [
   [/^\/api\/publishers\/watch$/, 'Controllo i siti delle aziende', 'POST'],
   [/^\/api\/publishers\/cleanup$/, 'Faccio pulizia nell\'elenco'],
   [/^\/api\/publishers\/[^/]+\/check$/, 'Visito il sito dell\'azienda'],
+  [/^\/api\/publishers\/[^/]+\/people$/, 'Cerco sul sito chi contattare'],
   [/^\/api\/profiles\/analyze$/, 'Leggo il CV'],
   [/^\/api\/profiles\/suggest$/, 'Preparo i suggerimenti'],
   [/^\/api\/cv$/, 'Carico il CV'],

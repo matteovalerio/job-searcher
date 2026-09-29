@@ -1,6 +1,7 @@
 import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { stateDir } from './paths.js';
+import { bestContact } from './publishers/people.js';
 import { PUBLISHING_SECTORS, sectorById } from './publishers/sectors.js';
 import { detectSpecialties, PUBLISHER_KINDS, SPECIALTIES } from './publishers/specialties.js';
 
@@ -97,6 +98,8 @@ function describeTarget(target) {
       `- Ruoli possibili: ${sectorById(p.kind).roles.join(', ')}`,
     p.city && `- Sede: ${p.city}`,
     p.website && `- Sito: ${p.website}`,
+    bestContact(p.people) &&
+      `- Persona a cui scrivere (dal sito): ${bestContact(p.people).name}, ${bestContact(p.people).role}`,
     p.description && `- Come si descrive: ${clip(p.description, 600)}`,
     p.note && `- Mie note: ${clip(p.note, 400)}`,
   ]

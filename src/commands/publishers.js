@@ -6,6 +6,7 @@ import { autoPublishers } from '../publishers/auto.js';
 import { candidateText as candidate } from '../publishers/candidate.js';
 import { checkPublisherSite, discoverPublishers } from '../publishers/discover.js';
 import { buildAffinePrompt, buildPublishersPrompt, parsePublisherList } from '../publishers/import.js';
+import { bestContact, findPeople } from '../publishers/people.js';
 import { affineSectors, resolveSectors, sectorById, suggestSectors } from '../publishers/sectors.js';
 import { PUBLISHER_KINDS, specialtyLabel } from '../publishers/specialties.js';
 import { needsFollowUp, PUBLISHER_STATUSES, Publishers } from '../publishers/store.js';
@@ -34,6 +35,8 @@ Case editrici e aziende affini (candidature spontanee):
                                               e ne controlla i siti
   job-searcher publishers add "Nome" [--site url] [--city Padova] [--kind studio-editoriale] [--email e] [--note "…"]
   job-searcher publishers check [id]          visita i siti: specializzazione, email, pagina "lavora con noi"
+  job-searcher publishers persone <id>        chi contattare: nomi e ruoli dalle pagine "chi siamo", "redazione"
+                                              e "contatti" del sito (le email del kit si rivolgono a loro)
   job-searcher publishers <id> <stato> [--date 2026-09-29] [--note "…"]
                                               stati: ${Object.keys(PUBLISHER_STATUSES).join(', ')}
   job-searcher publishers watch [-p profilo] [--notify]
@@ -73,6 +76,7 @@ function printItem(p, { full = false } = {}) {
       ['Telefono', p.phone],
       ['Descrizione', p.description],
       ['Contatto', p.contact],
+      ['Persone', p.people?.map((x) => `${x.name} (${x.role})`).join(', ')],
       ['Canale', p.channel],
       ['Note', p.note],
       ['Trovata con', p.source],
@@ -298,6 +302,26 @@ async function importList(file, store) {
   }
 }
 
+/** Chi contattare: persone e ruoli dalle pagine "chi siamo", "redazione", "contatti" del sito. */
+async function people(ref, store) {
+  const p = store.find(ref);
+  if (!p) throw new Error(`Casa editrice "${ref}" non trovata: usa l'id tra [ ] nell'elenco.`);
+  const found = await findPeople(p.website);
+  store.setPeople(p.id, found);
+  await store.save();
+  if (found.problem) return console.log(c.yellow(`${p.name}: sito non raggiungibile (${found.problem})`));
+  console.log(
+    c.bold(`${p.name}: ${found.people.length ? 'persone sul sito' : 'nessuna persona con un ruolo sul sito'}`),
+  );
+  const best = bestContact(found.people);
+  for (const person of found.people) {
+    const mark = person === best ? c.green('→') : ' ';
+    console.log(`  ${mark} ${person.name} · ${person.role}${person.email ? c.dim(` · ${person.email}`) : ''}`);
+  }
+  if (best) console.log(c.dim(`\nLe email del kit e del CV su misura si rivolgeranno a ${best.name}.`));
+  console.log(c.dim(`Pagine lette: ${found.pages.join(', ')}`));
+}
+
 async function check(ref, store) {
   const targets = ref ? [store.find(ref)] : store.items.filter((p) => !p.checkedAt && p.website);
   if (ref && !targets[0]) throw new Error(`Casa editrice "${ref}" non trovata.`);
@@ -336,6 +360,7 @@ export async function publishersCommand(opts) {
   }
   if (first === 'find' || first === 'cerca') return find(opts, store);
   if (first === 'check' || first === 'controlla') return check(second, store);
+  if (first === 'people' || first === 'persone') return people(second, store);
   if (first === 'prompt') return prompt(opts, store);
   if (first === 'sectors' || first === 'settori') return sectors(opts);
   if (first === 'watch' || first === 'sorveglia') return watch(opts, store);

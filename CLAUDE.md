@@ -67,6 +67,7 @@ di Next. La CI (`.github/workflows/test.yml`) esegue test su Node 20 e 22, lint 
   - `discover.js`: ricerca su OpenStreetMap (Overpass, una query per settore) e Wikidata;
   - `websearch.js`: ricerca web con Brave (facoltativa);
   - `maps.js`: ricerca su Google Maps, Places API (facoltativa, con un tetto mensile di chiamate);
+  - `people.js`: chi contattare, cioè nomi e ruoli dalle pagine «chi siamo»/«redazione» del sito;
   - `import.js`: prompt e import degli elenchi;
   - `store.js`: archivio e stato delle candidature spontanee.
 - `src/tailor.js` fa il CV su misura, con `src/publishers/specialties.js` per le specializzazioni editoriali.

@@ -440,9 +440,10 @@ function AddModal({ kinds, onAdded, onClose }) {
   );
 }
 
-function Row({ p, statuses, kinds, specialtyLabel, onChange, onCheck, onRemove, onTailor }) {
+function Row({ p, statuses, kinds, specialtyLabel, onChange, onCheck, onPeople, onRemove, onTailor }) {
   const [note, setNote] = useState(p.note ?? '');
   const [checking, setChecking] = useState(false);
+  const [searching, setSearching] = useState(false);
   const where = [p.city, p.distanceKm != null ? `${p.distanceKm} km` : null].filter(Boolean).join(' · ');
   const sent = ['inviata', 'sollecitata', 'colloquio', 'rifiutata', 'nessuna_risposta'].includes(p.status);
   return (
@@ -482,6 +483,26 @@ function Row({ p, statuses, kinds, specialtyLabel, onChange, onCheck, onRemove, 
           {p.email && <a href={`mailto:${p.email}`}>{p.email}</a>}
           {p.checkProblem && <span className="faint">sito non raggiungibile ({p.checkProblem})</span>}
         </div>
+        {p.people?.length > 0 && (
+          <ul className="people small">
+            {p.people.slice(0, 4).map((person, i) => (
+              <li key={person.name}>
+                <strong>{person.name}</strong>
+                <span className="muted"> · {person.role}</span>
+                {person.email && (
+                  <>
+                    {' · '}
+                    <a href={`mailto:${person.email}`}>{person.email}</a>
+                  </>
+                )}
+                {i === 0 && person.rank <= 2 && <span className="badge warn">a chi scrivere</span>}
+              </li>
+            ))}
+          </ul>
+        )}
+        {p.peopleCheckedAt && !p.people?.length && !p.peopleProblem && (
+          <div className="small faint">Nessuna persona con un ruolo sul sito: scrivi all'indirizzo generale.</div>
+        )}
         <input
           type="text"
           aria-label={`Note su ${p.name}`}
@@ -541,6 +562,21 @@ function Row({ p, statuses, kinds, specialtyLabel, onChange, onCheck, onRemove, 
           >
             <RefreshIcon size={14} />
             {checking ? 'Controllo…' : 'Controlla sito'}
+          </button>
+        )}
+        {p.website && (
+          <button
+            type="button"
+            className="small ghost"
+            disabled={searching}
+            title="Nomi e ruoli dalle pagine «chi siamo», «redazione» e «contatti»"
+            onClick={async () => {
+              setSearching(true);
+              await onPeople(p);
+              setSearching(false);
+            }}
+          >
+            {searching ? 'Cerco…' : 'Chi contattare'}
           </button>
         )}
         <button
@@ -677,6 +713,14 @@ export default function PublishersBoard({
   }
   async function check(p) {
     replace(await send(`/api/publishers/${encodeURIComponent(p.id)}/check`, 'POST'));
+  }
+  async function people(p) {
+    setError('');
+    try {
+      replace(await send(`/api/publishers/${encodeURIComponent(p.id)}/people`, 'POST'));
+    } catch (err) {
+      setError(err.message);
+    }
   }
   async function remove(p) {
     if (!confirm(`Togliere "${p.name}" dall'elenco?`)) return;
@@ -847,6 +891,7 @@ export default function PublishersBoard({
                   specialtyLabel={specialtyLabel}
                   onChange={change}
                   onCheck={check}
+                  onPeople={people}
                   onRemove={remove}
                   onTailor={(x) => setTailor({ publisher: x.id })}
                 />

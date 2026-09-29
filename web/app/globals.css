@@ -1821,3 +1821,20 @@ ul.week-bars {
   margin: 0 0 24px;
   padding-left: 0;
 }
+
+/* Persone a cui scrivere (case editrici e aziende) */
+.people {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.people li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  overflow-wrap: anywhere;
+}
