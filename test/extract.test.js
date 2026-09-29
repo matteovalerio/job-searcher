@@ -132,3 +132,12 @@ test('stipendio: niente dollari presi per euro, niente capitale sociale, fattura
   // Importi annui impossibili si scartano.
   assert.equal(s(null, 'compenso 2.000.000 €'), null);
 });
+
+test('stipendio: vale la fascia che compare per prima, non il minimo spiegato dopo', () => {
+  const s = parseSalary(
+    null,
+    'Full-Time 26.800 € - 28.800 € La RAL prevista per questa posizione prevede un minimo di €26.800 e un massimo di €28.800.',
+  );
+  assert.equal(s.annualMin, 26800);
+  assert.equal(s.annualMax, 28800);
+});

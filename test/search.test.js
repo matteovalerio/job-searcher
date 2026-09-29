@@ -212,10 +212,84 @@ test('runSearch: completa con i dettagli solo le offerte passate dal filtro sul 
       },
     ],
   });
-  assert.deepEqual(enriched, ['Associate Publisher', 'Editor']);
+  // Prima le offerte passate dal titolo, poi il testo di quelle senza parole chiave nel titolo.
+  assert.deepEqual(enriched, ['Associate Publisher', 'Editor', 'Magazziniere']);
+  assert.ok(!result.jobs.some((j) => j.title === 'Magazziniere'), 'nel testo non ci sono parole chiave');
   const publisher = result.jobs.find((j) => j.title === 'Associate Publisher');
   assert.deepEqual(publisher.boosted, ['scientifiche']);
   assert.deepEqual(publisher.warnings, ['possibile ibrido']);
   // se il dettaglio non si scarica l'offerta resta, con i soli dati della ricerca
   assert.ok(result.jobs.some((j) => j.title === 'Editor'));
+});
+
+test('runSearch: il ruolo nominato solo nel testo salva l’offerta; i testi già letti non si riscaricano', async () => {
+  const { DetailsCache } = await import('../src/details-cache.js');
+  const fetched = [];
+  const source = {
+    ...fakeSource('rich', ['area'], () => [
+      makeJob('rich', { id: 1, title: 'Redattore', location: 'Padova', postedAt: '2026-09-20' }),
+      makeJob('rich', {
+        id: 2,
+        title: 'Specialista comunicazione e content',
+        location: 'Padova',
+        postedAt: '2026-09-25',
+      }),
+      makeJob('rich', {
+        id: 3,
+        title: 'Technical documentation specialist',
+        location: 'Padova',
+        postedAt: '2026-09-15',
+      }),
+      makeJob('rich', { id: 4, title: 'Contabile', location: 'Padova', postedAt: '2026-09-26' }),
+    ]),
+    async enrich(job) {
+      fetched.push(job.title);
+      const texts = {
+        2: 'Si occuperà della redazione di testi per newsletter e brochure.',
+        3: 'Redazione di manuali di uso e manutenzione.',
+        4: 'Tenuta della contabilità e fatturazione.',
+      };
+      return {
+        ...job,
+        description: texts[job.id.split(':').pop()] ?? 'Casa editrice di libri',
+        tags: ['A tempo pieno'],
+      };
+    },
+  };
+  const profile = {
+    name: 't',
+    targets: [
+      {
+        id: 'a',
+        label: 'A',
+        type: 'area',
+        keywords: ['redattore', 'redazione'],
+        queryKeywords: ['redattore'],
+        excludeKeywords: [],
+        boostKeywords: [],
+        matchIn: 'title',
+        places: [findComune('Padova')],
+        radiusKm: 30,
+        maxEnrichText: 2,
+        sources: [source],
+      },
+    ],
+  };
+  const cache = new DetailsCache('/dev/null');
+  const [result] = await runSearch(profile, { cache, now: Date.parse('2026-09-29') });
+  // Limite di 2 testi "extra": prima i più recenti (contabile, specialista); il terzo resta senza testo.
+  assert.deepEqual(fetched, ['Redattore', 'Contabile', 'Specialista comunicazione e content']);
+  const titles = result.jobs.map((j) => j.title);
+  assert.deepEqual(titles, ['Redattore', 'Specialista comunicazione e content']);
+  const special = result.jobs[1];
+  assert.equal(special.fromText, true);
+  assert.ok(special.warnings.includes('trovata nel testo'));
+  assert.ok(special.score < result.jobs[0].score);
+
+  // Seconda ricerca: i testi già letti vengono dalla memoria, quindi c'è posto per il terzo.
+  fetched.length = 0;
+  const [again] = await runSearch(profile, { cache, now: Date.parse('2026-09-29') });
+  assert.deepEqual(fetched, ['Technical documentation specialist']);
+  assert.ok(again.jobs.some((j) => j.title === 'Technical documentation specialist'));
+  assert.deepEqual(again.jobs.find((j) => j.title === 'Redattore').tags, ['A tempo pieno']);
 });

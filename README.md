@@ -281,7 +281,7 @@ Un profilo è un file JSON dentro `profiles/`. Di solito si crea con `profile ne
   "enableSources": ["infojobs"],                   // (opz.) fonti disattivate di default da usare
   "excludeKeywords": ["video", "software"],        // scarta le offerte che le hanno nel TITOLO
   "boostKeywords": ["casa editrice", "libri"],     // alzano il punteggio (non obbligatorie)
-  "matchIn": "title",                              // oppure "title+description" (più risultati, più rumore)
+  "matchIn": "title",                              // "title-only" (solo il titolo) o "title+description" (più rumore)
   "maxAgeDays": 30,                                 // ignora offerte più vecchie
   "maxPages": 2,                                    // pagine di risultati per ogni ricerca
   "targets": [
@@ -322,7 +322,12 @@ Un profilo è un file JSON dentro `profiles/`. Di solito si crea con `profile ne
   Un'informazione che nell'annuncio non c'è non fa mai scartare l'offerta. Un contratto viene escluso solo se tutti quelli citati sono tra gli esclusi ("somministrazione finalizzata al tempo indeterminato" resta). `minSalary` è lordo annuo in euro (`salaryCurrency` per un'altra valuta). La procedura guidata imposta i filtri in base agli anni di esperienza.
 - **Punteggio**: una parola chiave nel titolo vale 10 punti, nella descrizione 2. Un ruolo affine vale 5 punti (una volta sola), quindi resta sotto i ruoli principali. Una parola "boost" vale 5 punti nel titolo e 2 altrove (azienda compresa, quindi ci si possono mettere i nomi degli editori preferiti). Le offerte sono ordinate per punteggio e poi per data.
 - **Lingue**: con `languages` si scartano le offerte che nel titolo chiedono una lingua diversa da quelle indicate, per esempio "Hebrew Localization Specialist" o "English to Korean Translator". Senza `languages` la regola non si applica.
-- **Descrizioni di LinkedIn**: nei risultati di ricerca LinkedIn mostra solo titolo, azienda e luogo. Per le offerte che passano il filtro sul titolo il programma scarica anche la descrizione (al massimo 40 per ricerca, modificabile con `maxEnrich` nel target), così può assegnare i punti bonus. Nelle offerte "da remoto" segnala `possibile ibrido` se la descrizione parla di lavoro ibrido o in ufficio.
+- **`matchIn: "title"`**: conta soprattutto il titolo. Se il titolo non ha parole chiave ma il testo dell'annuncio sì (per esempio «Specialista comunicazione» che si occuperà della «redazione di testi», o «Technical documentation specialist» con la «redazione di manuali»), l'offerta resta con pochi punti e l'etichetta **trovata nel testo**: finisce sotto le altre, ma non si perde. Con `"title-only"` si guarda solo il titolo.
+- **Descrizioni di LinkedIn**: nei risultati di ricerca LinkedIn mostra solo titolo, azienda e luogo. Il programma scarica la descrizione:
+  - delle offerte che passano il filtro sul titolo, al massimo 40 per ricerca (`maxEnrich` nel target), così può assegnare i punti bonus;
+  - delle 30 più recenti tra quelle che LinkedIn ha trovato con le nostre parole ma che non le hanno nel titolo (`maxEnrichText`): la parola può essere nel testo.
+
+  I testi scaricati si ricordano per 45 giorni (`.job-searcher/details-cache.json`): le ricerche successive scaricano solo le offerte nuove. Nelle offerte "da remoto" segnala `possibile ibrido` se la descrizione parla di lavoro ibrido o in ufficio.
 - **`searchKeywords` e `keywords` sono due cose diverse**: le prime sono le ricerche inviate ai portali (poche, perché ogni parola è una richiesta per fonte e per luogo); le seconde decidono quali risultati tenere. Molti portali restituiscono offerte generiche, ed è il filtro locale a scartarle.
 
 ### Il profilo incluso

@@ -143,11 +143,20 @@ export function evaluate(job, matcher, now = Date.now()) {
   const body = normalize(`${job.description} ${job.tags.join(' ')} ${job.company}`);
   const fullText = `${title} ${body}`;
 
-  const titleOnly = matcher.matchIn === 'title';
+  // "title": conta il titolo; se il titolo non ha parole chiave, un'offerta resta (con pochi punti) quando è il
+  // testo dell'annuncio a nominare il ruolo ("Specialista comunicazione" che si occupa della "redazione di testi").
+  // "title-only": solo il titolo, come una volta. Altrimenti titolo e descrizione valgono entrambi.
+  const titleOnly = matcher.matchIn === 'title' || matcher.matchIn === 'title-only';
   const inTitle = findKeywords(title, matcher.keywords);
-  const inBody = titleOnly ? [] : findKeywords(body, matcher.keywords).filter((k) => !inTitle.includes(k));
+  let inBody = titleOnly ? [] : findKeywords(body, matcher.keywords).filter((k) => !inTitle.includes(k));
   const relTitle = findKeywords(title, matcher.related);
   const relBody = titleOnly ? [] : findKeywords(body, matcher.related).filter((k) => !relTitle.includes(k));
+  let fromText = false;
+  if (matcher.matchIn === 'title' && !inTitle.length && !relTitle.length) {
+    const description = normalize(`${job.description} ${job.tags.join(' ')}`);
+    inBody = findKeywords(description, matcher.keywords);
+    fromText = inBody.length > 0;
+  }
   if (!inTitle.length && !inBody.length && !relTitle.length && !relBody.length) {
     return { rejected: REJECT.noKeyword };
   }
@@ -182,10 +191,12 @@ export function evaluate(job, matcher, now = Date.now()) {
   if (score < matcher.minScore) return { rejected: REJECT.lowScore };
 
   const warnings = [];
+  if (fromText) warnings.push('trovata nel testo');
   if (matcher.remoteOnly && findKeywords(body, HYBRID_HINTS).length) warnings.push('possibile ibrido');
 
   return {
     score,
+    ...(fromText ? { fromText } : {}),
     info,
     matched: [...inTitle, ...inBody, ...relTitle, ...relBody],
     boosted: [...boostTitle, ...boostBody],
