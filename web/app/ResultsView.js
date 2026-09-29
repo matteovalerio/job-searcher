@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useBusy } from './Busy.js';
@@ -113,7 +114,7 @@ function MatchPrompt({ profile, onClose }) {
 
 const PAGE_SIZE = 30;
 
-export default function ResultsView({ profile, initialResults, statuses }) {
+export default function ResultsView({ profile, initialResults, statuses, learnCount = 0 }) {
   const router = useRouter();
   const [results, setResults] = useState(initialResults);
   const [log, setLog] = useState([]);
@@ -240,6 +241,16 @@ export default function ResultsView({ profile, initialResults, statuses }) {
           </button>
         </div>
       </header>
+
+      {learnCount > 0 && (
+        <p className="learn-hint small">
+          Dalle offerte che hai scartato e da quelle che segui:{' '}
+          <Link href={`/profili/${encodeURIComponent(profile.id)}`}>
+            {learnCount === 1 ? '1 proposta' : `${learnCount} proposte`} per migliorare il profilo
+          </Link>
+          .
+        </p>
+      )}
 
       <div className="statusbar">
         <label>

@@ -353,6 +353,23 @@ Un profilo è un file JSON dentro `profiles/`. Di solito si crea con `profile ne
 
 Le opzioni da riga di comando `-k`, `-l` e `--remote` sostituiscono quelle del profilo. `-x` si aggiunge alle esclusioni del profilo.
 
+### Il profilo impara dalle tue scelte
+
+Le offerte che segni «non mi interessa» e quelle che segui (interessante, candidatura, colloquio…) dicono cosa ti interessa davvero. Il programma guarda le parole dei loro titoli e propone di ritoccare il profilo:
+
+- **esclusione:** una parola che compare in almeno 3 offerte scartate e in nessuna di quelle che segui, per esempio «Hai segnato «non mi interessa» 4 offerte con «commerciale» nel titolo…»;
+- **bonus:** una parola che compare in almeno 2 offerte che segui e in nessuna scartata.
+
+Ogni proposta mostra i numeri, qualche esempio e quante offerte degli ultimi risultati cambierebbe. Le parole chiave del profilo e i nomi dei comuni non vengono mai proposti. Se una coppia di parole («social media») copre le stesse offerte di una parola sola («media»), si propone la coppia, che è più precisa.
+
+Non cambia niente da solo: decidi tu. Le proposte sono nella pagina del profilo, e la pagina **Offerte** avvisa quando ce ne sono. «No, grazie» non ripropone più quella parola (le proposte rifiutate stanno in `.job-searcher/learn.json`).
+
+```bash
+node src/cli.js impara -p redattore-padova              # le proposte, numerate
+node src/cli.js impara applica 1 -p redattore-padova    # aggiunge la proposta 1 al profilo
+node src/cli.js impara ignora 2 -p redattore-padova     # non la propone più
+```
+
 ### Perché un'offerta non compare?
 
 Durante la ricerca, per ogni fonte vedi quante offerte sono state scartate e per quale motivo, per esempio `LinkedIn: 11 pertinenti su 60 (scartate: 40 fuori zona, 9 nessuna parola chiave)`. Con `--explain`, o aprendo la sezione "Scartate" del report HTML, vedi quali offerte sono state scartate. Così capisci se conviene allargare il raggio, aggiungere parole chiave o togliere un'esclusione.
@@ -678,6 +695,7 @@ src/
   match.js         testo per confrontare CV e offerte su claude.ai
   tailor.js        CV su misura: cosa valorizzare e testo per claude.ai
   kit.js           kit di candidatura: analisi, CV riordinato, email, sollecito, prompt e controllo
+  learn.js         il profilo che impara: proposte di esclusioni e bonus dalle offerte scartate e seguite
   interview.js     preparazione al colloquio: domande probabili, azienda, ringraziamento, calendario, simulazione
   plan.js          piano settimanale: obiettivi, cose da fare, statistiche per canale e settore
   events.js        fiere, festival e associazioni del settore: catalogo, promemoria, prompt per la visita
