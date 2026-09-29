@@ -25,7 +25,8 @@ import { renderJson } from './output/json.js';
 import { c, formatReasons, renderRejected, renderTerminal } from './output/terminal.js';
 import { builtinSources, missingEnv } from './sources/index.js';
 import { envFile, reportsDir } from './paths.js';
-import { STATUSES, Tracking, findInLastResults } from './tracking.js';
+import { HIDDEN_STATUSES, STATUSES, Tracking, findInLastResults, loadLastResults } from './tracking.js';
+import { buildMatchPrompt, pickJobs } from './match.js';
 
 const HELP = `
 job-searcher — cerca offerte di lavoro su più portali
@@ -43,6 +44,8 @@ Uso:
   job-searcher track <id> <stato>       segna un'offerta (l'id è il codice tra [ ] nei risultati)
                                         stati: interessante, candidatura, colloquio, offerta, rifiutata, scartata
   job-searcher track <id> --note "…"    aggiunge o cambia la nota; "track <id> rimuovi" smette di seguirla
+  job-searcher match -p <nome>          prepara il testo per claude.ai: confronto tra CV e offerte migliori
+                                        (--cv file.pdf, --top 15, --ids a1b2c3d,e4f5a6b, -o file)
 
 Opzioni di "profile new", "profile prompt" e "profile import":
       --cv <file.pdf>      ricava le informazioni dal CV (con "prompt": include il testo del CV)
@@ -113,6 +116,8 @@ function parseCli(argv) {
       'no-browser': { type: 'boolean' },
       cv: { type: 'string' },
       note: { type: 'string' },
+      top: { type: 'string' },
+      ids: { type: 'string' },
       name: { type: 'string' },
       yes: { type: 'boolean', short: 'y' },
       help: { type: 'boolean', short: 'h' },
@@ -129,6 +134,8 @@ function parseCli(argv) {
     args: positionals.slice(1),
     cv: values.cv,
     note: values.note,
+    top: num(values.top, 'top'),
+    ids: list(values.ids),
     name: values.name,
     yes: values.yes,
     help: values.help,
@@ -299,6 +306,42 @@ async function search(opts) {
   }
 }
 
+async function match(opts) {
+  if (!opts.profile) throw new Error('Indica il profilo: job-searcher match -p <nome>');
+  const profile = await loadProfile(opts.profile);
+  const last = await loadLastResults(slugify(path.basename(opts.profile, '.json')));
+  if (!last)
+    throw new Error(
+      `Nessuna ricerca salvata per "${opts.profile}": lancia prima job-searcher search -p ${opts.profile}`,
+    );
+  const tracking = await new Tracking().load();
+  const jobs = pickJobs(last, {
+    ids: opts.ids,
+    top: opts.top ?? 15,
+    hidden: (job) => HIDDEN_STATUSES.includes(tracking.get(job.id)?.status),
+  });
+  const prompt = buildMatchPrompt({ profile, jobs, cvText: opts.cv ? await readCvText(opts.cv) : '' });
+  const next = [
+    opts.cv
+      ? '1. Incolla il testo in una nuova chat su claude.ai (il CV è già incluso).'
+      : '1. Apri una nuova chat su claude.ai, allega il CV in PDF e incolla il testo.',
+    '2. Claude ordina le offerte e ti chiede per quali vuoi una lettera di presentazione.',
+    '3. Segna quelle scelte con: job-searcher track <codice> interessante (o candidatura)',
+  ].join('\n');
+  if (opts.out) {
+    await writeFile(opts.out, prompt);
+    console.log(c.green(`Prompt con ${jobs.length} offerte salvato in ${opts.out}`));
+    console.log(next);
+  } else {
+    console.log(prompt);
+    console.error(
+      c.dim(
+        `\n${'-'.repeat(60)}\n${jobs.length} offerte (ricerca del ${new Date(last.date).toLocaleString('it-IT')})\n${next}`,
+      ),
+    );
+  }
+}
+
 async function track(opts) {
   const tracking = await new Tracking().load();
   const [ref, status] = opts.args;
@@ -450,6 +493,7 @@ async function main() {
   if (opts.command === 'sources') return listSources();
   if (opts.command === 'doctor') return doctor(opts);
   if (opts.command === 'track') return track(opts);
+  if (opts.command === 'match') return match(opts);
   if (opts.command === 'search') return search(opts);
   if (opts.command === 'profiles') return listSavedProfiles();
   if (opts.command === 'profile') {

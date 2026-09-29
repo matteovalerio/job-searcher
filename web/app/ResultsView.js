@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import JobCard from './JobCard.js';
 
 function formatEvent(e) {
@@ -36,6 +36,86 @@ function formatEvent(e) {
   }
 }
 
+/** Testo per claude.ai che confronta il candidato con le offerte migliori dell'ultima ricerca. */
+function MatchPrompt({ profile, onClose }) {
+  const [top, setTop] = useState(15);
+  const [state, setState] = useState({ loading: true });
+  const [copied, setCopied] = useState(false);
+
+  async function load(n) {
+    setState({ loading: true });
+    const res = await fetch('/api/match', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ profile, top: n }),
+    });
+    const data = await res.json();
+    setState(res.ok ? data : { error: data.error });
+  }
+
+  useEffect(() => {
+    load(15);
+  }, [profile]);
+
+  async function copy() {
+    await navigator.clipboard.writeText(state.prompt);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  return (
+    <div
+      className="modal"
+      role="dialog"
+      aria-label="Prompt per Claude"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div className="card stack">
+        <div className="row">
+          <h2>Confronta CV e offerte con Claude</h2>
+          <span className="spacer" />
+          <button className="secondary" onClick={onClose}>
+            Chiudi
+          </button>
+        </div>
+        <p className="small muted">
+          Copia il testo, apri una nuova chat su claude.ai, <strong>allega il CV in PDF</strong> e incolla. Usa
+          l&apos;abbonamento, non l&apos;API. Claude ordina le offerte per affinità usando i codici tra parentesi
+          quadre, gli stessi che vedi qui.
+        </p>
+        <div className="row">
+          <label className="small">
+            Offerte migliori:{' '}
+            <input
+              type="number"
+              min="1"
+              max="40"
+              value={top}
+              onChange={(e) => setTop(Number(e.target.value))}
+              onBlur={() => load(top)}
+              style={{ width: 70 }}
+            />
+          </label>
+          {state.count != null && <span className="muted small">{state.count} offerte nel testo</span>}
+        </div>
+        {state.loading && <p className="muted">Preparo il testo…</p>}
+        {state.error && <div className="error-box">{state.error}</div>}
+        {state.prompt && (
+          <>
+            <textarea readOnly rows={14} value={state.prompt} aria-label="Testo per Claude" />
+            <div className="row">
+              <button onClick={copy}>{copied ? 'Copiato ✓' : 'Copia'}</button>
+              <a className="button secondary" href="https://claude.ai/new" target="_blank" rel="noreferrer">
+                Apri claude.ai
+              </a>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function ResultsView({ profiles, selected, initialResults, statuses }) {
   const router = useRouter();
   const [results, setResults] = useState(initialResults);
@@ -45,6 +125,7 @@ export default function ResultsView({ profiles, selected, initialResults, status
   const [query, setQuery] = useState('');
   const [onlyNew, setOnlyNew] = useState(false);
   const [targetIndex, setTargetIndex] = useState(0);
+  const [showMatch, setShowMatch] = useState(false);
 
   async function refresh() {
     const res = await fetch(`/api/results?profile=${encodeURIComponent(selected)}`);
@@ -141,6 +222,11 @@ export default function ResultsView({ profiles, selected, initialResults, status
             <input type="checkbox" checked={noBrowser} onChange={(e) => setNoBrowser(e.target.checked)} /> senza Indeed
             e InfoJobs (niente browser)
           </label>
+          {results && (
+            <button className="secondary" onClick={() => setShowMatch(true)} disabled={running}>
+              Prompt per Claude
+            </button>
+          )}
           <span className="spacer" />
           {results?.date && (
             <span className="muted small">Ultima ricerca: {new Date(results.date).toLocaleString('it-IT')}</span>
@@ -159,6 +245,8 @@ export default function ResultsView({ profiles, selected, initialResults, status
           </div>
         )}
       </div>
+
+      {showMatch && <MatchPrompt profile={selected} onClose={() => setShowMatch(false)} />}
 
       {!results ? (
         <div className="card empty">Nessuna ricerca ancora per questo profilo: premi «Avvia ricerca».</div>

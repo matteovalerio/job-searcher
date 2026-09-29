@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { core, resultsForPage } from '../lib/core.js';
 import ResultsView from './ResultsView.js';
 
@@ -10,8 +11,7 @@ export default async function Home({ searchParams }) {
   if (!profiles.length) {
     return (
       <div className="card empty">
-        Nessun profilo. Creane uno dalla riga di comando con <code>node src/cli.js profile new</code> oppure{' '}
-        <code>profile prompt</code> / <code>profile import</code>.
+        Nessun profilo ancora. <Link href="/profili/nuovo">Crea il primo profilo</Link>.
       </div>
     );
   }

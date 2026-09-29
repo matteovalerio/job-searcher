@@ -17,11 +17,13 @@ export default async function Profili() {
   const profiles = await listProfiles();
   return (
     <div className="stack">
-      <h1>Profili</h1>
-      <p className="muted small">
-        Per crearne uno nuovo usa la riga di comando: <code>node src/cli.js profile new --cv cv.pdf</code>, oppure{' '}
-        <code>profile prompt</code> e <code>profile import</code> per farlo scrivere a Claude.
-      </p>
+      <div className="row">
+        <h1>Profili</h1>
+        <span className="spacer" />
+        <Link href="/profili/nuovo" className="button">
+          Nuovo profilo
+        </Link>
+      </div>
       {profiles.map((p) => (
         <div key={p.id} className="card">
           <div className="row">
