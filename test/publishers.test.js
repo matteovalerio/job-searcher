@@ -98,7 +98,7 @@ test('discoverPublishers: più città, ricerca web facoltativa, problemi riporta
     results: [{ name: 'Wetlands', website: 'https://wetlandsbooks.com/', city: 'Venezia', source: 'ricerca web' }],
     problems: [`cercate: ${cities.join(', ')}`],
   });
-  const two = await discoverPublishers({ place: 'Padova, Venezia', radiusKm: 20, http, web });
+  const two = await discoverPublishers({ place: 'Padova, Venezia', radiusKm: 40, http, web });
   assert.deepEqual(
     two.centers.map((c) => c.name),
     ['Padova', 'Venezia'],
@@ -231,4 +231,65 @@ test('Overpass: se un server rifiuta si prova il successivo; se falliscono tutti
     /HTTP 400/,
   );
   assert.equal(calls.length, 1);
+});
+
+test('Overpass sovraccarico (504 open64): pausa e nuovo tentativo sullo stesso server', async () => {
+  const { fetchOverpass } = await import('../src/publishers/discover.js');
+  let calls = 0;
+  const json = await fetchOverpass('[out:json];', {
+    urls: ['https://uno.example/api/interpreter', 'https://due.example/api/interpreter'],
+    busyPause: 0,
+    fetchFn: async () => {
+      calls++;
+      if (calls === 1) return new Response('Error: runtime error: open64: 0 Success', { status: 504 });
+      return Response.json({ elements: [] });
+    },
+  });
+  assert.equal(calls, 2);
+  assert.deepEqual(json.elements, []);
+});
+
+test('OpenStreetMap un settore alla volta: se uno fallisce gli altri arrivano; dopo due fallimenti ci si ferma', async () => {
+  const bodies = [];
+  const http = {
+    busyPause: 0,
+    async fetch(_url, init) {
+      const q = decodeURIComponent(init.body);
+      bodies.push(q);
+      if (q.includes('advertising_agency')) return new Response('bad gateway', { status: 502 });
+      return Response.json({
+        elements: [
+          { type: 'node', lat: 45.42, lon: 11.88, tags: { name: 'Tipografia Veneta', craft: 'printer' } },
+          { type: 'node', lat: 46.5, lon: 11.35, tags: { name: 'Tipografia Lontana', craft: 'printer' } },
+        ],
+      });
+    },
+    async getJson() {
+      return { results: { bindings: [] } };
+    },
+  };
+  const noWeb = async () => ({ results: [], problems: [], skipped: true });
+  const found = await discoverPublishers({
+    place: 'Padova',
+    radiusKm: 30,
+    sectors: ['agenzia-comunicazione', 'tipografia'],
+    http,
+    web: noWeb,
+  });
+  assert.deepEqual(
+    found.results.map((r) => r.name),
+    ['Tipografia Veneta'],
+    'la tipografia oltre il raggio (Bolzano) si scarta',
+  );
+  assert.equal(found.problems.length, 1);
+  assert.match(found.problems[0], /agenzie pubblicitarie e di comunicazione\): nessun server ha risposto/);
+
+  const down = await discoverPublishers({
+    place: 'Padova',
+    sectors: ['agenzia-comunicazione', 'tipografia', 'libreria'],
+    http: { ...http, fetch: async () => new Response('down', { status: 503 }) },
+    web: noWeb,
+  });
+  assert.equal(down.problems.length, 3);
+  assert.match(down.problems[2], /gli altri settori non sono stati cercati/);
 });

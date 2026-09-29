@@ -1,6 +1,6 @@
 import * as cheerio from 'cheerio';
 import { distanceKm, findComune } from '../geo.js';
-import { getJson, getText } from '../http.js';
+import { getJson, getText, sleep } from '../http.js';
 import { findCareersLink } from '../sources/careers.js';
 import { normalize } from '../text.js';
 import { PUBLISHING_SECTORS, SECTORS, sectorById } from './sectors.js';
@@ -45,40 +45,61 @@ const errorText = (body) =>
  * Esegue una query Overpass provando i server uno dopo l'altro. Si passa al successivo se un server rifiuta
  * (406, 403), è sovraccarico (429, 5xx), non risponde o risponde con un errore di esecuzione.
  */
-export async function fetchOverpass(query, { fetchFn = fetch, urls = OVERPASS_URLS, timeoutMs = 70000 } = {}) {
+export async function fetchOverpass(
+  query,
+  { fetchFn = fetch, urls = OVERPASS_URLS, timeoutMs = 45000, busyPause = 5000 } = {},
+) {
   const failures = [];
   for (const url of urls) {
     const host = new URL(url).host;
-    try {
-      const res = await fetchFn(url, {
-        method: 'POST',
-        headers: {
-          'User-Agent': WIKIDATA_UA,
-          Accept: 'application/json',
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: `data=${encodeURIComponent(query)}`,
-        signal: AbortSignal.timeout(timeoutMs),
-      });
-      if (!res.ok) {
-        const text = errorText(await res.text().catch(() => ''));
-        failures.push(`${host}: HTTP ${res.status}${text ? ` (${text})` : ''}`);
-        // 400 = query non valida: inutile riprovare altrove.
-        if (res.status === 400) break;
+    // Un server sovraccarico ("too busy", 429, 504 "open64") spesso risponde dopo qualche secondo: si riprova
+    // una volta prima di passare al successivo.
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const outcome = await tryOverpass(url, host, query, fetchFn, timeoutMs);
+      if (outcome.json) return outcome.json;
+      if (outcome.busy && attempt === 0) {
+        if (busyPause) await sleep(busyPause);
         continue;
       }
-      const json = await res.json();
-      // Query troppo pesante: Overpass risponde 200 ma con un "remark" di errore e senza elementi.
-      if (!json.elements?.length && /error|timed out|out of memory/i.test(json.remark ?? '')) {
-        failures.push(`${host}: ${json.remark.trim().slice(0, 160)}`);
-        continue;
-      }
-      return json;
-    } catch (err) {
-      failures.push(`${host}: ${err.name === 'TimeoutError' ? 'nessuna risposta' : (err.cause?.code ?? err.message)}`);
+      failures.push(outcome.failure);
+      if (outcome.fatal) throw new Error(`query non valida. ${outcome.failure}`);
+      break;
     }
   }
   throw new Error(`nessun server ha risposto. ${failures.join(' | ')}`);
+}
+
+const BUSY = /open64|dispatcher|too busy|rate_limited|timeout|timed out/i;
+
+async function tryOverpass(url, host, query, fetchFn, timeoutMs) {
+  try {
+    const res = await fetchFn(url, {
+      method: 'POST',
+      headers: {
+        'User-Agent': WIKIDATA_UA,
+        Accept: 'application/json',
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: `data=${encodeURIComponent(query)}`,
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    if (!res.ok) {
+      const text = errorText(await res.text().catch(() => ''));
+      const failure = `${host}: HTTP ${res.status}${text ? ` (${text})` : ''}`;
+      // 400 = query non valida: inutile riprovare altrove.
+      return { failure, fatal: res.status === 400, busy: res.status === 429 || (res.status >= 500 && BUSY.test(text)) };
+    }
+    const json = await res.json();
+    // Query troppo pesante: Overpass risponde 200 ma con un "remark" di errore e senza elementi.
+    if (!json.elements?.length && /error|timed out|out of memory/i.test(json.remark ?? '')) {
+      return { failure: `${host}: ${json.remark.trim().slice(0, 160)}`, busy: BUSY.test(json.remark) };
+    }
+    return { json };
+  } catch (err) {
+    return {
+      failure: `${host}: ${err.name === 'TimeoutError' ? 'nessuna risposta' : (err.cause?.code ?? err.message)}`,
+    };
+  }
 }
 
 /** Centro della ricerca: un comune italiano (con le sue coordinate). */
@@ -88,12 +109,24 @@ export function resolveCenter(place) {
   return { name: comune.name, lat: comune.lat, lon: comune.lon };
 }
 
-export function overpassQuery({ lat, lon }, radiusKm, sectors = PUBLISHING_SECTORS) {
-  const around = `(around:${Math.round(radiusKm * 1000)},${lat},${lon})`;
+/** Rettangolo (sud, ovest, nord, est) che contiene il cerchio di raggio `radiusKm` attorno al centro. */
+export function bbox({ lat, lon }, radiusKm) {
+  const dLat = radiusKm / 111.32;
+  const dLon = radiusKm / (111.32 * Math.cos((lat * Math.PI) / 180));
+  const r = (n) => Math.round(n * 10000) / 10000;
+  return [r(lat - dLat), r(lon - dLon), r(lat + dLat), r(lon + dLon)];
+}
+
+/**
+ * Query Overpass per i settori indicati. Si usa il rettangolo attorno alla città invece del cerchio: per i
+ * server è molto più leggero; chi sta fuori dal raggio si scarta poi (vedi searchMaps).
+ */
+export function overpassQuery(center, radiusKm, sectors = PUBLISHING_SECTORS) {
+  const area = `(${bbox(center, radiusKm).join(',')})`;
   const selectors = sectors.flatMap((id) => sectorById(id)?.osm ?? []);
-  return `[out:json][timeout:60];
+  return `[out:json][timeout:40];
 (
-${selectors.map((sel) => `  nwr${sel}${around};`).join('\n')}
+${selectors.map((sel) => `  nwr${sel}${area};`).join('\n')}
 );
 out center tags;`;
 }
@@ -228,16 +261,36 @@ export function mergeResults(lists) {
   return [...merged.values()].sort((a, b) => (a.distanceKm ?? 999) - (b.distanceKm ?? 999));
 }
 
+/**
+ * OpenStreetMap, un settore alla volta: query piccole che i server pubblici reggono, e se un settore fallisce
+ * gli altri arrivano comunque. Dopo due settori falliti di fila si smette (i server sono giù o sovraccarichi).
+ */
+async function searchOsm(center, radiusKm, sectors, http, problems) {
+  const out = [];
+  let failedInARow = 0;
+  for (const id of sectors.filter((s) => sectorById(s)?.osm.length)) {
+    try {
+      const json = await fetchOverpass(overpassQuery(center, radiusKm, [id]), {
+        fetchFn: http.fetch ?? fetch,
+        busyPause: http.busyPause,
+      });
+      out.push(...parseOverpass(json, center, sectors).filter((p) => p.distanceKm == null || p.distanceKm <= radiusKm));
+      failedInARow = 0;
+    } catch (err) {
+      problems.push(`OpenStreetMap (${center.name}, ${sectorById(id).label.toLowerCase()}): ${err.message}`);
+      if (++failedInARow >= 2) {
+        problems.push(
+          `OpenStreetMap (${center.name}): i server non rispondono, gli altri settori non sono stati cercati.`,
+        );
+        break;
+      }
+    }
+  }
+  return out;
+}
+
 async function searchMaps(center, radiusKm, sectors, http, problems) {
-  const withOsm = sectors.some((id) => sectorById(id)?.osm.length);
-  const fromOsm = !withOsm
-    ? Promise.resolve([])
-    : fetchOverpass(overpassQuery(center, radiusKm, sectors), { fetchFn: http.fetch ?? fetch })
-        .then((json) => parseOverpass(json, center, sectors))
-        .catch((err) => {
-          problems.push(`OpenStreetMap (${center.name}): ${err.message}`);
-          return [];
-        });
+  const fromOsm = searchOsm(center, radiusKm, sectors, http, problems);
   // Wikidata serve solo per le case editrici.
   const fromWikidata = !sectors.includes('casa-editrice')
     ? Promise.resolve([])
