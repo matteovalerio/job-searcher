@@ -88,6 +88,11 @@ function Analysis({ kit, onRedo }) {
             {c.kindLabel && <span className="muted"> · {c.kindLabel}</span>}
             {c.known && <span className="muted"> · è nel tuo elenco</span>}
           </p>
+          {c.affine && (
+            <p className="small" style={{ margin: 0 }}>
+              Ruolo di un settore affine ({c.affine.one}): {c.affine.why}.
+            </p>
+          )}
           {c.contact && (
             <p className="small" style={{ margin: 0 }}>
               A chi scrivere: <strong>{c.contact.name}</strong>

@@ -45,6 +45,8 @@ export function buildMatcher(target) {
   return {
     keywords: compileKeywords(target.keywords),
     related: compileKeywords(target.relatedKeywords ?? []),
+    // Settori affini: titoli come "copywriter" o "technical writer" (vedi publishers/sectors.js).
+    affine: (target.affine ?? []).map((s) => ({ id: s.id, one: s.one, why: s.why, re: compileKeywords(s.jobs) })),
     // Se indicate, le offerte che nel titolo chiedono altre lingue vengono scartate.
     languages: target.languages?.length ? target.languages.map(normalize) : null,
     exclude: compileKeywords(target.excludeKeywords),
@@ -151,20 +153,31 @@ export function evaluate(job, matcher, now = Date.now()) {
   let inBody = titleOnly ? [] : findKeywords(body, matcher.keywords).filter((k) => !inTitle.includes(k));
   const relTitle = findKeywords(title, matcher.related);
   const relBody = titleOnly ? [] : findKeywords(body, matcher.related).filter((k) => !relTitle.includes(k));
+  // Titolo di un settore affine, se il titolo non ha le parole principali: resta, segnata come "affine".
+  let affine = null;
+  if (!inTitle.length && !relTitle.length) {
+    for (const s of matcher.affine ?? []) {
+      const hit = findKeywords(title, s.re);
+      if (hit.length) {
+        affine = { id: s.id, one: s.one, why: s.why, match: hit[0] };
+        break;
+      }
+    }
+  }
   let fromText = false;
-  if (matcher.matchIn === 'title' && !inTitle.length && !relTitle.length) {
+  if (matcher.matchIn === 'title' && !inTitle.length && !relTitle.length && !affine) {
     const description = normalize(`${job.description} ${job.tags.join(' ')}`);
     inBody = findKeywords(description, matcher.keywords);
     fromText = inBody.length > 0;
   }
-  if (!inTitle.length && !inBody.length && !relTitle.length && !relBody.length) {
+  if (!inTitle.length && !inBody.length && !relTitle.length && !relBody.length && !affine) {
     return { rejected: REJECT.noKeyword };
   }
 
   // Le esclusioni si controllano dopo: così "parola esclusa" indica offerte che altrimenti sarebbero passate.
   // Una parola esclusa non conta se fa parte di una parola chiave trovata nel titolo: "tecnica" è esclusa,
   // "documentazione tecnica" no.
-  const found = [...inTitle, ...relTitle].map(normalize);
+  const found = [...inTitle, ...relTitle, ...(affine ? [affine.match] : [])].map(normalize);
   const excluded = findKeywords(title, matcher.exclude).filter((x) => !found.some((k) => k.includes(normalize(x))));
   if (excluded.length) return { rejected: REJECT.excluded };
   if (matcher.languages) {
@@ -185,24 +198,27 @@ export function evaluate(job, matcher, now = Date.now()) {
   if (infoProblem) return { rejected: infoProblem, info };
 
   // Una parola già contata come parola chiave non vale di nuovo come "bonus".
-  const matched = [...inTitle, ...inBody, ...relTitle, ...relBody].map(normalize);
+  const matched = [...inTitle, ...inBody, ...relTitle, ...relBody, ...(affine ? [affine.match] : [])].map(normalize);
   const notMatched = (k) => !matched.includes(normalize(k));
   const boostTitle = findKeywords(title, matcher.boost).filter(notMatched);
   const boostBody = findKeywords(body, matcher.boost).filter((k) => notMatched(k) && !boostTitle.includes(k));
   // I ruoli affini contano una volta sola: devono restare sotto i ruoli principali.
-  const related = relTitle.length ? 5 : relBody.length ? 1 : 0;
+  // Un titolo affine vale come un ruolo affine nel titolo.
+  const related = relTitle.length || affine ? 5 : relBody.length ? 1 : 0;
   const score = inTitle.length * 10 + inBody.length * 2 + related + boostTitle.length * 5 + boostBody.length * 2;
   if (score < matcher.minScore) return { rejected: REJECT.lowScore };
 
   const warnings = [];
   if (fromText) warnings.push('trovata nel testo');
+  if (affine) warnings.push(`affine · ${affine.one}`);
   if (matcher.remoteOnly && findKeywords(body, HYBRID_HINTS).length) warnings.push('possibile ibrido');
 
   return {
     score,
     ...(fromText ? { fromText } : {}),
+    ...(affine ? { affine } : {}),
     info,
-    matched: [...inTitle, ...inBody, ...relTitle, ...relBody],
+    matched: [...inTitle, ...inBody, ...relTitle, ...relBody, ...(affine ? [affine.match] : [])],
     boosted: [...boostTitle, ...boostBody],
     warnings,
   };

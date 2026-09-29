@@ -9,6 +9,8 @@ import { compileKeywords, normalize } from '../text.js';
  *   one       nome al singolare, per indicare il tipo di un'azienda
  *   why       perché è un settore affine: cosa si fa lì che il candidato sa già fare
  *   roles     ruoli da proporre in una candidatura spontanea
+ *   jobs      titoli con cui questi ruoli compaiono negli annunci: servono a cercare offerte affini (vedi
+ *             affineForProfile); i primi sono quelli che si cercano sui portali
  *   focus     cosa valorizzare nel CV per questo settore (lo usa il "CV su misura")
  *   fit       quanto è vicino a ogni area professionale (vedi profiles/roles.js): serve a ordinarli
  *   osm       elementi di OpenStreetMap da cercare (selettori Overpass, senza la zona). Le ricerche per nome
@@ -82,6 +84,7 @@ export const SECTORS = [
     one: 'agenzia di comunicazione',
     why: 'brochure, cataloghi, libretti per eventi e sagre, siti: servono testi corretti, impaginazione e coordinamento con i clienti',
     roles: ['copywriter', 'correttore di bozze', 'impaginatore', 'project manager'],
+    jobs: ['copywriter', 'content writer', 'content editor', 'proofreader'],
     focus: [
       'scrittura e revisione di testi brevi e chiari (copy, cataloghi, materiali per eventi)',
       'impaginazione con InDesign e rapporti con grafici e tipografie',
@@ -99,6 +102,7 @@ export const SECTORS = [
     one: 'tipografia',
     why: 'prestampa e controllo delle bozze, impaginazione, rapporti con editori e clienti',
     roles: ['addetto alla prestampa', 'correttore di bozze', 'grafico impaginatore'],
+    jobs: ['prestampa', 'grafico impaginatore', 'impaginatore'],
     focus: [
       'controllo di qualità delle bozze e delle prove di stampa',
       'impaginazione e preparazione dei file per la stampa',
@@ -116,6 +120,7 @@ export const SECTORS = [
     one: 'agenzia di traduzione',
     why: 'revisione e controllo di qualità dei testi tradotti, dove contano la formazione linguistica e la precisione',
     roles: ['revisore', 'project manager linguistico', 'post-editor'],
+    jobs: ['post-editor', 'localization specialist', 'revisore traduzioni', 'project manager linguistico'],
     focus: [
       'formazione linguistica e lingue conosciute (con i livelli)',
       'revisione e controllo di qualità dei testi',
@@ -133,6 +138,7 @@ export const SECTORS = [
     one: 'agenzia di comunicazione scientifica',
     why: 'riviste, congressi, corsi ECM e materiali per aziende farmaceutiche: servono redattori abituati ai contenuti scientifici',
     roles: ['medical writer', 'redattore scientifico', 'project manager editoriale'],
+    jobs: ['medical writer', 'scientific writer', 'medical communications', 'redattore scientifico'],
     focus: [
       'esperienza con contenuti scientifici e rapporti con autori medici e ricercatori',
       'accuratezza, controllo delle fonti e delle bibliografie',
@@ -150,6 +156,7 @@ export const SECTORS = [
     one: 'università o ente di ricerca',
     why: 'uffici editoriali, riviste scientifiche e university press; spesso con concorsi o contratti a progetto',
     roles: ['redattore di riviste', 'editor per la university press', 'addetto alla comunicazione della ricerca'],
+    jobs: ['university press', 'editorial assistant', 'journal manager'],
     focus: [
       'redazione di testi scientifici e rapporti con autori accademici',
       'norme redazionali, peer review e bibliografie',
@@ -167,6 +174,7 @@ export const SECTORS = [
     one: 'museo o ente culturale',
     why: 'cataloghi delle mostre, pannelli, testi divulgativi e ufficio stampa',
     roles: ['redattore di cataloghi', 'addetto alla comunicazione', 'ufficio stampa'],
+    jobs: ['redattore di cataloghi', 'catalogatore', 'addetto alla comunicazione museale'],
     focus: [
       'cura di cataloghi e testi divulgativi, rapporti con curatori e grafici',
       'revisione accurata e scrittura per il pubblico',
@@ -183,6 +191,7 @@ export const SECTORS = [
     one: 'azienda di formazione',
     why: 'progettano e revisionano materiali didattici, corsi online e manuali',
     roles: ['content editor', 'instructional designer', 'revisore di materiali didattici'],
+    jobs: ['instructional designer', 'content developer', 'autore di contenuti didattici'],
     focus: [
       'chiarezza e struttura dei testi, adattamento al pubblico',
       'revisione di contenuti tecnici o scientifici',
@@ -200,6 +209,7 @@ export const SECTORS = [
     one: 'azienda di documentazione tecnica',
     why: 'manuali, istruzioni e cataloghi di prodotto: scrittura chiara, revisione e impaginazione',
     roles: ['technical writer', 'redattore tecnico', 'impaginatore di manuali'],
+    jobs: ['technical writer', 'redattore tecnico', 'technical documentation', 'documentazione tecnica'],
     focus: [
       'scrittura chiara e precisa, rispetto di norme e stili redazionali',
       'impaginazione di documenti lunghi (InDesign)',
@@ -217,6 +227,7 @@ export const SECTORS = [
     one: 'testata giornalistica',
     why: 'redazioni di giornali e riviste locali: correzione, titolazione, impaginazione e scadenze quotidiane',
     roles: ['redattore', 'correttore', 'addetto al desk'],
+    jobs: ['giornalista', 'redattore web', 'addetto al desk'],
     focus: [
       'lavoro con scadenze fisse e ritmi veloci',
       'revisione, titolazione e impaginazione',
@@ -291,4 +302,30 @@ export function resolveSectors(value, profileText = '') {
       throw new Error(`Settore sconosciuto "${item}". Settori: ${SECTORS.map((s) => s.id).join(', ')}, affini, tutti`);
   }
   return [...out];
+}
+
+/**
+ * Settori affini per la ricerca delle offerte: quelli indicati nel profilo ("affine": { "sectors": [...] }) o,
+ * con "auto" (predefinito), i più vicini al candidato secondo il profilo. "no" li spegne.
+ * @returns {{ id, label, one, why, jobs: string[] }[]}
+ */
+export function affineForProfile(profile) {
+  const setting = profile.affine?.sectors ?? 'auto';
+  if (setting === 'no' || setting === false) return [];
+  const text = [
+    profile.name,
+    profile.description,
+    ...(profile.keywords ?? []),
+    ...(profile.relatedKeywords ?? []),
+    ...(profile.candidate?.areas ?? []),
+  ].join(' ');
+  const ids = Array.isArray(setting) ? setting : affineSectors(text, profile.affine?.max ?? 3);
+  return ids
+    .map((id) => {
+      const s = sectorById(id);
+      if (!s) throw new Error(`Settore affine sconosciuto "${id}". Settori: ${SECTORS.map((x) => x.id).join(', ')}`);
+      return s;
+    })
+    .filter((s) => s.jobs?.length)
+    .map(({ id, label, one, why, jobs }) => ({ id, label, one, why, jobs }));
 }

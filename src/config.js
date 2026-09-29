@@ -1,4 +1,5 @@
 import { findComune } from './geo.js';
+import { affineForProfile } from './publishers/sectors.js';
 import { builtinSources, createCustomSource } from './sources/index.js';
 
 /**
@@ -76,6 +77,22 @@ export function applyOverrides(profile = {}, opts = {}) {
  * Valida il profilo e calcola, per ogni target, parole chiave e fonti effettive.
  * @returns {{ name: string, targets: ResolvedTarget[] }}
  */
+/** Titoli affini da cercare sui portali: uno per settore a rotazione, senza quelli già cercati, al massimo `max`. */
+function affineQueries(affine, already, max) {
+  const have = new Set(already.map((k) => k.toLowerCase()));
+  const out = [];
+  for (let round = 0; out.length < max && affine.some((s) => s.jobs[round]); round++) {
+    for (const s of affine) {
+      const title = s.jobs[round];
+      if (title && !have.has(title.toLowerCase()) && out.length < max) {
+        out.push(title);
+        have.add(title.toLowerCase());
+      }
+    }
+  }
+  return out;
+}
+
 export function resolveProfile(profile, { onlySources, noBrowser = false } = {}) {
   const custom = (profile.customSources ?? []).map(createCustomSource);
   const all = [...builtinSources, ...custom];
@@ -90,6 +107,9 @@ export function resolveProfile(profile, { onlySources, noBrowser = false } = {})
     throw new Error('Nessun target: indica una località (--place) e/o --remote, oppure dei "targets" nel profilo');
   }
 
+  // Settori affini (agenzie, documentazione tecnica, comunicazione scientifica…): i loro titoli si cercano anche
+  // sui portali, e le offerte trovate così si segnano come "affini".
+  const affine = affineForProfile(profile);
   const targets = profile.targets.map((t, i) => {
     if (t.type !== 'area' && t.type !== 'remote') {
       throw new Error(`Target #${i + 1}: "type" deve essere "area" o "remote"`);
@@ -105,6 +125,9 @@ export function resolveProfile(profile, { onlySources, noBrowser = false } = {})
     });
 
     const keywords = unique([...(profile.keywords ?? []), ...(t.keywords ?? [])]);
+    const queryKeywords = unique(t.searchKeywords ?? profile.searchKeywords ?? keywords).filter(
+      (k) => !k.includes('*'),
+    );
     const relatedKeywords = unique([...(profile.relatedKeywords ?? []), ...(t.relatedKeywords ?? [])]);
     if (!keywords.length) throw new Error('Serve almeno una parola chiave ("keywords" o --keywords)');
 
@@ -139,7 +162,9 @@ export function resolveProfile(profile, { onlySources, noBrowser = false } = {})
       filters: { ...profile.filters, ...t.filters },
       // Parole inviate ai portali (di solito poche e generiche); tutte le "keywords" servono poi al filtro.
       // Le parole con "*" restano solo nel filtro locale: i portali non capiscono i caratteri jolly.
-      queryKeywords: unique(t.searchKeywords ?? profile.searchKeywords ?? keywords).filter((k) => !k.includes('*')),
+      // Più i titoli dei settori affini (vedi sotto), poche ricerche in più.
+      queryKeywords: unique([...queryKeywords, ...affineQueries(affine, queryKeywords, profile.affine?.queries ?? 4)]),
+      affine,
       excludeKeywords: unique([...(profile.excludeKeywords ?? []), ...(t.excludeKeywords ?? [])]),
       boostKeywords: unique([...(profile.boostKeywords ?? []), ...(t.boostKeywords ?? [])]),
       matchIn: t.matchIn ?? profile.matchIn ?? 'title+description',
