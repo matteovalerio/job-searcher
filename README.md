@@ -99,6 +99,25 @@ node src/cli.js --help
 
 Per installare il comando `job-searcher` globalmente, esegui `npm link`. La cartella dei profili si può cambiare con `JOB_SEARCHER_PROFILES`.
 
+## Interfaccia web
+
+Oltre alla riga di comando c'è un'interfaccia web, in Next.js, che gira sul tuo computer e usa gli stessi file (profili, candidature, risultati, `.env`):
+
+```bash
+npm install            # nella cartella principale, se non l'hai già fatto
+cd web
+npm install
+npm run dev            # poi apri http://localhost:3000
+```
+
+Per un uso quotidiano è più veloce la versione compilata: `npm run build` una volta, poi `npm start`.
+
+- **Offerte:** scegli il profilo e premi «Avvia ricerca». L'avanzamento di ogni fonte compare mentre arriva. I risultati sono divisi per zona e si filtrano per testo o «solo nuove». Accanto a ogni offerta puoi scegliere uno stato e scrivere una nota; le offerte segnate «non mi interessa» o «non selezionata» spariscono.
+- **Candidature:** le offerte seguite, raggruppate per stato, con la cronologia. Da qui cambi stato e note o smetti di seguirle.
+- **Profili:** l'elenco dei profili e la modifica del JSON, con gli stessi controlli della ricerca prima di salvare (per esempio i comuni). Per crearne uno nuovo si usa la riga di comando (`profile new`, oppure `profile prompt` e `profile import`).
+
+Si può fare una ricerca alla volta. Indeed e InfoJobs aprono il browser come dalla riga di comando; se non ti servono, spunta «senza Indeed e InfoJobs». Il codice dell'interfaccia è in `web/app` (pagine e route `/api`). Il collegamento con il programma è in `web/lib/core.js`.
+
 ## Seguire le candidature
 
 Ogni offerta nei risultati ha un codice tra parentesi quadre, per esempio `[3359919]`. Lo stesso codice compare anche nel report HTML. Con il codice puoi segnare a che punto sei:
@@ -423,9 +442,10 @@ src/
   output/          terminale, HTML, CSV, JSON
 data/comuni.json   comuni italiani con coordinate (rigenerabile con npm run build:comuni)
 test/              test (npm test) con file d'esempio in test/fixtures/
+web/               interfaccia web (Next.js)
 ```
 
-Il cuore (`config.js`, `search.js` e le fonti) non dipende dalla CLI. Se in futuro vuoi un'interfaccia web, per esempio con Next.js, basta importare `resolveProfile` e `runSearch` in una route API.
+Il cuore del programma non dipende dalla riga di comando: il percorso completo di una ricerca è in `app.js` (`searchProfile`) e lo usano sia `cli.js` sia l'interfaccia web.
 
 ## Sviluppo
 

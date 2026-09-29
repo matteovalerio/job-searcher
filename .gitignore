@@ -2,3 +2,6 @@ node_modules/
 .env
 .job-searcher/
 reports/
+web/node_modules/
+web/.next/
+web/next-env.d.ts

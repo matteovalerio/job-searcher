@@ -22,3 +22,20 @@ jobs:
       - run: npm ci --omit=optional
       - run: npm test
       - run: npx --yes prettier@3 --check "src/**/*.js" "test/*.js" "scripts/*.js"
+
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            web/package-lock.json
+      - run: npm ci --omit=optional
+      - run: npm ci
+        working-directory: web
+      - run: npx next build
+        working-directory: web
