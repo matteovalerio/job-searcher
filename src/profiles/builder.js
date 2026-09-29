@@ -12,6 +12,19 @@ const unique = (list) => {
   });
 };
 
+/**
+ * Aree professionali da proporre dopo l'analisi del CV: quelle con un segnale forte rispetto alla principale
+ * (almeno un terzo del suo punteggio), al massimo tre.
+ * @returns {string[]} id delle aree
+ */
+export function detectedFamilies(analysis) {
+  const top = analysis?.families[0]?.score ?? 0;
+  return (analysis?.families ?? [])
+    .filter((f) => f.score >= Math.max(2, top / 3))
+    .slice(0, 3)
+    .map((f) => f.id);
+}
+
 /** Regioni accettate per le offerte full remote, secondo l'ambito scelto. */
 export const REMOTE_SCOPES = {
   italia: { label: 'solo Italia', regions: ['italy', 'italia'], linkedin: ['Italia'] },

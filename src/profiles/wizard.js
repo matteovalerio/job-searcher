@@ -1,7 +1,14 @@
 import { existsSync } from 'node:fs';
 import { findComune } from '../geo.js';
 import { normalize } from '../text.js';
-import { REMOTE_SCOPES, buildProfile, describeCandidate, suggest, suggestFilters } from './builder.js';
+import {
+  REMOTE_SCOPES,
+  buildProfile,
+  describeCandidate,
+  detectedFamilies,
+  suggest,
+  suggestFilters,
+} from './builder.js';
 import { analyzeCv, readCvText } from './cv.js';
 import { ROLE_FAMILIES } from './roles.js';
 import { profilePath, slugify } from './store.js';
@@ -103,12 +110,7 @@ export async function runWizard(io, { cv, name, now = new Date() } = {}) {
   // 2. Aree professionali
   print('\nAree professionali:');
   ROLE_FAMILIES.forEach((f, i) => print(`  ${String(i + 1).padStart(2)}. ${f.label}`));
-  // Proposte: le aree con un segnale forte rispetto alla principale (almeno un terzo del suo punteggio).
-  const top = analysis?.families[0]?.score ?? 0;
-  const detected = (analysis?.families ?? [])
-    .filter((f) => f.score >= Math.max(2, top / 3))
-    .slice(0, 3)
-    .map((f) => ROLE_FAMILIES.findIndex((r) => r.id === f.id));
+  const detected = detectedFamilies(analysis).map((id) => ROLE_FAMILIES.findIndex((r) => r.id === id));
   let families = [];
   while (!families.length) {
     const answer = await ask('Quali cerchi? (numeri separati da virgola)', detected.map((i) => i + 1).join(', '));

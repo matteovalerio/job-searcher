@@ -18,15 +18,20 @@ export async function readCvText(file) {
   } catch (err) {
     throw new Error(`Impossibile leggere "${file}": ${err.code === 'ENOENT' ? 'file non trovato' : err.message}`);
   }
+  return readCvData(data, `"${file}"`);
+}
+
+/** Estrae il testo da un PDF già in memoria (per esempio caricato dall'interfaccia web). */
+export async function readCvData(data, label = 'Il file') {
   const { extractText, getDocumentProxy } = await import('unpdf');
   let text;
   try {
-    ({ text } = await extractText(await getDocumentProxy(data), { mergePages: true }));
+    ({ text } = await extractText(await getDocumentProxy(new Uint8Array(data)), { mergePages: true }));
   } catch (err) {
-    throw new Error(`"${file}" non sembra un PDF valido (${err.message})`);
+    throw new Error(`${label} non sembra un PDF valido (${err.message})`);
   }
   if (!text.trim()) {
-    throw new Error(`Nel PDF "${file}" non c'è testo selezionabile (è una scansione?): usa la modalità interattiva`);
+    throw new Error(`Nel PDF ${label} non c'è testo selezionabile (è una scansione?): compila il profilo a mano`);
   }
   return text;
 }

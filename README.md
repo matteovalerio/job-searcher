@@ -114,7 +114,11 @@ Per un uso quotidiano è più veloce la versione compilata: `npm run build` una 
 
 - **Offerte:** scegli il profilo e premi «Avvia ricerca». L'avanzamento di ogni fonte compare mentre arriva. I risultati sono divisi per zona e si filtrano per testo o «solo nuove». Accanto a ogni offerta puoi scegliere uno stato e scrivere una nota; le offerte segnate «non mi interessa» o «non selezionata» spariscono.
 - **Candidature:** le offerte seguite, raggruppate per stato, con la cronologia. Da qui cambi stato e note o smetti di seguirle.
-- **Profili:** l'elenco dei profili e la modifica del JSON, con gli stessi controlli della ricerca prima di salvare (per esempio i comuni). Per crearne uno nuovo si usa la riga di comando (`profile new`, oppure `profile prompt` e `profile import`).
+- **Offerte → «Prompt per Claude»:** prepara il testo per confrontare il CV con le offerte migliori dell'ultima ricerca (vedi [Quali offerte scegliere](#quali-offerte-scegliere-con-laiuto-di-claude)). Lo copi, lo incolli su claude.ai e alleghi il CV.
+- **Profili:** l'elenco dei profili e la modifica del JSON, con gli stessi controlli della ricerca prima di salvare (per esempio i comuni).
+- **Profili → «Nuovo profilo»:** crea un profilo in due modi, come dalla riga di comando.
+  - *Procedura guidata:* carichi il CV in PDF (facoltativo); le aree, gli anni di esperienza, le parole chiave, le lingue e i filtri vengono proposti dal CV. Controlli, correggi e salvi.
+  - *Con l'aiuto di Claude:* il programma prepara il testo (con il CV, se l'hai caricato), tu lo incolli su claude.ai e poi incolli qui la risposta con il blocco JSON. Il profilo viene controllato prima di salvarlo.
 
 Si può fare una ricerca alla volta. Indeed e InfoJobs aprono il browser come dalla riga di comando; se non ti servono, spunta «senza Indeed e InfoJobs». Il codice dell'interfaccia è in `web/app` (pagine e route `/api`). Il collegamento con il programma è in `web/lib/core.js`.
 
@@ -417,6 +421,19 @@ export default {
 
 Poi registralo in `src/sources/index.js`. Conviene separare una funzione `parse()` pura e testarla con un file d'esempio in `test/fixtures/`, come fanno le altre fonti.
 
+## Quali offerte scegliere (con l'aiuto di Claude)
+
+Quando i risultati sono tanti, Claude può confrontarli con il CV: li ordina per affinità, spiega punti di forza e lacune per le migliori, segnala quelle da evitare e, se vuoi, scrive le lettere di presentazione. Anche qui si usa l'abbonamento su claude.ai, non l'API: il programma prepara soltanto il testo.
+
+```bash
+node src/cli.js match -p redattore-padova                   # le 15 offerte migliori dell'ultima ricerca
+node src/cli.js match -p redattore-padova --top 8 -o match.txt
+node src/cli.js match -p redattore-padova --ids 3359919,4a00168
+node src/cli.js match -p redattore-padova --cv ~/Documenti/cv.pdf   # include il testo del CV
+```
+
+Senza `--cv`, allega il PDF del CV nella chat. Le offerte sono quelle dell'ultima ricerca del profilo, senza quelle segnate `scartata` o `rifiutata`. Claude le chiama con lo stesso codice tra parentesi quadre, quindi poi puoi segnarle con `track`. Dall'interfaccia web c'è il pulsante «Prompt per Claude» nella pagina Offerte.
+
 ## Struttura del codice
 
 ```
@@ -432,6 +449,7 @@ src/
   dedupe.js        unione delle offerte doppie
   store.js         memoria delle offerte già viste (.job-searcher/)
   tracking.js      candidature e ultimi risultati
+  match.js         testo per confrontare CV e offerte su claude.ai
   extract.js       livello, esperienza, contratto e stipendio ricavati dal testo
   app.js           percorso completo di una ricerca (usato da riga di comando e interfaccia web)
   paths.js         dove stanno i file (JOB_SEARCHER_HOME)
