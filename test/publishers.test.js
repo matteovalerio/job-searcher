@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile } from 'node:fs/promises';
+import { mkdtemp, readdir, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
@@ -92,7 +92,10 @@ test('discoverPublishers: più città, ricerca web facoltativa, problemi riporta
   assert.equal(one.results.length, 4);
   assert.deepEqual(one.problems, ['Wikidata (Padova): HTTP 429']);
   assert.equal(one.webSearch, false);
-  assert.deepEqual(calls[0], ['osm', 'data=', true]);
+  assert.deepEqual(
+    calls.find((c) => c[0] === 'osm'),
+    ['osm', 'data=', true],
+  );
 
   const web = async (cities) => ({
     results: [{ name: 'Wetlands', website: 'https://wetlandsbooks.com/', city: 'Venezia', source: 'ricerca web' }],
@@ -323,4 +326,71 @@ test('OpenStreetMap: la stessa ricerca entro 24 ore usa la memoria, senza interr
     second.results.map((r) => r.name),
     first.results.map((r) => r.name),
   );
+});
+
+test('Overpass: il server che risponde si prova per primo, quelli muti si saltano; errori senza intestazione', async () => {
+  const { fetchOverpass, overpassServers } = await import('../src/publishers/discover.js');
+  const urls = ['https://uno.example/x', 'https://due.example/x', 'https://tre.example/x'];
+  const servers = overpassServers();
+  const tried = [];
+  const fetchFn = async (url) => {
+    const host = new URL(url).host;
+    tried.push(host);
+    if (host === 'uno.example') throw Object.assign(new Error('scaduto'), { name: 'TimeoutError' });
+    if (host === 'due.example')
+      return new Response(
+        'OSM3S Response The data included in this document is from www.openstreetmap.org. The data is made available under ODbL. Error : runtime error: open64: 0 Success',
+        { status: 504 },
+      );
+    return Response.json({ elements: [] });
+  };
+  await fetchOverpass('[out:json];', { urls, fetchFn, servers, busyPause: 0 });
+  assert.deepEqual(tried, ['uno.example', 'due.example', 'due.example', 'tre.example']);
+  tried.length = 0;
+  await fetchOverpass('[out:json];', { urls, fetchFn, servers, busyPause: 0 });
+  assert.deepEqual(tried, ['tre.example'], 'il secondo settore va subito al server che ha risposto');
+
+  const err = await fetchOverpass('[out:json];', { urls: [urls[1]], fetchFn, busyPause: 0 }).catch((e) => e);
+  assert.equal(
+    err.message,
+    'nessun server ha risposto. due.example: HTTP 504 (Error : runtime error: open64: 0 Success)',
+  );
+});
+
+test('OpenStreetMap: se i server non rispondono si usano i risultati salvati, con un avviso', async () => {
+  const cacheDir = await mkdtemp(path.join(tmpdir(), 'osm-stale-'));
+  let up = true;
+  const http = {
+    busyPause: 0,
+    async fetch() {
+      if (!up) return new Response('down', { status: 503 });
+      return Response.json({
+        elements: [{ type: 'node', lat: 45.41, lon: 11.88, tags: { name: 'Tipografia Veneta', craft: 'printer' } }],
+      });
+    },
+    async getJson() {
+      return { results: { bindings: [] } };
+    },
+  };
+  const noWeb = async () => ({ results: [], problems: [], skipped: true });
+  const run = () =>
+    discoverPublishers({ place: 'Padova', sectors: ['tipografia'], http, web: noWeb, osmCache: cacheDir });
+  await run();
+  // La memoria ha più di 24 ore: si interroga il server, che però è giù.
+  const [file] = await readdir(cacheDir);
+  const saved = JSON.parse(await readFile(path.join(cacheDir, file), 'utf8'));
+  await writeFile(path.join(cacheDir, file), JSON.stringify({ ...saved, at: '2026-01-10T10:00:00Z' }));
+  up = false;
+  const realNow = Date.now;
+  Date.now = () => new Date('2026-01-20T10:00:00Z').getTime();
+  try {
+    const found = await run();
+    assert.deepEqual(
+      found.results.map((r) => r.name),
+      ['Tipografia Veneta'],
+    );
+    assert.match(found.problems[0], /uso i risultati salvati il 10\/01\/2026/);
+  } finally {
+    Date.now = realNow;
+  }
 });
