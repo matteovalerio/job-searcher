@@ -191,11 +191,41 @@ export default function PlanView({ initialPlan }) {
 
       <section className="card stack">
         <h2>Da fare</h2>
-        {!todo.followUps.length && !todo.toApply.length && !todo.toContact.length && (
+        {!todo.followUps.length && !todo.toApply.length && !todo.toContact.length && !todo.interviews?.length && (
           <p className="muted">
             Niente in sospeso. Cerca nuove <Link href="/">offerte</Link> o nuove{' '}
             <Link href="/case-editrici">aziende</Link>.
           </p>
+        )}
+        {todo.interviews?.length > 0 && (
+          <div className="stack" style={{ gap: 6 }}>
+            <span className="overline">Colloqui in arrivo</span>
+            <ul className="todo">
+              {todo.interviews.map((i) => (
+                <li key={i.id}>
+                  <span>
+                    <strong>{i.title}</strong>
+                    {i.company && <span className="muted"> · {i.company}</span>}
+                    <span className="small">
+                      {' '}
+                      ·{' '}
+                      {new Date(i.at).toLocaleString('it-IT', {
+                        weekday: 'short',
+                        day: 'numeric',
+                        month: 'short',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                      {i.mode ? ` (${i.mode})` : ''}
+                    </span>
+                  </span>
+                  <button type="button" className="small primary" onClick={() => setKit({ id: i.id, title: i.title })}>
+                    Preparati
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
         {todo.followUps.length > 0 && (
           <div className="stack" style={{ gap: 6 }}>

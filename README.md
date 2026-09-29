@@ -583,12 +583,35 @@ node src/cli.js kit 3359919 import risposta.txt    # importa (e controlla) la ri
 
 Il kit si salva in `.job-searcher/kits.json`, insieme al testo dell'annuncio. Aprire il kit **non** vuol dire seguire l'offerta: la candidatura nasce solo quando scegli uno stato («Mi interessa», «Segna come inviata»…).
 
+## Preparazione al colloquio
+
+Quando arriva un colloquio, apri il kit dell'offerta e vai sulla scheda **Colloquio** (o `node src/cli.js colloquio <codice>`). Si parte dal kit, quindi serve averlo preparato prima.
+
+- **Data e ora:** con modalità (in presenza, online, telefono), luogo o collegamento e chi ti fa il colloquio. Segnarla porta la candidatura allo stato «colloquio». «Nel calendario» scarica l'evento, con un avviso un'ora prima. I colloqui in arrivo compaiono nella pagina **Piano** e nel promemoria su Telegram.
+- **Domande probabili:**
+  - quelle di ogni colloquio;
+  - una per ogni requisito che il CV mostra, con le frasi del CV da usare per rispondere;
+  - una per ogni lacuna, con un consiglio onesto e, quando c'è, una risorsa per colmarla;
+  - le aspettative economiche, con la fascia di RAL ricavata dagli annunci del profilo (pagina Mercato).
+- **Episodi da preparare:** i punti del CV più vicini all'annuncio, da raccontare con situazione, cosa hai fatto e risultato. I dettagli li metti tu: il programma non li inventa.
+- **Azienda:** quello che si sa (dall'elenco delle aziende, dal sito e dall'annuncio) e cosa controllare prima.
+- **Domande da fare:** adatte al ruolo, con gli strumenti citati nell'annuncio.
+- **Email di ringraziamento:** da mandare entro un giorno, rivolta a chi ti ha fatto il colloquio.
+- **Con Claude:** un testo per una simulazione del colloquio su claude.ai. Claude fa le 10 domande più probabili con una traccia di risposta basata solo sul CV, poi una domanda alla volta con un commento a ogni risposta.
+
+```bash
+node src/cli.js colloquio 3359919                                   # la preparazione nel terminale
+node src/cli.js colloquio 3359919 --date "2026-10-05 15:00" --note "Anna De Luca"   # segna il colloquio
+node src/cli.js colloquio 3359919 calendario -o colloquio.ics       # l'evento per il calendario
+node src/cli.js colloquio 3359919 --prompt -o simulazione.txt       # testo per claude.ai
+```
+
 ## Piano settimanale e statistiche
 
 La pagina **Piano** (o `node src/cli.js piano`) tiene il ritmo della ricerca:
 
 - **Obiettivi della settimana:** quante candidature a offerte e quante spontanee (predefiniti: 5 e 3; si cambiano nella pagina o con `piano obiettivi 5 3`), con quante ne hai fatte da lunedì.
-- **Da fare:** i solleciti in scadenza (con il testo pronto nel kit), le offerte segnate «interessante» a cui non ti sei ancora candidata/o e le aziende «da contattare». Accanto a «Piano», nella barra laterale, c'è il numero dei solleciti da fare.
+- **Da fare:** i colloqui in arrivo, i solleciti in scadenza (con il testo pronto nel kit), le offerte segnate «interessante» a cui non ti sei ancora candidata/o e le aziende «da contattare». Accanto a «Piano», nella barra laterale, c'è il numero dei solleciti da fare.
 - **Come sta andando:**
   - candidature inviate, risposte, colloqui e tempo di risposta (mediana);
   - l'andamento delle ultime 8 settimane;
@@ -655,6 +678,7 @@ src/
   match.js         testo per confrontare CV e offerte su claude.ai
   tailor.js        CV su misura: cosa valorizzare e testo per claude.ai
   kit.js           kit di candidatura: analisi, CV riordinato, email, sollecito, prompt e controllo
+  interview.js     preparazione al colloquio: domande probabili, azienda, ringraziamento, calendario, simulazione
   plan.js          piano settimanale: obiettivi, cose da fare, statistiche per canale e settore
   events.js        fiere, festival e associazioni del settore: catalogo, promemoria, prompt per la visita
   market/          analisi del mercato: competenze richieste, lacune e come colmarle

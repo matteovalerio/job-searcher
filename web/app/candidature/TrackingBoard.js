@@ -23,7 +23,9 @@ function when(item, statuses) {
     case 'candidatura':
       return `Inviata il ${shortDate(item.sentAt ?? since)}`;
     case 'colloquio':
-      return `Colloquio dal ${shortDate(since)}`;
+      return item.interview?.at
+        ? `Colloquio il ${new Date(item.interview.at).toLocaleString('it-IT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`
+        : `Colloquio dal ${shortDate(since)}`;
     default:
       return `${statuses[item.status]} · ${shortDate(since)}`;
   }

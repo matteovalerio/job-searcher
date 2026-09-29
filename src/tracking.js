@@ -127,6 +127,29 @@ export class Tracking {
     return item;
   }
 
+  /**
+   * Data e dettagli del colloquio: { at: data e ora ISO, mode: 'in presenza'|'online'|'telefono', where, with }.
+   * Segnarlo porta la candidatura allo stato "colloquio" (se non c'è già o non è più avanti).
+   */
+  setInterview(job, interview, now = new Date().toISOString()) {
+    if (interview?.at && Number.isNaN(Date.parse(interview.at))) throw new Error('Data del colloquio non valida');
+    const item = this.items[job.id] ?? this.set(job, {}, now);
+    if (!['colloquio', 'offerta'].includes(item.status)) this.set(job, { status: 'colloquio' }, now);
+    const current = this.items[job.id];
+    current.interview = interview?.at
+      ? { at: interview.at, mode: interview.mode || null, where: interview.where || null, with: interview.with || null }
+      : null;
+    current.updatedAt = now;
+    return current;
+  }
+
+  /** Colloqui da oggi in poi, dal più vicino. */
+  upcomingInterviews(now = new Date().toISOString()) {
+    return this.list()
+      .filter((t) => t.interview?.at && t.interview.at >= day(now))
+      .sort((a, b) => a.interview.at.localeCompare(b.interview.at));
+  }
+
   /** Candidature da sollecitare oggi (o in ritardo). */
   due(now = new Date().toISOString()) {
     return this.list().filter((t) => t.status === 'candidatura' && t.followUpAt && t.followUpAt <= day(now));
@@ -195,6 +218,23 @@ export async function loadLastResults(profileId) {
     if (err.code === 'ENOENT') return null;
     throw err;
   }
+}
+
+/** Il profilo dai cui ultimi risultati viene un'offerta (serve per i dati del mercato), oppure null. */
+export async function profileOfJob(ref) {
+  let files = [];
+  try {
+    files = (await readdir(stateDir())).filter((f) => /^results-.*\.json$/.test(f));
+  } catch {
+    return null;
+  }
+  for (const file of files) {
+    const data = JSON.parse(await readFile(stateDir(file), 'utf8'));
+    if (data.targets.some((t) => t.jobs.some((j) => shortId(j) === ref || j.id === ref || j.url === ref))) {
+      return file.replace(/^results-|\.json$/g, '');
+    }
+  }
+  return null;
 }
 
 /** Cerca un'offerta (per id breve, id o indirizzo) negli ultimi risultati di tutti i profili. */
