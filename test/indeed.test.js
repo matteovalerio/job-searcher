@@ -91,3 +91,28 @@ test('browser: spiega perché non parte', async () => {
   );
   assert.match(launchProblem('Failed to create a ProcessSingleton for your profile directory'), /già in uso/);
 });
+
+test('browser su WSL: opzioni per far vedere la finestra, sostituibili da JOB_SEARCHER_BROWSER_ARGS', async () => {
+  const { browserArgs, isWsl } = await import('../src/browser.js');
+  assert.equal(isWsl({ WSL_DISTRO_NAME: 'Ubuntu' }), true);
+  assert.equal(
+    isWsl({}, () => 'Linux version 5.15.153.1-microsoft-standard-WSL2'),
+    true,
+  );
+  assert.equal(
+    isWsl({}, () => 'Linux version 6.8.0-generic (Ubuntu)'),
+    false,
+  );
+  assert.equal(
+    isWsl({}, () => {
+      throw new Error('ENOENT');
+    }),
+    false,
+  );
+  assert.deepEqual(browserArgs({ wsl: true, custom: undefined }), ['--disable-gpu', '--ozone-platform=x11']);
+  assert.deepEqual(browserArgs({ wsl: false, custom: undefined }), []);
+  assert.deepEqual(browserArgs({ wsl: true, custom: ' --start-maximized  --disable-gpu ' }), [
+    '--start-maximized',
+    '--disable-gpu',
+  ]);
+});

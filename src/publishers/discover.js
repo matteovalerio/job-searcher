@@ -43,12 +43,17 @@ out center tags;`;
 }
 
 // Nomi che contengono le parole cercate ma non sono editori.
-const NOT_PUBLISHER = /\b(libreria|cartoleria|edicola|tabacchi|biblioteca|scuola|parrucchier|ristorante|bar)\b/;
+const NOT_PUBLISHER = /\b(libreria|cartoleria|edicola|tabacchi|biblioteca|scuola|parrucchier|ristorante|bar|negozio)\b/;
+// ...a meno che il nome dica anche che pubblicano ("Libreria Editrice …").
+const notPublisher = (name) => {
+  const n = normalize(name);
+  return NOT_PUBLISHER.test(n) && !/editric|edizion|editore|publish/.test(n);
+};
 
 /** Case editrici dalla risposta di Overpass. */
 export function parseOverpass(json, center) {
   return (json.elements ?? [])
-    .filter((el) => el.tags?.name && !NOT_PUBLISHER.test(normalize(el.tags.name)))
+    .filter((el) => el.tags?.name && !notPublisher(el.tags.name))
     .filter((el) => el.tags.office || /edizion|editric|editore/i.test(el.tags.name))
     .map((el) => {
       const t = el.tags;
@@ -96,7 +101,7 @@ export function parseWikidata(json, center) {
     const id = row.item.value;
     const name = row.itemLabel?.value;
     // Senza etichetta in italiano o inglese Wikidata restituisce il codice (Q123): meglio saltare.
-    if (!name || /^Q\d+$/.test(name)) continue;
+    if (!name || /^Q\d+$/.test(name) || notPublisher(name)) continue;
     const point = /Point\(([-\d.]+) ([-\d.]+)\)/.exec(row.coord?.value ?? '');
     const lat = point ? Number(point[2]) : null;
     const lon = point ? Number(point[1]) : null;
