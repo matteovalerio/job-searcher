@@ -4,7 +4,8 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { createInterface } from 'node:readline/promises';
 import { parseArgs } from 'node:util';
-import { applyOverrides, resolveProfile } from './config.js';
+import { searchProfile } from './app.js';
+import { resolveProfile } from './config.js';
 import { runDoctor } from './doctor.js';
 import { readCvText } from './profiles/cv.js';
 import { buildPrompt, checkImported, extractJson } from './profiles/prompt.js';
@@ -22,10 +23,9 @@ import { renderCsv } from './output/csv.js';
 import { renderHtml } from './output/html.js';
 import { renderJson } from './output/json.js';
 import { c, formatReasons, renderRejected, renderTerminal } from './output/terminal.js';
-import { runSearch } from './search.js';
 import { builtinSources, missingEnv } from './sources/index.js';
-import { notify } from './notify.js';
-import { SeenStore } from './store.js';
+import { envFile, reportsDir } from './paths.js';
+import { STATUSES, Tracking, findInLastResults } from './tracking.js';
 
 const HELP = `
 job-searcher — cerca offerte di lavoro su più portali
@@ -39,6 +39,10 @@ Uso:
   job-searcher profile show <nome>      mostra un profilo
   job-searcher sources                  elenca le fonti disponibili
   job-searcher doctor [-p nome] [-s f]  prova ogni fonte con una ricerca minima e dice cosa funziona
+  job-searcher track                    elenca le offerte che stai seguendo, per stato
+  job-searcher track <id> <stato>       segna un'offerta (l'id è il codice tra [ ] nei risultati)
+                                        stati: interessante, candidatura, colloquio, offerta, rifiutata, scartata
+  job-searcher track <id> --note "…"    aggiunge o cambia la nota; "track <id> rimuovi" smette di seguirla
 
 Opzioni di "profile new", "profile prompt" e "profile import":
       --cv <file.pdf>      ricava le informazioni dal CV (con "prompt": include il testo del CV)
@@ -108,6 +112,7 @@ function parseCli(argv) {
       notify: { type: 'boolean' },
       'no-browser': { type: 'boolean' },
       cv: { type: 'string' },
+      note: { type: 'string' },
       name: { type: 'string' },
       yes: { type: 'boolean', short: 'y' },
       help: { type: 'boolean', short: 'h' },
@@ -123,6 +128,7 @@ function parseCli(argv) {
     command: positionals[0] ?? 'search',
     args: positionals.slice(1),
     cv: values.cv,
+    note: values.note,
     name: values.name,
     yes: values.yes,
     help: values.help,
@@ -240,13 +246,15 @@ function listSources() {
 }
 
 async function search(opts) {
-  const base = opts.profile ? await loadProfile(opts.profile) : {};
-  const profile = resolveProfile(applyOverrides(base, opts), { onlySources: opts.sources, noBrowser: opts.noBrowser });
-
   const log = (msg) => process.stderr.write(`${msg}\n`);
-  log(c.bold(`Ricerca "${profile.name}"`));
-  const results = await runSearch(profile, {
+  const { profile, results, hidden, notification, seenFile } = await searchProfile({
+    profile: opts.profile,
+    overrides: opts,
+    onlySources: opts.sources,
+    noBrowser: opts.noBrowser,
+    notify: opts.notify,
     onProgress: (e) => {
+      if (e.type === 'begin') return log(c.bold(`Ricerca "${e.profile.name}"`));
       const where = `${e.target.label} · ${e.source.label}`;
       if (e.type === 'done') {
         if (!e.fetched) {
@@ -261,24 +269,15 @@ async function search(opts) {
       if (e.type === 'error') log(c.red(`  ✗ ${where}: ${e.error}`));
     },
   });
-
-  const store = await SeenStore.forProfile(profile.name).load();
-  for (const r of results) store.mark(r.jobs);
-  let saveSeen = true;
-  if (opts.notify) {
-    const outcome = await notify(results, {
-      profileName: profile.name,
-      firstRun: store.firstRun,
-      reportUrl: process.env.JOB_SEARCHER_REPORT_URL,
-    });
-    if (outcome.skipped) log(c.yellow(`Notifica non inviata: ${outcome.skipped}`));
-    if (outcome.sent.length) log(c.green(`Notifica inviata (${outcome.sent.join(', ')}): ${outcome.total} offerte`));
-    for (const e of outcome.errors) log(c.red(`Notifica non riuscita: ${e}`));
-    if (outcome.errors.length) process.exitCode = 1;
-    // Se nessun canale ha ricevuto il messaggio, le offerte non vengono segnate come viste: arriveranno la prossima volta.
-    if (outcome.errors.length && !outcome.sent.length) saveSeen = false;
+  if (hidden) log(c.dim(`  ${hidden} offerte nascoste perché segnate come "non mi interessa" o "non selezionata"`));
+  if (notification) {
+    if (notification.skipped) log(c.yellow(`Notifica non inviata: ${notification.skipped}`));
+    if (notification.sent.length) {
+      log(c.green(`Notifica inviata (${notification.sent.join(', ')}): ${notification.total} offerte`));
+    }
+    for (const e of notification.errors) log(c.red(`Notifica non riuscita: ${e}`));
+    if (notification.errors.length) process.exitCode = 1;
   }
-  if (saveSeen) await store.save();
   if (opts.onlyNew) for (const r of results) r.jobs = r.jobs.filter((j) => j.isNew);
 
   const format = formatFor(opts);
@@ -292,12 +291,61 @@ async function search(opts) {
   }
   if (opts.explain) log(renderRejected(results));
   if (opts.report && !(opts.out && format === 'html')) {
-    await mkdir('reports', { recursive: true });
+    await mkdir(reportsDir(), { recursive: true });
     const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-');
-    const file = path.join('reports', `${path.basename(store.file, '.json').replace(/^seen-/, '')}-${stamp}.html`);
+    const file = path.join(reportsDir(), `${path.basename(seenFile, '.json').replace(/^seen-/, '')}-${stamp}.html`);
     await writeFile(file, renderHtml(results, { title }));
     log(c.green(`Report HTML: ${file}`));
   }
+}
+
+async function track(opts) {
+  const tracking = await new Tracking().load();
+  const [ref, status] = opts.args;
+  if (!ref || STATUSES[ref]) {
+    const items = tracking.list({ status: ref });
+    if (!items.length) {
+      console.log(
+        ref
+          ? `Nessuna offerta nello stato "${ref}".`
+          : 'Non stai seguendo nessuna offerta. Segnane una con: job-searcher track <id> interessante\n' +
+              "(l'id è il codice tra [ ] accanto a ogni offerta nei risultati).",
+      );
+      return;
+    }
+    let current;
+    for (const t of items) {
+      if (t.status !== current) {
+        current = t.status;
+        console.log(`\n${c.bold(c.cyan(STATUSES[current]))}`);
+      }
+      console.log(`  ${c.dim(`[${t.shortId}]`)} ${c.bold(t.job.title)}  ${c.dim(t.updatedAt.slice(0, 10))}`);
+      console.log(`    ${[t.job.company, t.job.location].filter(Boolean).join(' · ')}  ${c.dim(t.job.url)}`);
+      if (t.note) console.log(`    ${c.yellow(`nota: ${t.note}`)}`);
+    }
+    return;
+  }
+  const existing = tracking.find(ref);
+  if (status === 'rimuovi') {
+    if (!existing) throw new Error(`Non stai seguendo l'offerta "${ref}"`);
+    tracking.remove(existing.job.id);
+    await tracking.save();
+    return console.log(`Non segui più "${existing.job.title}".`);
+  }
+  if (!status && opts.note === undefined) {
+    throw new Error('Indica uno stato o una nota: job-searcher track <id> <stato> [--note "…"]');
+  }
+  const job = existing?.job ?? (await findInLastResults(ref));
+  if (!job) {
+    throw new Error(
+      `Offerta "${ref}" non trovata negli ultimi risultati: rilancia la ricerca e usa il codice tra [ ].`,
+    );
+  }
+  const item = tracking.set(job, { status, note: opts.note });
+  await tracking.save();
+  console.log(
+    `${c.green('✓')} [${item.shortId}] ${item.job.title} → ${c.bold(STATUSES[item.status])}${item.note ? `  (nota: ${item.note})` : ''}`,
+  );
 }
 
 async function listSavedProfiles() {
@@ -396,11 +444,12 @@ async function importProfile(opts, file) {
 }
 
 async function main() {
-  if (existsSync('.env')) process.loadEnvFile('.env');
+  if (existsSync(envFile())) process.loadEnvFile(envFile());
   const opts = parseCli(process.argv.slice(2));
   if (opts.help) return console.log(HELP);
   if (opts.command === 'sources') return listSources();
   if (opts.command === 'doctor') return doctor(opts);
+  if (opts.command === 'track') return track(opts);
   if (opts.command === 'search') return search(opts);
   if (opts.command === 'profiles') return listSavedProfiles();
   if (opts.command === 'profile') {

@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { stateDir } from './paths.js';
 
 /*
  * Browser vero (Chrome tramite Playwright) per i siti che bloccano le richieste automatiche, come Indeed e
@@ -147,7 +148,7 @@ export function launchProblem(message) {
 export async function openBrowser() {
   const chromium = await loadPlaywright();
   const headless = ['1', 'true'].includes(env('HEADLESS') ?? '');
-  const userDataDir = path.resolve('.job-searcher', 'browser');
+  const userDataDir = stateDir('browser');
   const context = await launch(chromium, userDataDir, {
     headless,
     viewport: { width: 1280, height: 900 },
@@ -184,7 +185,7 @@ export async function openBrowser() {
  * @returns {Promise<string>} percorso del file
  */
 export async function saveDebugPage(source, html) {
-  const dir = path.join('.job-searcher', 'debug');
+  const dir = stateDir('debug');
   await mkdir(dir, { recursive: true });
   const file = path.join(dir, `${source}-${new Date().toISOString().replace(/[:.]/g, '-')}.html`);
   await writeFile(file, html);

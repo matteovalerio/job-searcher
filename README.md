@@ -99,6 +99,33 @@ node src/cli.js --help
 
 Per installare il comando `job-searcher` globalmente, esegui `npm link`. La cartella dei profili si può cambiare con `JOB_SEARCHER_PROFILES`.
 
+## Seguire le candidature
+
+Ogni offerta nei risultati ha un codice tra parentesi quadre, per esempio `[3359919]`. Lo stesso codice compare anche nel report HTML. Con il codice puoi segnare a che punto sei:
+
+```bash
+node src/cli.js track 3359919 interessante
+node src/cli.js track 3359919 candidatura --note "CV inviato il 29/9"
+node src/cli.js track 3359919 colloquio
+node src/cli.js track                  # elenco per stato
+node src/cli.js track colloquio        # solo un certo stato
+node src/cli.js track 3359919 rimuovi  # smetti di seguirla
+```
+
+Gli stati sono:
+- `interessante`
+- `candidatura` (candidatura inviata)
+- `colloquio`
+- `offerta` (offerta ricevuta)
+- `rifiutata` (non selezionata)
+- `scartata` (non mi interessa)
+
+**Nelle ricerche successive:** le offerte seguite mostrano il loro stato accanto al titolo. Quelle segnate `scartata` o `rifiutata` non compaiono più, né nei risultati né nelle notifiche.
+
+**Dove sono i dati:** in `.job-searcher/tracking.json`, insieme alla cronologia degli stati e a una copia dei dati dell'offerta, che resta consultabile anche quando l'annuncio sparisce dal portale.
+
+Per ritrovare un'offerta dal codice si usano gli ultimi risultati di ogni profilo, salvati in `.job-searcher/results-<profilo>.json`. Quindi il codice funziona per le offerte dell'ultima ricerca.
+
 ## Ricerca automatica ogni giorno (GitHub Actions)
 
 Il repository contiene un workflow (`.github/workflows/ricerca-quotidiana.yml`) che ogni mattina esegue la ricerca sui server di GitHub, gratis, e manda **solo le offerte nuove** su Telegram, per email o su entrambi. Non serve tenere acceso il computer.
@@ -385,6 +412,10 @@ src/
   geo.js           riconoscimento delle località italiane e calcolo delle distanze
   dedupe.js        unione delle offerte doppie
   store.js         memoria delle offerte già viste (.job-searcher/)
+  tracking.js      candidature e ultimi risultati
+  extract.js       livello, esperienza, contratto e stipendio ricavati dal testo
+  app.js           percorso completo di una ricerca (usato da riga di comando e interfaccia web)
+  paths.js         dove stanno i file (JOB_SEARCHER_HOME)
   job.js           formato comune di un'offerta
   browser.js       browser vero (Playwright) per Indeed e InfoJobs
   profiles/        archivio dei profili, analisi del CV, procedura guidata, prompt per claude.ai, aree professionali (roles.js)
