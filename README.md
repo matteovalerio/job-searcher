@@ -143,7 +143,18 @@ Gli stati sono:
 - `colloquio`
 - `offerta` (offerta ricevuta)
 - `rifiutata` (non selezionata)
+- `nessuna` (nessuna risposta)
 - `scartata` (non mi interessa)
+
+**Solleciti:** quando segni `candidatura`, il programma programma un sollecito dopo 7 giorni; se lo mandi, il secondo 10 giorni dopo. Poi basta: se non rispondono ancora, segna `nessuna`. Il testo del sollecito è nel [kit di candidatura](#kit-di-candidatura). Con un altro stato (colloquio, risposta…) i solleciti si fermano.
+
+```bash
+node src/cli.js track 3359919 candidatura --date 2026-09-15   # inviata il 15/9: sollecito il 22/9
+node src/cli.js track solleciti                               # quelle da sollecitare oggi
+node src/cli.js track 3359919 sollecito                       # sollecito inviato: si programma il prossimo
+```
+
+Nella pagina **Candidature** le schede mostrano la data del sollecito, e in cima compaiono quelle da sollecitare.
 
 **Nelle ricerche successive:** le offerte seguite mostrano il loro stato accanto al titolo. Quelle segnate `scartata` o `rifiutata` non compaiono più, né nei risultati né nelle notifiche.
 
@@ -525,6 +536,27 @@ node src/cli.js publishers auto -p redattore-padova --notify    # il giro della 
 
 Nell'interfaccia web, in cima alla pagina «Case editrici e aziende affini», c'è il riquadro **Novità dalle aziende seguite** con il pulsante «Controlla ora». Lo stato della sorveglianza è in `.job-searcher/watch.json`.
 
+## Kit di candidatura
+
+Un clic su **Kit candidatura** (su ogni offerta e nella pagina Candidature) prepara tutto per candidarsi, oppure `node src/cli.js kit <codice>`:
+
+- **Analisi:** dall'annuncio si separano requisiti, mansioni, cosa offrono e chi sono. Dell'azienda si usa quello che si sa: l'elenco delle case editrici e aziende (sito, email, pagina «lavora con noi», specializzazione) o il suo sito, se l'annuncio è pubblicato lì. Per ogni requisito e mansione si cercano nel CV le frasi che lo dimostrano. Quelli che il CV non mostra sono **lacune**: non vanno scritte nella candidatura. Se sono vere, vanno aggiunte al CV; altrimenti conviene prepararsi a parlarne al colloquio. Se l'annuncio chiede più anni di quelli del CV, lo segnala.
+- **CV:** **solo righe del tuo CV**, riordinate. In ogni esperienza vengono prima i punti che rispondono all'annuncio. Una sezione «Competenze chiave» riprende parola per parola le frasi più pertinenti, e le competenze chieste vanno in cima. L'ordine delle esperienze resta cronologico. Le esperienze che non rispondono a nulla sono indicate come accorciabili.
+- **Email:** oggetto e testo nella lingua dell'annuncio. Le attività citate sono frasi del CV; firma e contatti vengono dal CV. Se l'indirizzo dell'azienda è noto, un pulsante apre il programma di posta. Il CV va allegato a mano.
+- **Sollecito:** il testo con la data di invio. «Segna come inviata» programma i solleciti (vedi [Seguire le candidature](#seguire-le-candidature)).
+- **Con Claude:** un testo con CV, annuncio, azienda e analisi automatica, con la regola di non inventare nulla. Claude restituisce un blocco ```json con analisi, requisiti con le frasi del CV, lacune con un consiglio, CV riscritto, email, sollecito e domande. Si incolla la risposta e il programma la **controlla**: segnala numeri, strumenti, sigle, lingue e indirizzi email che non sono nel CV né nell'annuncio, e le frasi «dal CV» che nel CV non ci sono.
+
+Molti portali (LinkedIn per esempio) mostrano solo un pezzo dell'annuncio: se il testo è breve, il kit chiede di incollarlo completo (nella pagina web, o con `--text`).
+
+```bash
+node src/cli.js kit 3359919                        # analisi, CV, email e sollecito nel terminale
+node src/cli.js kit 3359919 --text annuncio.txt    # con il testo completo dell'annuncio
+node src/cli.js kit 3359919 --prompt -o kit.txt    # testo per claude.ai
+node src/cli.js kit 3359919 import risposta.txt    # importa (e controlla) la risposta di Claude
+```
+
+Il kit si salva nella candidatura (`.job-searcher/tracking.json`), insieme al testo dell'annuncio.
+
 ## CV su misura
 
 Lo stesso CV non va bene per tutti. Per un editore di libri per bambini conviene valorizzare il processo editoriale, i rapporti con autori e illustratori e l'impaginazione in InDesign, più dei contenuti scientifici curati. Per un editore accademico vale il contrario. Il lavoro è diviso in due parti:
@@ -538,7 +570,7 @@ node src/cli.js cv tailor edizioni-esempio        # per una casa editrice dell'e
 node src/cli.js cv tailor 3359919 -o cv-prompt.txt  # per un'offerta (codice tra [ ])
 ```
 
-Nell'interfaccia web il pulsante **CV su misura** c'è su ogni offerta e su ogni casa editrice. Il CV caricato nella creazione del profilo viene ricordato; il testo resta in `.job-searcher/cv.txt`.
+Nell'interfaccia web il pulsante **CV su misura** c'è su ogni casa editrice; per le offerte c'è il [kit di candidatura](#kit-di-candidatura), che lo comprende. Il CV caricato nella creazione del profilo viene ricordato; il testo resta in `.job-searcher/cv.txt`.
 
 ## Struttura del codice
 
@@ -554,9 +586,10 @@ src/
   geo.js           riconoscimento delle località italiane e calcolo delle distanze
   dedupe.js        unione delle offerte doppie
   store.js         memoria delle offerte già viste (.job-searcher/)
-  tracking.js      candidature e ultimi risultati
+  tracking.js      candidature, solleciti e ultimi risultati
   match.js         testo per confrontare CV e offerte su claude.ai
   tailor.js        CV su misura: cosa valorizzare e testo per claude.ai
+  kit.js           kit di candidatura: analisi, CV riordinato, email, sollecito, prompt e controllo
   market/          analisi del mercato: competenze richieste, lacune e come colmarle
   publishers/      case editrici e aziende affini: archivio, settori, ricerca (OpenStreetMap, Wikidata, web),
                    specializzazioni, sorveglianza dei siti (watch.js) e giro automatico (auto.js)

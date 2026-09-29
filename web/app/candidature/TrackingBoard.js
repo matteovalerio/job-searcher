@@ -2,16 +2,17 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { relativeDay, shortDate } from '../../lib/format.js';
 import { ClockIcon, PlusIcon, TrashIcon } from '../icons.js';
+import KitModal from '../KitModal.js';
 
 /** Colonne della bacheca: le ultime tre situazioni finiscono tutte in "Chiuse". */
 const COLUMNS = [
   { id: 'todo', name: 'Da candidarsi', statuses: ['interessante'], dot: 'var(--muted)' },
   { id: 'sent', name: 'Candidato', statuses: ['candidatura'], dot: 'var(--blue)' },
   { id: 'interview', name: 'Colloquio', statuses: ['colloquio'], dot: 'var(--accent)' },
-  { id: 'closed', name: 'Chiuse', statuses: ['offerta', 'rifiutata', 'scartata'], dot: 'var(--grey-dot)' },
+  { id: 'closed', name: 'Chiuse', statuses: ['offerta', 'rifiutata', 'nessuna', 'scartata'], dot: 'var(--grey-dot)' },
 ];
 
 function when(item, statuses) {
@@ -20,7 +21,7 @@ function when(item, statuses) {
     case 'interessante':
       return `Aggiunta ${relativeDay(since)}`;
     case 'candidatura':
-      return `Inviata il ${shortDate(since)}`;
+      return `Inviata il ${shortDate(item.sentAt ?? since)}`;
     case 'colloquio':
       return `Colloquio dal ${shortDate(since)}`;
     default:
@@ -28,7 +29,9 @@ function when(item, statuses) {
   }
 }
 
-function Card({ item, statuses, onChange, onRemove, dragging, onDragStart, onDragEnd }) {
+const today = () => new Date().toISOString().slice(0, 10);
+
+function Card({ item, statuses, onChange, onRemove, onKit, dragging, onDragStart, onDragEnd }) {
   const [note, setNote] = useState(item.note ?? '');
   return (
     <article
@@ -52,6 +55,11 @@ function Card({ item, statuses, onChange, onRemove, dragging, onDragStart, onDra
         )}
       </div>
       <div className="muted small">{[item.job.company, item.job.location].filter(Boolean).join(' · ')}</div>
+      {item.status === 'candidatura' && item.followUpAt && (
+        <span className={`badge${item.followUpAt <= today() ? '' : ' warn'}`}>
+          {item.followUpAt <= today() ? 'Da sollecitare' : `Sollecito il ${shortDate(item.followUpAt)}`}
+        </span>
+      )}
       <select
         aria-label={`Stato di "${item.job.title}"`}
         value={item.status}
@@ -75,6 +83,9 @@ function Card({ item, statuses, onChange, onRemove, dragging, onDragStart, onDra
       <div className="foot">
         <ClockIcon />
         <span className="spacer">{when(item, statuses)}</span>
+        <button type="button" className="small ghost" onClick={() => onKit(item)}>
+          {item.kit ? 'Kit' : 'Prepara il kit'}
+        </button>
         <button
           type="button"
           className="icon"
@@ -96,6 +107,9 @@ export default function TrackingBoard({ initialItems, statuses }) {
   const [dragged, setDragged] = useState(null);
   const [over, setOver] = useState(null);
   const [closing, setClosing] = useState(null); // offerta trascinata in "Chiuse": si chiede com'è finita
+  const [kit, setKit] = useState(null);
+  const closeKit = useCallback(() => setKit(null), []);
+  const due = items.filter((i) => i.status === 'candidatura' && i.followUpAt && i.followUpAt <= today());
 
   async function change(item, { status, note }) {
     setError('');
@@ -140,6 +154,32 @@ export default function TrackingBoard({ initialItems, statuses }) {
         </Link>
       </header>
       {error && <p className="error-box">{error}</p>}
+      {due.length > 0 && (
+        <div className="card due-box">
+          <strong>
+            {due.length === 1 ? 'Una candidatura da sollecitare' : `${due.length} candidature da sollecitare`}
+          </strong>
+          <span className="small muted">
+            Apri il kit per il testo del sollecito, poi segna «Sollecito inviato»: il prossimo si programma da solo.
+          </span>
+          <div className="row">
+            {due.map((i) => (
+              <button key={i.job.id} type="button" className="small" onClick={() => setKit(i)}>
+                {i.job.title}
+                {i.job.company ? ` · ${i.job.company}` : ''}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      {kit && (
+        <KitModal
+          job={kit.job.id}
+          title={kit.job.title}
+          onClose={closeKit}
+          onTracked={(updated) => setItems((prev) => prev.map((i) => (i.job.id === updated.job.id ? updated : i)))}
+        />
+      )}
       {!items.length && (
         <div className="empty">
           Non stai seguendo nessuna offerta. Nella pagina Offerte scegli uno stato accanto a quella che ti interessa.
@@ -197,6 +237,7 @@ export default function TrackingBoard({ initialItems, statuses }) {
                   statuses={statuses}
                   onChange={change}
                   onRemove={remove}
+                  onKit={setKit}
                   dragging={dragged?.job.id === item.job.id}
                   onDragStart={setDragged}
                   onDragEnd={() => {

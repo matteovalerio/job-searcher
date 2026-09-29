@@ -39,8 +39,13 @@ export function htmlToText(html) {
   if (!html) return '';
   if (!/[<&]/.test(html)) return String(html).replace(/\s+/g, ' ').trim();
   const $ = cheerio.load(`<div>${html}</div>`);
-  $('br, p, li, div').after(' ');
-  return $.root().text().replace(/\s+/g, ' ').trim();
+  // Gli a capo di paragrafi ed elenchi restano: servono a separare i requisiti di un annuncio (vedi kit.js).
+  $('br, p, li, div, h1, h2, h3, h4, tr').after('\n');
+  return $.root()
+    .text()
+    .replace(/[^\S\n]+/g, ' ')
+    .replace(/ ?\n[\s]*/g, '\n')
+    .trim();
 }
 
 export function truncate(text, max = 400) {

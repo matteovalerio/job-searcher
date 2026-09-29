@@ -15,7 +15,19 @@ export const STATUSES = {
   colloquio: 'colloquio',
   offerta: 'offerta ricevuta',
   rifiutata: 'non selezionata',
+  nessuna: 'nessuna risposta',
   scartata: 'non mi interessa',
+};
+
+// Solleciti: il primo una settimana dopo l'invio, il secondo dieci giorni dopo il primo. Poi basta: se non
+// rispondono ancora, conviene segnare "nessuna risposta".
+export const FOLLOW_UP_DAYS = [7, 10];
+
+const day = (iso) => iso.slice(0, 10);
+const addDays = (date, n) => {
+  const d = new Date(`${day(date)}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return day(d.toISOString());
 };
 
 /** Stati che tolgono l'offerta dai risultati delle ricerche successive (e dalle notifiche). */
@@ -75,7 +87,7 @@ export class Tracking {
    * Imposta stato e/o nota di un'offerta.
    * @param {object} job  l'offerta (serve la prima volta; poi basta l'id)
    */
-  set(job, { status, note } = {}, now = new Date().toISOString()) {
+  set(job, { status, note, sentAt } = {}, now = new Date().toISOString()) {
     if (status && !STATUSES[status]) {
       throw new Error(`Stato sconosciuto "${status}". Stati: ${Object.keys(STATUSES).join(', ')}`);
     }
@@ -89,7 +101,46 @@ export class Tracking {
       updatedAt: now,
     };
     if (!current.history.length) this.items[job.id].history.push({ status: this.items[job.id].status, at: now });
-    return this.items[job.id];
+    const item = this.items[job.id];
+    // Candidatura inviata: si programma il primo sollecito. Con qualsiasi altro stato i solleciti si fermano.
+    if (status === 'candidatura' && current.status !== 'candidatura') {
+      item.sentAt = sentAt ?? day(now);
+      item.followUps = [];
+      item.followUpAt = addDays(item.sentAt, FOLLOW_UP_DAYS[0]);
+    } else if (status && status !== 'candidatura') {
+      item.followUpAt = null;
+    }
+    if (status === 'candidatura' && sentAt && sentAt !== item.sentAt) {
+      item.sentAt = sentAt;
+      item.followUpAt = addDays(sentAt, FOLLOW_UP_DAYS[0]);
+    }
+    return item;
+  }
+
+  /** Segna un sollecito inviato e programma il successivo (se ce n'è ancora uno). */
+  followedUp(jobId, now = new Date().toISOString()) {
+    const item = this.items[jobId];
+    if (!item) throw new Error('Offerta non seguita');
+    if (item.status !== 'candidatura') throw new Error('I solleciti servono per le candidature inviate');
+    item.followUps = [...(item.followUps ?? []), day(now)];
+    const next = FOLLOW_UP_DAYS[item.followUps.length];
+    item.followUpAt = next ? addDays(now, next) : null;
+    item.history.push({ status: item.status, at: now, note: `sollecito ${item.followUps.length} inviato` });
+    item.updatedAt = now;
+    return item;
+  }
+
+  /** Candidature da sollecitare oggi (o in ritardo). */
+  due(now = new Date().toISOString()) {
+    return this.list().filter((t) => t.status === 'candidatura' && t.followUpAt && t.followUpAt <= day(now));
+  }
+
+  /** Salva il kit di candidatura di un'offerta (la segue, se non la seguiva già). */
+  setKit(job, kit, now = new Date().toISOString()) {
+    const item = this.items[job.id] ?? this.set(job, {}, now);
+    item.kit = { ...kit, updatedAt: now };
+    item.updatedAt = now;
+    return item;
   }
 
   remove(jobId) {
