@@ -45,6 +45,7 @@ export async function core() {
     load('config.js'),
     load('diagnose.js'),
     load('kit-store.js'),
+    load('plan.js'),
   ]).then(
     ([
       app,
@@ -69,7 +70,11 @@ export async function core() {
       config,
       diagnose,
       kitStore,
+      plan,
     ]) => ({
+      buildPlan: plan.buildPlan,
+      loadPlan: plan.loadPlan,
+      savePlan: plan.savePlan,
       KitStore: kitStore.KitStore,
       loadTrackingAndKits: kitStore.loadTrackingAndKits,
       resolveProfile: config.resolveProfile,
@@ -184,4 +189,15 @@ export async function resultsForPage(profileId) {
         .filter((job) => !HIDDEN_STATUSES.includes(job.tracking?.status)),
     })),
   };
+}
+
+/** Il piano della settimana (vedi src/plan.js), con candidature, aziende e obiettivi salvati. */
+export async function currentPlan() {
+  const { loadTrackingAndKits, Publishers, loadPlan, buildPlan } = await core();
+  const [{ tracking }, publishers, { goals }] = await Promise.all([
+    loadTrackingAndKits(),
+    new Publishers().load(),
+    loadPlan(),
+  ]);
+  return buildPlan({ tracking: Object.values(tracking.items), publishers: publishers.items, goals });
 }
