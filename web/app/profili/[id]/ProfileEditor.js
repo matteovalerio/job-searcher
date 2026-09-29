@@ -40,10 +40,15 @@ export default function ProfileEditor({ id, initialText }) {
       </p>
       <textarea rows={30} spellCheck={false} value={text} onChange={(e) => setText(e.target.value)} />
       <div className="row">
-        <button onClick={save} disabled={saving || text === initialText}>
+        <button type="button" onClick={save} disabled={saving || text === initialText}>
           {saving ? 'Salvataggio…' : 'Salva'}
         </button>
-        <button className="secondary" onClick={() => setText(initialText)} disabled={text === initialText}>
+        <button
+          type="button"
+          className="secondary"
+          onClick={() => setText(initialText)}
+          disabled={text === initialText}
+        >
           Annulla modifiche
         </button>
         {message && <span className={message.error ? 'error-box' : 'ok-box'}>{message.text}</span>}

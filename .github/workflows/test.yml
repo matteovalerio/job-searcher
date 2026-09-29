@@ -21,7 +21,17 @@ jobs:
           cache: npm
       - run: npm ci --omit=optional
       - run: npm test
-      - run: npx --yes prettier@3 --check "src/**/*.js" "test/*.js" "scripts/*.js"
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --omit=optional
+      - run: npx biome ci .
 
   web:
     runs-on: ubuntu-latest

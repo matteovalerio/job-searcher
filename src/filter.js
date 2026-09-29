@@ -25,7 +25,7 @@ const REMOTE_HINTS = compileKeywords(['full remote', 'fully remote', 'remote', '
 const HYBRID_HINTS = compileKeywords(['hybrid', 'ibrido', 'ibrida', 'on-site', 'onsite', 'in office', 'in ufficio']);
 
 // Lingue riconosciute nei titoli ("Hebrew Localization Specialist", "Traduttore tedesco").
-// prettier-ignore
+// biome-ignore format: elenco lungo, più leggibile compatto
 const LANGUAGES = compileKeywords([
   'english', 'inglese', 'italian', 'italiano', 'italiana', 'french', 'francese', 'german', 'tedesco', 'tedesca',
   'spanish', 'spagnolo', 'spagnola', 'portuguese', 'portoghese', 'dutch', 'olandese', 'flemish', 'hebrew', 'ebraico',

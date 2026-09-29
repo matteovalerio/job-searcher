@@ -1,4 +1,5 @@
 import { describeInfo } from '../extract.js';
+
 const esc = (s) =>
   String(s ?? '').replace(
     /[&<>"']/g,

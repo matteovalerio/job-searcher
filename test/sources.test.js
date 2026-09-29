@@ -6,7 +6,7 @@ import { parse as parseHimalayas } from '../src/sources/himalayas.js';
 import { parseHtml } from '../src/sources/html.js';
 import { parse as parseJobicy } from '../src/sources/jobicy.js';
 import { parse as parseJooble } from '../src/sources/jooble.js';
-import linkedin, { kmToLinkedinMiles, parse as parseLinkedin, parseDetail } from '../src/sources/linkedin.js';
+import linkedin, { kmToLinkedinMiles, parseDetail, parse as parseLinkedin } from '../src/sources/linkedin.js';
 import { eachQuery } from '../src/sources/queries.js';
 import { parse as parseRemoteok } from '../src/sources/remoteok.js';
 import { parse as parseRemotive } from '../src/sources/remotive.js';

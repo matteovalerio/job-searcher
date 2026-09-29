@@ -4,7 +4,7 @@ import { notify } from './notify.js';
 import { slugify } from './profiles/store.js';
 import { runSearch } from './search.js';
 import { SeenStore } from './store.js';
-import { Tracking, saveLastResults } from './tracking.js';
+import { saveLastResults, Tracking } from './tracking.js';
 
 /*
  * Il percorso completo di una ricerca, uguale per la riga di comando e per l'interfaccia web:

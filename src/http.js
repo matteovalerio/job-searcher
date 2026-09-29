@@ -1,4 +1,4 @@
-import { INCOMPLETE_CHAIN, fetchCompletingChain } from './tls-chain.js';
+import { fetchCompletingChain, INCOMPLETE_CHAIN } from './tls-chain.js';
 
 const DEFAULT_UA = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36';
 

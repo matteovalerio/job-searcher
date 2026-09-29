@@ -230,7 +230,7 @@ export function createCareersSource({ name, label, pages = [], supports = ['area
         errors[0].message = errors.map((e) => e.message).join(' | ');
         throw errors[0];
       }
-      errors.forEach((e) => warn?.(e.message));
+      for (const e of errors) warn?.(e.message);
       return jobs;
     },
   };

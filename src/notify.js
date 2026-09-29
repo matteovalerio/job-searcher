@@ -58,8 +58,7 @@ function jobLine(job) {
 
 /** Testo del messaggio: oggetto, versione testuale, HTML (email) e messaggi Telegram (già divisi). */
 export function buildDigest(digest, { profileName, reportUrl, date = new Date() } = {}) {
-  const day =
-    [date.getDate(), date.getMonth() + 1].map((n) => String(n).padStart(2, '0')).join('/') + `/${date.getFullYear()}`;
+  const day = `${[date.getDate(), date.getMonth() + 1].map((n) => String(n).padStart(2, '0')).join('/')}/${date.getFullYear()}`;
   const subject = digest.firstRun
     ? `Ricerca attivata: ${digest.total} offerte per "${profileName}"`
     : `${digest.total} ${digest.total === 1 ? 'nuova offerta' : 'nuove offerte'} per "${profileName}" (${day})`;

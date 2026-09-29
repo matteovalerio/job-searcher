@@ -7,7 +7,7 @@ const URL = 'https://remoteok.com/api';
 export function parse(data) {
   // Il primo elemento dell'array è un avviso legale, non un'offerta.
   return (Array.isArray(data) ? data : [])
-    .filter((j) => j && j.id && j.position)
+    .filter((j) => j?.id && j.position)
     .map((j) =>
       makeJob('remoteok', {
         id: j.id,

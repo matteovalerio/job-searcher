@@ -2,10 +2,10 @@ import { existsSync } from 'node:fs';
 import { findComune } from '../geo.js';
 import { normalize } from '../text.js';
 import {
-  REMOTE_SCOPES,
   buildProfile,
   describeCandidate,
   detectedFamilies,
+  REMOTE_SCOPES,
   suggest,
   suggestFilters,
 } from './builder.js';
@@ -109,7 +109,9 @@ export async function runWizard(io, { cv, name, now = new Date() } = {}) {
 
   // 2. Aree professionali
   print('\nAree professionali:');
-  ROLE_FAMILIES.forEach((f, i) => print(`  ${String(i + 1).padStart(2)}. ${f.label}`));
+  ROLE_FAMILIES.forEach((f, i) => {
+    print(`  ${String(i + 1).padStart(2)}. ${f.label}`);
+  });
   const detected = detectedFamilies(analysis).map((id) => ROLE_FAMILIES.findIndex((r) => r.id === id));
   let families = [];
   while (!families.length) {
@@ -157,7 +159,9 @@ export async function runWizard(io, { cv, name, now = new Date() } = {}) {
 
   const scopes = Object.entries(REMOTE_SCOPES);
   print('\nOfferte full remote:\n   1. no');
-  scopes.forEach(([, v], i) => print(`   ${i + 2}. sì, ${v.label}`));
+  scopes.forEach(([, v], i) => {
+    print(`   ${i + 2}. sì, ${v.label}`);
+  });
   const remoteChoice = parseChoices(await ask('Scelta', places.length ? 3 : 4), scopes.length + 1, [
     places.length ? 2 : 3,
   ])[0];

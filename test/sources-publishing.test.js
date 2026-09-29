@@ -122,7 +122,7 @@ test("workday: indirizzo dell'interfaccia, date relative e offerte", async (t) =
   assert.equal(remote.remote, true);
 
   let body;
-  t.mock.method(globalThis, 'fetch', async (url, init) => {
+  t.mock.method(globalThis, 'fetch', async (_url, init) => {
     body = JSON.parse(init.body);
     return Response.json(data);
   });

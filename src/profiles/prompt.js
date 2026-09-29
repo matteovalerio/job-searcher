@@ -63,7 +63,7 @@ const EXAMPLE = {
 export function buildPrompt({ cvText = '' } = {}) {
   const scopes = Object.entries(REMOTE_SCOPES)
     .map(
-      ([key, s]) =>
+      ([, s]) =>
         `   - ${s.label}: acceptedRegions ${JSON.stringify(s.regions)}, linkedinLocations ${JSON.stringify(s.linkedin)}`,
     )
     .join('\n');
