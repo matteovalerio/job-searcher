@@ -1,6 +1,10 @@
+import { createHash } from 'node:crypto';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import path from 'node:path';
 import * as cheerio from 'cheerio';
 import { distanceKm, findComune } from '../geo.js';
 import { getJson, getText, sleep } from '../http.js';
+import { stateDir } from '../paths.js';
 import { findCareersLink } from '../sources/careers.js';
 import { normalize } from '../text.js';
 import { PUBLISHING_SECTORS, SECTORS, sectorById } from './sectors.js';
@@ -21,7 +25,12 @@ import { searchWeb } from './websearch.js';
 // OVERPASS_URL (anche più indirizzi separati da virgola) li sostituisce.
 const OVERPASS_URLS = (
   process.env.OVERPASS_URL ??
-  'https://overpass-api.de/api/interpreter,https://overpass.kumi.systems/api/interpreter,https://overpass.private.coffee/api/interpreter'
+  [
+    'https://overpass-api.de/api/interpreter',
+    'https://overpass.kumi.systems/api/interpreter',
+    'https://overpass.private.coffee/api/interpreter',
+    'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
+  ].join(',')
 )
   .split(',')
   .map((u) => u.trim())
@@ -47,7 +56,7 @@ const errorText = (body) =>
  */
 export async function fetchOverpass(
   query,
-  { fetchFn = fetch, urls = OVERPASS_URLS, timeoutMs = 45000, busyPause = 5000 } = {},
+  { fetchFn = fetch, urls = OVERPASS_URLS, timeoutMs = 45000, busyPause = 10000 } = {},
 ) {
   const failures = [];
   for (const url of urls) {
@@ -261,16 +270,38 @@ export function mergeResults(lists) {
   return [...merged.values()].sort((a, b) => (a.distanceKm ?? 999) - (b.distanceKm ?? 999));
 }
 
+const OSM_CACHE_HOURS = 24;
+
+/**
+ * Query Overpass con una memoria di 24 ore su file: ripetere la stessa ricerca (stessa zona, stesso settore)
+ * non interroga di nuovo i server pubblici, che sono spesso sovraccarichi.
+ */
+async function cachedOverpass(query, { cacheDir, ...options }) {
+  if (!cacheDir) return fetchOverpass(query, options);
+  const file = path.join(cacheDir, `${createHash('sha1').update(query).digest('hex').slice(0, 16)}.json`);
+  try {
+    const { at, json } = JSON.parse(await readFile(file, 'utf8'));
+    if (Date.now() - new Date(at).getTime() < OSM_CACHE_HOURS * 3600 * 1000) return json;
+  } catch {
+    // niente in memoria (o file illeggibile): si interroga il server
+  }
+  const json = await fetchOverpass(query, options);
+  await mkdir(cacheDir, { recursive: true });
+  await writeFile(file, JSON.stringify({ at: new Date().toISOString(), json }));
+  return json;
+}
+
 /**
  * OpenStreetMap, un settore alla volta: query piccole che i server pubblici reggono, e se un settore fallisce
  * gli altri arrivano comunque. Dopo due settori falliti di fila si smette (i server sono giù o sovraccarichi).
  */
-async function searchOsm(center, radiusKm, sectors, http, problems) {
+async function searchOsm(center, radiusKm, sectors, http, problems, cacheDir) {
   const out = [];
   let failedInARow = 0;
   for (const id of sectors.filter((s) => sectorById(s)?.osm.length)) {
     try {
-      const json = await fetchOverpass(overpassQuery(center, radiusKm, [id]), {
+      const json = await cachedOverpass(overpassQuery(center, radiusKm, [id]), {
+        cacheDir,
         fetchFn: http.fetch ?? fetch,
         busyPause: http.busyPause,
       });
@@ -289,8 +320,8 @@ async function searchOsm(center, radiusKm, sectors, http, problems) {
   return out;
 }
 
-async function searchMaps(center, radiusKm, sectors, http, problems) {
-  const fromOsm = searchOsm(center, radiusKm, sectors, http, problems);
+async function searchMaps(center, radiusKm, sectors, http, problems, cacheDir) {
+  const fromOsm = searchOsm(center, radiusKm, sectors, http, problems, cacheDir);
   // Wikidata serve solo per le case editrici.
   const fromWikidata = !sectors.includes('casa-editrice')
     ? Promise.resolve([])
@@ -325,6 +356,8 @@ export async function discoverPublishers({
   radiusKm = 30,
   sectors = PUBLISHING_SECTORS,
   http = { fetch: (...args) => fetch(...args), getJson },
+  // Cartella della memoria di OpenStreetMap (null per non usarla, come nei test).
+  osmCache = stateDir('osm-cache'),
   web = searchWeb,
 } = {}) {
   const names = (places ?? String(place ?? '').split(',')).map((p) => p.trim()).filter(Boolean);
@@ -332,7 +365,7 @@ export async function discoverPublishers({
   const centers = names.map(resolveCenter);
   const problems = [];
   const [maps, fromWeb] = await Promise.all([
-    Promise.all(centers.map((c) => searchMaps(c, radiusKm, sectors, http, problems))),
+    Promise.all(centers.map((c) => searchMaps(c, radiusKm, sectors, http, problems, osmCache))),
     web(
       centers.map((c) => c.name),
       { sectors },

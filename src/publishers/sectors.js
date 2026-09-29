@@ -11,7 +11,9 @@ import { compileKeywords, normalize } from '../text.js';
  *   roles     ruoli da proporre in una candidatura spontanea
  *   focus     cosa valorizzare nel CV per questo settore (lo usa il "CV su misura")
  *   fit       quanto è vicino a ogni area professionale (vedi profiles/roles.js): serve a ordinarli
- *   osm       elementi di OpenStreetMap da cercare (selettori Overpass, senza la zona)
+ *   osm       elementi di OpenStreetMap da cercare (selettori Overpass, senza la zona). Le ricerche per nome
+ *             si limitano agli uffici registrati come aziende (office=company): su tutti gli uffici della
+ *             zona sono troppo pesanti per i server pubblici
  *   matches   riconosce un elemento di OpenStreetMap di questo settore
  *   web       frasi per la ricerca web, {city} = città
  *   hint      parole che un risultato web deve contenere per essere tenuto
@@ -33,9 +35,8 @@ export const SECTORS = [
     fit: { editoria: 5, scientifica: 4, traduzione: 2, giornalismo: 2, grafica: 1 },
     osm: [
       '["office"="publisher"]',
-      '["office"]["name"~"edizion|editric|editor|editorial|publish|verlag",i]',
-      '["shop"]["name"~"edizion|editric|editore",i]',
-      '["craft"]["name"~"edizion|editric|editorial",i]',
+      '["office"="company"]["name"~"edizion|editric|editore|editorial|publish",i]',
+      '["shop"="books"]["name"~"edizion|editric|editore",i]',
     ],
     matches: (t) => t.office === 'publisher' || (Boolean(t.office || t.shop || t.craft) && has(/edizion|editric|editore|editorial|publish|verlag/)(t)),
     web: ['casa editrice {city}', 'edizioni {city} libri', 'editore indipendente {city}'],
@@ -87,7 +88,7 @@ export const SECTORS = [
       'gestione di scadenze strette e di più clienti in parallelo',
     ],
     fit: { editoria: 4, comunicazione: 5, grafica: 4, giornalismo: 2, vendite: 1 },
-    osm: ['["office"="advertising_agency"]', '["office"]["name"~"comunicazione|pubblicit|advertising|grafic",i]'],
+    osm: ['["office"="advertising_agency"]', '["office"="company"]["name"~"comunicazione|pubblicit|advertising|grafic",i]'],
     matches: (t) => t.office === 'advertising_agency' || (Boolean(t.office) && has(/comunicazione|pubblicit|advertising|grafic/)(t)),
     web: ['agenzia di comunicazione {city}', 'agenzia pubblicitaria {city}', 'studio grafico {city}'],
     hint: /comunicazion|pubblicit|advertising|grafic|marketing|brand/,
@@ -104,7 +105,7 @@ export const SECTORS = [
       'rapporti con editori e clienti, rispetto dei tempi di produzione',
     ],
     fit: { editoria: 3, grafica: 5, progetti: 1 },
-    osm: ['["craft"="printer"]', '["office"]["name"~"tipograf|arti grafiche|stamperia",i]', '["craft"]["name"~"tipograf|arti grafiche",i]'],
+    osm: ['["craft"="printer"]', '["office"="company"]["name"~"tipograf|arti grafiche|stamperia",i]'],
     matches: (t) => t.craft === 'printer' || has(/tipograf|arti grafiche|stamperia/)(t),
     web: ['tipografia {city}', 'stampa libri {city}'],
     hint: /tipograf|stampa|arti grafiche|prestampa/,
@@ -121,8 +122,8 @@ export const SECTORS = [
       'coordinamento di collaboratori esterni e scadenze',
     ],
     fit: { traduzione: 5, editoria: 3, scientifica: 2 },
-    osm: ['["office"]["name"~"traduzion|translation|interpret",i]'],
-    matches: (t) => has(/traduzion|translation|interpret/)(t),
+    osm: ['["office"="translator"]', '["office"="company"]["name"~"traduzion|translation|interpret",i]'],
+    matches: (t) => t.office === 'translator' || has(/traduzion|translation|interpret/)(t),
     web: ['agenzia di traduzioni {city}'],
     hint: /traduz|translat|interpret|localizz/,
   },
