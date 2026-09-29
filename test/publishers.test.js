@@ -77,9 +77,9 @@ test('le due fonti si uniscono per sito e si completano', async () => {
 test('discoverPublishers: più città, ricerca web facoltativa, problemi riportati senza fermarsi', async () => {
   const calls = [];
   const http = {
-    async request(_url, init) {
-      calls.push(['osm', init.body.slice(0, 5)]);
-      return { json: async () => JSON.parse(await fixture('overpass.json')) };
+    async fetch(_url, init) {
+      calls.push(['osm', init.body.slice(0, 5), init.headers['User-Agent'].startsWith('job-searcher')]);
+      return new Response(await fixture('overpass.json'), { headers: { 'content-type': 'application/json' } });
     },
     async getJson() {
       calls.push(['wikidata']);
@@ -92,7 +92,7 @@ test('discoverPublishers: più città, ricerca web facoltativa, problemi riporta
   assert.equal(one.results.length, 4);
   assert.deepEqual(one.problems, ['Wikidata (Padova): HTTP 429']);
   assert.equal(one.webSearch, false);
-  assert.deepEqual(calls[0], ['osm', 'data=']);
+  assert.deepEqual(calls[0], ['osm', 'data=', true]);
 
   const web = async (cities) => ({
     results: [{ name: 'Wetlands', website: 'https://wetlandsbooks.com/', city: 'Venezia', source: 'ricerca web' }],
@@ -189,4 +189,46 @@ test('pulizia: via le voci di Wikidata senza sito mai toccate', async () => {
     store.staleFromWikidata().map((p) => p.name),
     ['Stamperia del Seicento'],
   );
+});
+
+test('Overpass: se un server rifiuta si prova il successivo; se falliscono tutti, si dice perché', async () => {
+  const { fetchOverpass } = await import('../src/publishers/discover.js');
+  const urls = ['https://uno.example/api/interpreter', 'https://due.example/api/interpreter', 'https://tre.example/x'];
+  const tried = [];
+  const ok = await fetchOverpass('[out:json];', {
+    urls,
+    fetchFn: async (url) => {
+      tried.push(new URL(url).host);
+      if (url.includes('uno'))
+        return new Response('<html><body><p>Not Acceptable: identify your client</p></body></html>', { status: 406 });
+      return Response.json({ elements: [{ type: 'node', tags: { name: 'X' } }] });
+    },
+  });
+  assert.deepEqual(tried, ['uno.example', 'due.example']);
+  assert.equal(ok.elements.length, 1);
+
+  await assert.rejects(
+    fetchOverpass('[out:json];', {
+      urls,
+      fetchFn: async (url) => {
+        if (url.includes('uno')) return new Response('Not Acceptable', { status: 406 });
+        if (url.includes('due')) return Response.json({ elements: [], remark: 'runtime error: Query timed out' });
+        throw new TypeError('fetch failed', { cause: { code: 'ECONNREFUSED' } });
+      },
+    }),
+    /uno\.example: HTTP 406 \(Not Acceptable\) \| due\.example: runtime error: Query timed out \| tre\.example: ECONNREFUSED/,
+  );
+  // Query sbagliata (400): inutile riprovare sugli altri server.
+  const calls = [];
+  await assert.rejects(
+    fetchOverpass('boh', {
+      urls,
+      fetchFn: async (url) => {
+        calls.push(url);
+        return new Response('parse error', { status: 400 });
+      },
+    }),
+    /HTTP 400/,
+  );
+  assert.equal(calls.length, 1);
 });
