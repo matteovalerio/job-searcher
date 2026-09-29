@@ -29,10 +29,20 @@ test('specializzazioni riconosciute dal testo', () => {
   assert.equal(guessKind('Edizioni Esempio'), 'casa-editrice');
 });
 
-test('OpenStreetMap: tiene gli editori, scarta librerie e voci senza nome', async () => {
-  const results = parseOverpass(JSON.parse(await fixture('overpass.json')), padova);
+test('OpenStreetMap: un settore per ogni elemento, le librerie solo se richieste, niente voci senza nome', async () => {
+  const json = JSON.parse(await fixture('overpass.json'));
+  const results = parseOverpass(json, padova);
   assert.deepEqual(
-    results.map((r) => r.name),
+    results.map((r) => [r.name, r.kind]),
+    [
+      ['Edizioni Esempio', 'casa-editrice'],
+      ['Studio Editoriale Pagine', 'studio-editoriale'],
+      ['Libreria Due Torri', 'libreria'],
+      ['Libreria Editrice Il Leggio', 'casa-editrice'],
+    ],
+  );
+  assert.deepEqual(
+    parseOverpass(json, padova, ['casa-editrice']).map((r) => r.name),
     ['Edizioni Esempio', 'Studio Editoriale Pagine', 'Libreria Editrice Il Leggio'],
   );
   const [esempio, studio] = results;
@@ -56,7 +66,7 @@ test('le due fonti si uniscono per sito e si completano', async () => {
   const osm = parseOverpass(JSON.parse(await fixture('overpass.json')), padova);
   const wd = parseWikidata(JSON.parse(await fixture('wikidata.json')), padova);
   const merged = mergeResults([osm, wd]);
-  assert.equal(merged.length, 4);
+  assert.equal(merged.length, 5);
   const esempio = merged.find((r) => r.name === 'Edizioni Esempio');
   assert.deepEqual(esempio.sources, ['openstreetmap', 'wikidata']);
   assert.equal(esempio.email, 'info@edizioniesempio.it');
@@ -79,7 +89,7 @@ test('discoverPublishers: più città, ricerca web facoltativa, problemi riporta
   const noWeb = async () => ({ results: [], problems: [], skipped: true });
   const one = await discoverPublishers({ place: 'Padova', radiusKm: 40, http, web: noWeb });
   assert.equal(one.center.name, 'Padova');
-  assert.equal(one.results.length, 3);
+  assert.equal(one.results.length, 4);
   assert.deepEqual(one.problems, ['Wikidata (Padova): HTTP 429']);
   assert.equal(one.webSearch, false);
   assert.deepEqual(calls[0], ['osm', 'data=']);

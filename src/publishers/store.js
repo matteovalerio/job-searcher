@@ -124,6 +124,8 @@ export class Publishers {
       followUpAt: null,
       channel: null,
       contact: p.contact ?? null,
+      // perché è affine al profilo e che ruolo proporre (per i settori affini)
+      pitch: p.pitch ?? null,
       note: p.note ?? '',
       history: [],
       addedAt: now,
@@ -164,6 +166,7 @@ export class Publishers {
       'followUpAt',
       'specialties',
       'description',
+      'pitch',
     ];
     for (const key of allowed)
       if (key in fields) p[key] = key === 'website' ? normalizeWebsite(fields[key]) : fields[key];

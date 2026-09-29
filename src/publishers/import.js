@@ -1,3 +1,4 @@
+import { PUBLISHING_SECTORS, SECTORS } from './sectors.js';
 import { PUBLISHER_KINDS, SPECIALTIES } from './specialties.js';
 import { normalizeWebsite } from './store.js';
 
@@ -26,7 +27,7 @@ Rispondi con un blocco \`\`\`json con un array di oggetti così:
     "name": "Nome della casa editrice",
     "website": "https://… oppure vuoto",
     "city": "Città",
-    "kind": ${Object.keys(PUBLISHER_KINDS)
+    "kind": ${PUBLISHING_SECTORS.slice(0, 2)
       .map((k) => `"${k}"`)
       .join(' | ')},
     "specialties": ["uno o più tra: ${SPECIALTIES.map((s) => s.id).join(', ')}"],
@@ -38,6 +39,54 @@ Specializzazioni possibili: ${specialties}.
 `;
 }
 
+/**
+ * Testo per claude.ai: dal CV (o dalla descrizione del profilo) Claude individua i settori affini, anche meno
+ * ovvi, e propone aziende concrete della zona in cui le competenze del candidato servono.
+ * @param {{ candidate: string, hasCv?: boolean, places: string[], radiusKm?: number, suggested?: string[], known?: string[] }} options
+ */
+export function buildAffinePrompt({ candidate, hasCv = false, places, radiusKm = 30, suggested = [], known = [] }) {
+  const affine = SECTORS.filter((s) => !PUBLISHING_SECTORS.includes(s.id));
+  const sectorList = affine
+    .map(
+      (s) =>
+        `- "${s.id}", ${s.label}${suggested.includes(s.id) ? ' (tra i più vicini al mio profilo)' : ''}: ${s.why}.`,
+    )
+    .join('\n');
+  const who = hasCv
+    ? `Ecco il mio CV (testo estratto dal PDF):\n\n<cv>\n${candidate.trim()}\n</cv>`
+    : `Il mio profilo, in breve: ${candidate.trim()}\n(Se ti serve, ti allego il CV.)`;
+  return `Sto cercando lavoro e non voglio limitarmi alle offerte con il mio titolo esatto. Aiutami a trovare aziende "affini": settori diversi dal mio in cui le mie competenze servono, anche se lì il ruolo ha un altro nome. Per esempio chi ha lavorato nella redazione di uno studio editoriale può servire a un'agenzia pubblicitaria che impagina cataloghi e libretti per le sagre.
+
+${who}
+
+Zona: ${places.join(', ')} ed entro circa ${radiusKm} km.
+
+COSA TI CHIEDO
+1. Elenca le mie competenze trasferibili (quelle che valgono anche fuori dal mio settore), con le parole che usano gli altri settori per chiamarle.
+2. Proponi 5-8 settori affini, anche meno ovvi, e per ognuno: perché è affine e che ruolo potrei proporre. Puoi partire da questi, ma aggiungine altri se ha senso:
+${sectorList}
+3. Per ogni settore elenca aziende concrete della zona (anche piccole) a cui mandare una candidatura spontanea.
+
+REGOLE
+- Solo aziende che esistono davvero e, per quanto sai, sono attive. Niente nomi inventati o supposti.
+- Scrivi il sito solo se sei sicuro dell'indirizzo; altrimenti lascialo vuoto. Controllerò io ogni sito.
+- Meglio un elenco più corto e corretto che uno lungo con errori.
+${known.length ? `- Queste le ho già, non ripeterle: ${known.join(', ')}.\n` : ''}
+Alla fine, metti le aziende in un blocco \`\`\`json con un array di oggetti così:
+[
+  {
+    "name": "Nome dell'azienda",
+    "website": "https://… oppure vuoto",
+    "city": "Città",
+    "kind": "uno tra: ${affine.map((s) => s.id).join(', ')}, altro",
+    "sector": "nome del settore, se kind è altro",
+    "pitch": "il ruolo che potrei proporre",
+    "why": "una riga: perché le mie competenze servono lì"
+  }
+]
+`;
+}
+
 const toPublisher = (item, source) => ({
   name: String(item.name ?? item.nome ?? '').trim(),
   website: normalizeWebsite(item.website ?? item.sito ?? item.url ?? ''),
@@ -46,7 +95,14 @@ const toPublisher = (item, source) => ({
   specialties: Array.isArray(item.specialties)
     ? item.specialties.filter((s) => SPECIALTIES.some((x) => x.id === s))
     : [],
-  note: item.note ?? item.nota ?? '',
+  note: [
+    item.note ?? item.nota,
+    item.why ?? item.perche,
+    item.kind === 'altro' && item.sector && `settore: ${item.sector}`,
+  ]
+    .filter(Boolean)
+    .join(' · '),
+  pitch: item.pitch ?? item.ruolo ?? null,
   email: item.email ?? null,
   source,
 });

@@ -1,18 +1,24 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { c } from '../output/terminal.js';
+import { loadProfile } from '../profiles/store.js';
+import { candidateText as candidate } from '../publishers/candidate.js';
 import { checkPublisherSite, discoverPublishers } from '../publishers/discover.js';
-import { buildPublishersPrompt, parsePublisherList } from '../publishers/import.js';
+import { buildAffinePrompt, buildPublishersPrompt, parsePublisherList } from '../publishers/import.js';
+import { affineSectors, resolveSectors, sectorById, suggestSectors } from '../publishers/sectors.js';
 import { PUBLISHER_KINDS, specialtyLabel } from '../publishers/specialties.js';
 import { needsFollowUp, PUBLISHER_STATUSES, Publishers } from '../publishers/store.js';
 
 export const PUBLISHERS_HELP = `
-Case editrici e studi editoriali (candidature spontanee):
+Case editrici e aziende affini (candidature spontanee):
   job-searcher publishers                     elenco, prima quelle da sollecitare (anche: "editori")
-  job-searcher publishers find -l "Padova,Venezia" -r 40 [--add]
+  job-searcher publishers sectors [-p profilo] settori affini al profilo e al CV salvato: perché e che ruolo proporre
+  job-searcher publishers find -l "Padova,Venezia" -r 40 [--sectors affini] [--add]
                                               cerca su OpenStreetMap, Wikidata e (con BRAVE_SEARCH_API_KEY) sul web;
+                                              --sectors: editoria (predefinito), affini, tutti o un elenco di settori;
                                               con --add le aggiunge all'elenco
-  job-searcher publishers prompt -l "Padova,Venezia" -r 40 [-o file]
+  job-searcher publishers prompt -l "Padova,Venezia" -r 40 [--sectors affini] [-p profilo] [-o file]
                                               testo per farsi elencare da Claude le case editrici della zona
+                                              (con --sectors affini: le aziende affini al tuo CV)
   job-searcher publishers import [file]       aggiunge un elenco (risposta di Claude o una per riga: "Nome | sito | città")
                                               e ne controlla i siti
   job-searcher publishers add "Nome" [--site url] [--city Padova] [--kind studio-editoriale] [--email e] [--note "…"]
@@ -42,6 +48,7 @@ function printItem(p, { full = false } = {}) {
     Boolean,
   );
   if (links.length) console.log(c.dim(`    ${links.join(' · ')}`));
+  if (p.pitch) console.log(`    ruolo da proporre: ${p.pitch}`);
   if (full) {
     for (const [label, value] of [
       ['Sito', p.website],
@@ -63,16 +70,47 @@ function printItem(p, { full = false } = {}) {
   }
 }
 
+/** Chi è il candidato: il profilo indicato con -p e il CV salvato. */
+async function candidateText(opts) {
+  const profile = opts.profile ? await loadProfile(opts.profile) : null;
+  return { ...(await candidate(profile)), profile };
+}
+
+async function sectors(opts) {
+  const { text, cv, profile } = await candidateText(opts);
+  if (!text) {
+    throw new Error(
+      'Non so ancora chi sei: indica un profilo con -p, oppure salva il CV con "job-searcher cv set <pdf>".',
+    );
+  }
+  console.log(
+    c.dim(`In base a: ${[profile && `profilo ${opts.profile}`, cv && 'CV salvato'].filter(Boolean).join(' e ')}\n`),
+  );
+  for (const s of suggestSectors(text)) {
+    console.log(`${c.bold(s.label)} ${c.dim(`[${s.id}] affinità ${s.score}`)}`);
+    console.log(`    perché: ${s.why}`);
+    console.log(c.dim(`    ruoli da proporre: ${s.roles.join(', ')}`));
+  }
+  console.log(
+    `\nPer cercarle: ${c.bold('job-searcher publishers find -l <città> --sectors affini')} (o un elenco di settori)`,
+  );
+}
+
 async function find(opts, store) {
   if (!opts.place) throw new Error('Indica la città attorno a cui cercare: publishers find -l Padova -r 40');
   const radiusKm = opts.radiusKm ?? 30;
-  console.error(c.dim(`Cerco case editrici e studi editoriali entro ${radiusKm} km da ${opts.place}…`));
-  const { results, problems, webSearch } = await discoverPublishers({ place: opts.place, radiusKm });
+  const chosen = resolveSectors(opts.sectors, (await candidateText(opts)).text);
+  console.error(
+    c.dim(
+      `Cerco ${chosen.map((id) => sectorById(id).label.toLowerCase()).join(', ')} entro ${radiusKm} km da ${opts.place}…`,
+    ),
+  );
+  const { results, problems, webSearch } = await discoverPublishers({ place: opts.place, radiusKm, sectors: chosen });
   for (const p of problems) console.error(c.yellow(`! ${p}`));
   if (!webSearch) {
     console.error(
       c.dim(
-        'Mappe e Wikidata non conoscono molti piccoli editori. Per trovarne di più: la ricerca web (chiave gratuita\n' +
+        'Le mappe e Wikidata non conoscono molte piccole aziende. Per trovarne di più: la ricerca web (chiave gratuita\n' +
           'BRAVE_SEARCH_API_KEY, vedi README) oppure "publishers prompt" per farsi aiutare da Claude.',
       ),
     );
@@ -93,7 +131,7 @@ async function find(opts, store) {
   if (!fresh.length) return;
   if (!opts.add) {
     console.log(
-      `\nPer aggiungerle all'elenco: ${c.bold(`job-searcher publishers find -l "${opts.place}" -r ${radiusKm} --add`)}`,
+      `\nPer aggiungerle all'elenco: ${c.bold(`job-searcher publishers find -l "${opts.place}" -r ${radiusKm}${opts.sectors ? ` --sectors ${opts.sectors}` : ''} --add`)}`,
     );
     return;
   }
@@ -107,11 +145,25 @@ async function find(opts, store) {
 
 async function prompt(opts, store) {
   if (!opts.place) throw new Error('Indica la zona: publishers prompt -l "Padova,Venezia" -r 40');
-  const text = buildPublishersPrompt({
-    places: opts.place.split(',').map((p) => p.trim()),
-    radiusKm: opts.radiusKm ?? 30,
-    known: store.items.map((p) => p.name),
-  });
+  const places = opts.place.split(',').map((p) => p.trim());
+  const known = store.items.map((p) => p.name);
+  let text;
+  if (String(opts.sectors ?? '').includes('affini')) {
+    const who = await candidateText(opts);
+    if (!who.text) {
+      throw new Error('Per le aziende affini serve il CV ("job-searcher cv set <pdf>") o un profilo (-p nome).');
+    }
+    text = buildAffinePrompt({
+      candidate: who.cv ?? who.text,
+      hasCv: Boolean(who.cv),
+      places,
+      radiusKm: opts.radiusKm ?? 30,
+      suggested: affineSectors(who.text),
+      known,
+    });
+  } else {
+    text = buildPublishersPrompt({ places, radiusKm: opts.radiusKm ?? 30, known });
+  }
   const next = [
     '1. Incolla il testo in una nuova chat su claude.ai.',
     '2. Copia la risposta (con il blocco ```json) in un file, es. editori.txt, ed esegui:',
@@ -199,6 +251,7 @@ export async function publishersCommand(opts) {
   if (first === 'find' || first === 'cerca') return find(opts, store);
   if (first === 'check' || first === 'controlla') return check(second, store);
   if (first === 'prompt') return prompt(opts, store);
+  if (first === 'sectors' || first === 'settori') return sectors(opts);
   if (first === 'clean' || first === 'pulisci') {
     const stale = store.staleFromWikidata();
     for (const p of stale) store.remove(p.id);

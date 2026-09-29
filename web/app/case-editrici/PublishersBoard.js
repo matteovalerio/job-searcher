@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useCallback, useMemo, useState } from 'react';
 import { relativeDay, shortDate } from '../../lib/format.js';
-import { CopyIcon, ExternalIcon, PlusIcon, RefreshIcon, SearchIcon, TrashIcon } from '../icons.js';
+import { CheckIcon, CopyIcon, ExternalIcon, PlusIcon, RefreshIcon, SearchIcon, TrashIcon } from '../icons.js';
 import Modal from '../Modal.js';
 import TailorModal from '../TailorModal.js';
 
@@ -29,6 +29,7 @@ async function send(url, method, body) {
 
 /** Elenco preparato da Claude (o scritto a mano): si aggiunge e se ne visitano i siti. */
 function ClaudeImport({ place, setPlace, radiusKm, onAdded }) {
+  const [affine, setAffine] = useState(false);
   const [prompt, setPrompt] = useState('');
   const [copied, setCopied] = useState(false);
   const [text, setText] = useState('');
@@ -37,7 +38,7 @@ function ClaudeImport({ place, setPlace, radiusKm, onAdded }) {
   async function makePrompt() {
     setState({});
     try {
-      const data = await send('/api/publishers/prompt', 'POST', { place, radiusKm });
+      const data = await send('/api/publishers/prompt', 'POST', { place, radiusKm, affine });
       setPrompt(data.prompt);
       await navigator.clipboard.writeText(data.prompt).then(
         () => setCopied(true),
@@ -95,10 +96,21 @@ function ClaudeImport({ place, setPlace, radiusKm, onAdded }) {
 
   return (
     <div className="stack">
+      <div className="segmented" role="tablist" aria-label="Cosa chiedere a Claude">
+        <button type="button" role="tab" aria-selected={!affine} onClick={() => setAffine(false)}>
+          Case editrici
+        </button>
+        <button type="button" role="tab" aria-selected={affine} onClick={() => setAffine(true)}>
+          Aziende affini al mio CV
+        </button>
+      </div>
       <p className="small muted">
-        Claude conosce molti piccoli editori che non sono sulle mappe. Prepara il testo, incollalo su claude.ai e poi
-        incolla qui la risposta; va bene anche un elenco scritto da te, una casa editrice per riga («Nome | sito |
-        città»). Prima di aggiungerle visito ogni sito, così quelle inventate o chiuse si riconoscono subito.
+        {affine
+          ? 'Dal tuo CV Claude individua le competenze trasferibili, propone settori affini (anche meno ovvi) e aziende concrete della zona, con il ruolo da proporre.'
+          : 'Claude conosce molti piccoli editori che non sono sulle mappe.'}{' '}
+        Prepara il testo, incollalo su claude.ai e poi incolla qui la risposta; va bene anche un elenco scritto da te,
+        una per riga («Nome | sito | città»). Prima di aggiungerle visito ogni sito, così quelle inventate o chiuse si
+        riconoscono subito.
       </p>
       <div className="row">
         <label className="field" style={{ flex: '1 1 260px' }}>
@@ -160,18 +172,66 @@ function ClaudeImport({ place, setPlace, radiusKm, onAdded }) {
   );
 }
 
-function DiscoverModal({ defaultPlace, kinds, specialtyLabel, onAdded, onClose }) {
+/** Scelta dei settori: editoria e settori affini, con quelli consigliati per il profilo in evidenza. */
+function SectorPicker({ sectors, chosen, onToggle }) {
+  const group = (list) => (
+    <div className="chips">
+      {list.map((s) => (
+        <button
+          key={s.id}
+          type="button"
+          aria-pressed={chosen.has(s.id)}
+          onClick={() => onToggle(s.id)}
+          title={`${s.why}. Ruoli: ${s.roles.join(', ')}`}
+        >
+          {chosen.has(s.id) && <CheckIcon />}
+          {s.label}
+          {s.recommended && <span className="badge">consigliato</span>}
+        </button>
+      ))}
+    </div>
+  );
+  const affine = sectors.filter((s) => !s.publishing);
+  const chosenAffine = affine.filter((s) => chosen.has(s.id));
+  return (
+    <div className="stack" style={{ gap: 10 }}>
+      <span className="overline">Editoria</span>
+      {group(sectors.filter((s) => s.publishing))}
+      <span className="overline">Settori affini (le tue competenze servono anche qui)</span>
+      {group(affine)}
+      {chosenAffine.length > 0 && (
+        <ul className="small muted" style={{ margin: 0, paddingLeft: 18, lineHeight: 1.6 }}>
+          {chosenAffine.map((s) => (
+            <li key={s.id}>
+              <strong style={{ color: 'var(--fg-2)', fontWeight: 500 }}>{s.label}</strong>: {s.why}. Ruoli da proporre:{' '}
+              {s.roles.join(', ')}.
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function DiscoverModal({ defaultPlace, kinds, sectors, specialtyLabel, onAdded, onClose }) {
   const [place, setPlace] = useState(defaultPlace || 'Padova');
   const [radiusKm, setRadiusKm] = useState(30);
   const [state, setState] = useState({});
   const [selected, setSelected] = useState(new Set());
   const [mode, setMode] = useState('maps');
+  const [chosen, setChosen] = useState(() => new Set(sectors.filter((s) => s.publishing).map((s) => s.id)));
+  const toggleSector = (id) =>
+    setChosen((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
 
   async function search(e) {
     e.preventDefault();
     setState({ loading: true });
     try {
-      const data = await send('/api/publishers/discover', 'POST', { place, radiusKm });
+      const data = await send('/api/publishers/discover', 'POST', { place, radiusKm, sectors: [...chosen] });
       setState(data);
       setSelected(new Set(data.results.filter((r) => !r.known).map((r, i) => r.name + i)));
     } catch (err) {
@@ -194,7 +254,7 @@ function DiscoverModal({ defaultPlace, kinds, specialtyLabel, onAdded, onClose }
     });
 
   return (
-    <Modal title="Cerca case editrici e studi editoriali" onClose={onClose} wide>
+    <Modal title="Cerca case editrici e aziende affini" onClose={onClose} wide>
       <div className="segmented" role="tablist" aria-label="Modo di ricerca">
         <button type="button" role="tab" aria-selected={mode === 'maps'} onClick={() => setMode('maps')}>
           Mappe e web
@@ -208,10 +268,11 @@ function DiscoverModal({ defaultPlace, kinds, specialtyLabel, onAdded, onClose }
       ) : (
         <>
           <p className="small muted">
-            Cerca su OpenStreetMap, Wikidata e (se c&apos;è la chiave) sul web le realtà editoriali attorno a una o più
-            città, separate da virgole. Poi «Controlla sito» ne ricava specializzazione, email e pagina «lavora con
-            noi».
+            Cerca su OpenStreetMap, Wikidata e (se c&apos;è la chiave) sul web le aziende dei settori scelti attorno a
+            una o più città, separate da virgole. Poi «Controlla sito» ne ricava specializzazione, email e pagina
+            «lavora con noi».
           </p>
+          <SectorPicker sectors={sectors} chosen={chosen} onToggle={toggleSector} />
           <form className="row" onSubmit={search}>
             <label className="field" style={{ flex: '1 1 220px' }}>
               <span className="label">Città</span>
@@ -224,7 +285,12 @@ function DiscoverModal({ defaultPlace, kinds, specialtyLabel, onAdded, onClose }
                 <span>km</span>
               </span>
             </label>
-            <button type="submit" className="primary" style={{ alignSelf: 'flex-end' }} disabled={state.loading}>
+            <button
+              type="submit"
+              className="primary"
+              style={{ alignSelf: 'flex-end' }}
+              disabled={state.loading || !chosen.size}
+            >
               <SearchIcon />
               {state.loading ? 'Ricerca…' : 'Cerca'}
             </button>
@@ -238,7 +304,7 @@ function DiscoverModal({ defaultPlace, kinds, specialtyLabel, onAdded, onClose }
           ))}
           {state.results && !state.webSearch && (
             <p className="small faint">
-              Mappe e Wikidata non conoscono molti piccoli editori: per trovarne di più usa «Con Claude o da un elenco»,
+              Mappe e Wikidata non conoscono molte piccole aziende: per trovarne di più usa «Con Claude o da un elenco»,
               oppure attiva la ricerca web con la chiave BRAVE_SEARCH_API_KEY (vedi README).
             </p>
           )}
@@ -294,7 +360,15 @@ function DiscoverModal({ defaultPlace, kinds, specialtyLabel, onAdded, onClose }
 }
 
 function AddModal({ kinds, onAdded, onClose }) {
-  const [form, setForm] = useState({ name: '', website: '', city: '', kind: 'casa-editrice', email: '', note: '' });
+  const [form, setForm] = useState({
+    name: '',
+    website: '',
+    city: '',
+    kind: 'casa-editrice',
+    email: '',
+    pitch: '',
+    note: '',
+  });
   const [state, setState] = useState({});
   const set = (key) => (e) => setForm({ ...form, [key]: e.target.value });
   async function save(e) {
@@ -308,7 +382,7 @@ function AddModal({ kinds, onAdded, onClose }) {
     }
   }
   return (
-    <Modal title="Aggiungi una casa editrice" onClose={onClose}>
+    <Modal title="Aggiungi un'azienda" onClose={onClose}>
       <form className="stack" onSubmit={save}>
         <div className="grid-2 even">
           <label className="field">
@@ -336,6 +410,15 @@ function AddModal({ kinds, onAdded, onClose }) {
             <input type="text" value={form.city} onChange={set('city')} />
           </label>
         </div>
+        <label className="field">
+          <span className="label">Ruolo da proporre</span>
+          <input
+            type="text"
+            value={form.pitch}
+            onChange={set('pitch')}
+            placeholder="es. correttore di bozze e impaginatore (utile per i settori affini)"
+          />
+        </label>
         <label className="field">
           <span className="label">Email per la candidatura</span>
           <input type="text" value={form.email} onChange={set('email')} placeholder="se la conosci" />
@@ -376,6 +459,7 @@ function Row({ p, statuses, kinds, specialtyLabel, onChange, onCheck, onRemove, 
           {p.followUpDue && <span className="badge">Da sollecitare</span>}
         </div>
         {where && <div className="meta">{where}</div>}
+        {p.pitch && <div className="small">Ruolo da proporre: {p.pitch}</div>}
         {p.specialties.length > 0 && (
           <div className="tags">
             {p.specialties.map((s) => (
@@ -477,6 +561,7 @@ export default function PublishersBoard({
   statuses,
   kinds,
   specialties,
+  sectors,
   defaultPlace,
   initialStale = 0,
 }) {
@@ -485,6 +570,7 @@ export default function PublishersBoard({
   const [group, setGroup] = useState('all');
   const [query, setQuery] = useState('');
   const [specialty, setSpecialty] = useState('');
+  const [sector, setSector] = useState('');
   const [modal, setModal] = useState(null); // 'discover' | 'add'
   const [tailor, setTailor] = useState(null);
   const [error, setError] = useState('');
@@ -527,9 +613,10 @@ export default function PublishersBoard({
       (p) =>
         (!g.statuses || g.statuses.includes(p.status)) &&
         (!specialty || p.specialties.includes(specialty)) &&
+        (!sector || p.kind === sector) &&
         (!q || [p.name, p.city, p.note, p.description, p.email].join(' ').toLowerCase().includes(q)),
     );
-  }, [items, group, query, specialty]);
+  }, [items, group, query, specialty, sector]);
   const due = items.filter((p) => p.followUpDue).length;
   // Stessa regola di staleFromWikidata: voci di Wikidata senza sito mai toccate.
   const stale = items.filter(
@@ -545,10 +632,10 @@ export default function PublishersBoard({
     <div className="page">
       <header className="page-header">
         <div className="intro">
-          <h1>Case editrici</h1>
+          <h1>Case editrici e aziende affini</h1>
           <p>
-            Case editrici e studi editoriali a cui mandare una candidatura spontanea: trovale, aggiungile e segui a che
-            punto sei.
+            Case editrici, studi editoriali e aziende di settori affini (agenzie, tipografie, librerie…) a cui mandare
+            una candidatura spontanea: trovale, aggiungile e segui a che punto sei.
           </p>
         </div>
         <div className="row">
@@ -588,7 +675,8 @@ export default function PublishersBoard({
 
       {!items.length ? (
         <div className="empty">
-          Nessuna casa editrice ancora. Premi «Cerca nuove» per trovarne attorno alla tua città, o aggiungile a mano.
+          Nessuna azienda ancora. Premi «Cerca nuove» per trovare case editrici e aziende affini attorno alla tua città,
+          o aggiungile a mano.
         </div>
       ) : (
         <>
@@ -635,13 +723,24 @@ export default function PublishersBoard({
                 </option>
               ))}
             </select>
+            <label className="sr-only" htmlFor="sector">
+              Settore
+            </label>
+            <select id="sector" value={sector} onChange={(e) => setSector(e.target.value)} style={{ width: 'auto' }}>
+              <option value="">Tutti i settori</option>
+              {Object.entries(kinds).map(([id, label]) => (
+                <option key={id} value={id}>
+                  {label}
+                </option>
+              ))}
+            </select>
           </div>
           {shown.length === 0 ? (
-            <div className="empty">Nessuna casa editrice con questi filtri.</div>
+            <div className="empty">Nessuna azienda con questi filtri.</div>
           ) : (
             <div className="jobs">
               <div className="pubs-head overline" aria-hidden="true">
-                <span>Casa editrice</span>
+                <span>Azienda</span>
                 <span>Candidatura</span>
                 <span />
               </div>
@@ -667,6 +766,7 @@ export default function PublishersBoard({
         <DiscoverModal
           defaultPlace={defaultPlace}
           kinds={kinds}
+          sectors={sectors}
           specialtyLabel={specialtyLabel}
           onAdded={added}
           onClose={closeModal}

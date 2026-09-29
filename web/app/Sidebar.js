@@ -46,7 +46,7 @@ export default function Sidebar({ profiles, active, counts, cookieName }) {
     },
     {
       href: '/case-editrici',
-      label: 'Case editrici',
+      label: 'Case editrici e affini',
       icon: BookIcon,
       count: counts.publishers,
       match: (p) => p.startsWith('/case-editrici'),

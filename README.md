@@ -116,7 +116,7 @@ Per un uso quotidiano è più veloce la versione compilata: `npm run build` una 
 - **Offerte:** premi «Avvia ricerca». L'avanzamento di ogni fonte compare mentre arriva. I risultati sono divisi per zona e si filtrano per testo o «solo nuove». Accanto a ogni offerta puoi scegliere uno stato e scrivere una nota; le offerte segnate «non mi interessa» o «non selezionata» spariscono.
 - **Candidature:** una bacheca a colonne (da candidarsi, candidato, colloquio, chiuse). Sposti le offerte trascinandole o scegliendo lo stato, scrivi note o smetti di seguirle.
 - **Offerte → «Prompt per Claude»:** prepara il testo per confrontare il CV con le offerte migliori dell'ultima ricerca (vedi [Quali offerte scegliere](#quali-offerte-scegliere-con-laiuto-di-claude)). Lo copi, lo incolli su claude.ai e alleghi il CV.
-- **Case editrici:** le candidature spontanee, con ricerca di nuove case editrici e «CV su misura» (vedi [Case editrici e candidature spontanee](#case-editrici-e-candidature-spontanee)).
+- **Case editrici e affini:** le candidature spontanee a case editrici e aziende di settori affini, con la ricerca di nuove aziende e il «CV su misura» (vedi [Case editrici, aziende affini e candidature spontanee](#case-editrici-aziende-affini-e-candidature-spontanee)).
 - **Profili:** l'elenco dei profili e la modifica del JSON, con gli stessi controlli della ricerca prima di salvare (per esempio i comuni).
 - **Profili → «Nuovo profilo»:** crea un profilo in due modi, come dalla riga di comando.
   - *Procedura guidata:* carichi il CV in PDF (facoltativo); le aree, gli anni di esperienza, le parole chiave, le lingue e i filtri vengono proposti dal CV. Controlli, correggi e salvi.
@@ -443,14 +443,29 @@ node src/cli.js match -p redattore-padova --cv ~/Documenti/cv.pdf   # include il
 
 Senza `--cv`, allega il PDF del CV nella chat. Le offerte sono quelle dell'ultima ricerca del profilo, senza quelle segnate `scartata` o `rifiutata`. Claude le chiama con lo stesso codice tra parentesi quadre, quindi poi puoi segnarle con `track`. Dall'interfaccia web c'è il pulsante «Prompt per Claude» nella pagina Offerte.
 
-## Case editrici e candidature spontanee
+## Case editrici, aziende affini e candidature spontanee
 
 Molte case editrici e studi editoriali non pubblicano offerte e non hanno una pagina «lavora con noi»: ci si candida di propria iniziativa. Il programma aiuta a trovarli e a seguire le candidature.
 
+**Non solo case editrici: i settori affini.** Le stesse competenze servono anche dove il ruolo ha un altro nome. Un'agenzia che impagina cataloghi e libretti per le sagre cerca chi sa correggere bozze e usare InDesign, anche se non lo chiama «redattore». La tabella `src/publishers/sectors.js` elenca questi settori, e per ognuno dice perché è affine, che ruoli proporre e come cercarlo:
+- editoria: case editrici, studi e servizi editoriali, librerie e librerie universitarie;
+- settori affini: agenzie pubblicitarie e di comunicazione, tipografie e prestampa, agenzie di traduzione, comunicazione medico-scientifica, università ed enti di ricerca, musei, e-learning, documentazione tecnica, testate giornalistiche.
+
+I settori vengono ordinati in base al profilo e al CV salvato: `publishers sectors -p <profilo>` mostra quelli consigliati, con il motivo. Per ogni azienda si può segnare il **ruolo da proporre**. Il CV su misura ne tiene conto: valorizza ciò che conta in quel settore e racconta le esperienze editoriali con le sue parole.
+
+```bash
+node src/cli.js publishers sectors -p redattore-padova            # settori affini consigliati e perché
+node src/cli.js publishers find -l Padova --sectors affini --add   # cerca nei settori consigliati
+node src/cli.js publishers find -l Padova --sectors agenzia-comunicazione,tipografia
+node src/cli.js publishers prompt -l Padova --sectors affini -o affini.txt   # Claude propone settori e aziende dal CV
+```
+
+`--sectors` accetta `editoria` (il valore predefinito: case editrici, studi e librerie), `affini`, `tutti` o un elenco di settori.
+
 - **Trovare:** ci sono tre modi, da combinare, attorno a una o più città (`-l "Padova,Venezia"`).
   1. **OpenStreetMap e Wikidata:** dati aperti, pensati per essere interrogati. Coprono bene gli editori noti, ma molti piccoli editori indipendenti non ci sono. Da Wikidata si tengono solo le case editrici con il sito ufficiale e fondate dal 1800 in poi: altrimenti arriverebbero anche gli stampatori storici (a Venezia, decine del Cinquecento e del Seicento). Se ne avevi già aggiunti, `publishers clean` (o il pulsante «Toglile» nella pagina web) toglie le voci di Wikidata senza sito che non hai ancora toccato.
-  2. **Ricerca web (facoltativa):** con l'API di [Brave Search](https://brave.com/search/api/) cerca frasi come "casa editrice Venezia" e "studio editoriale Padova", scartando librerie online, social ed elenchi. Serve una chiave, gratuita fino a qualche migliaio di ricerche al mese, da mettere in `.env` come `BRAVE_SEARCH_API_KEY=…`. Ogni ricerca usa 4 frasi per città.
-  3. **Con Claude o da un elenco:** `publishers prompt` prepara un testo che chiede a Claude le case editrici e gli studi editoriali della zona, piccoli compresi. La risposta si importa con `publishers import`. Si può importare anche un elenco scritto a mano, una per riga (`Nome | sito | città`). Prima di aggiungerle il programma visita ogni sito: quelle inventate o chiuse risultano «sito non raggiungibile».
+  2. **Ricerca web (facoltativa):** con l'API di [Brave Search](https://brave.com/search/api/) cerca le frasi di ogni settore scelto, come "casa editrice Venezia", "studio editoriale Padova" o "agenzia di comunicazione Padova". Scarta grandi catene e negozi online, social ed elenchi. Serve una chiave, gratuita fino a qualche migliaio di ricerche al mese, da mettere in `.env` come `BRAVE_SEARCH_API_KEY=…`. Si usano 2-3 frasi per settore e per città.
+  3. **Con Claude o da un elenco:** `publishers prompt` prepara un testo che chiede a Claude le case editrici e gli studi editoriali della zona, piccoli compresi. Con `--sectors affini` Claude parte dal CV: elenca le competenze trasferibili, propone settori affini (anche meno ovvi) e aziende della zona, ognuna con il ruolo da proporre e il motivo. La risposta si importa con `publishers import`. Si può importare anche un elenco scritto a mano, una per riga (`Nome | sito | città`). Prima di aggiungerle il programma visita ogni sito: quelle inventate o chiuse risultano «sito non raggiungibile».
 - **Capire chi sono:** «controlla sito» visita la home e ricava la specializzazione (bambini e ragazzi, scientifica, scolastica, narrativa…), l'email migliore per candidarsi (prima lavoro@, hr@, cv@, poi redazione@, poi info@) e il link alla pagina «lavora con noi», se c'è.
 - **Seguire:** ogni casa editrice ha uno stato: da valutare, da contattare, candidatura inviata, sollecito inviato, colloquio, risposta negativa, nessuna risposta, non mi interessa. Poi la data di invio e le note. Tre settimane dopo l'invio senza risposta viene segnata «da sollecitare».
 
@@ -466,7 +481,7 @@ node src/cli.js publishers edizioni-esempio inviata --date 2026-09-29 --note "CV
 node src/cli.js publishers edizioni-esempio sollecitata
 ```
 
-`editori` è un sinonimo di `publishers`. I dati sono in `.job-searcher/publishers.json`. Nell'interfaccia web c'è la pagina **Case editrici**, con i filtri per stato e specializzazione. In «Cerca nuove» ci sono due schede: «Mappe e web» e «Con Claude o da un elenco».
+`editori` è un sinonimo di `publishers`. I dati sono in `.job-searcher/publishers.json`. Nell'interfaccia web c'è la pagina **Case editrici**, con i filtri per stato e specializzazione. In «Cerca nuove» ci sono due schede. In «Mappe e web» si scelgono i settori, con quelli consigliati per il profilo in evidenza. In «Con Claude o da un elenco» si può chiedere a Claude di proporre le case editrici oppure le aziende affini al CV.
 
 ## CV su misura
 
@@ -500,7 +515,7 @@ src/
   tracking.js      candidature e ultimi risultati
   match.js         testo per confrontare CV e offerte su claude.ai
   tailor.js        CV su misura: cosa valorizzare e testo per claude.ai
-  publishers/      case editrici: archivio, ricerca (OpenStreetMap, Wikidata), specializzazioni
+  publishers/      case editrici e aziende affini: archivio, settori, ricerca (OpenStreetMap, Wikidata, web), specializzazioni
   commands/        comandi publishers e cv della riga di comando
   extract.js       livello, esperienza, contratto e stipendio ricavati dal testo
   app.js           percorso completo di una ricerca (usato da riga di comando e interfaccia web)

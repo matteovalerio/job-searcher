@@ -1,4 +1,5 @@
 import { compileKeywords, normalize } from '../text.js';
+import { SECTORS } from './sectors.js';
 
 /*
  * Specializzazioni editoriali: servono a descrivere una casa editrice (dal suo sito o dall'annuncio) e a decidere
@@ -128,12 +129,8 @@ export const SPECIALTIES = [
   },
 ];
 
-/** Tipi di realtà editoriali da seguire. */
-export const PUBLISHER_KINDS = {
-  'casa-editrice': 'casa editrice',
-  'studio-editoriale': 'studio editoriale',
-  altro: 'altro',
-};
+/** Tipi di aziende da seguire: i settori (vedi sectors.js), più "altro". */
+export const PUBLISHER_KINDS = { ...Object.fromEntries(SECTORS.map((s) => [s.id, s.one])), altro: 'altro' };
 
 // Indizi che un'azienda è uno studio o un servizio editoriale (lavora per altri editori).
 const STUDIO_HINTS = compileKeywords([

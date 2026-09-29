@@ -3,15 +3,17 @@ import { distanceKm, findComune } from '../geo.js';
 import { getJson, getText, request } from '../http.js';
 import { findCareersLink } from '../sources/careers.js';
 import { normalize } from '../text.js';
+import { PUBLISHING_SECTORS, SECTORS, sectorById } from './sectors.js';
 import { detectSpecialties, guessKind } from './specialties.js';
 import { normalizeWebsite, publisherKey } from './store.js';
 import { searchWeb } from './websearch.js';
 
 /*
- * Ricerca di case editrici e studi editoriali attorno a una città, da due fonti aperte che si possono
- * interrogare liberamente (con moderazione):
- *   - OpenStreetMap (Overpass API): uffici e attività con nome da editore, con sito, email e indirizzo;
- *   - Wikidata: case editrici con la sede entro il raggio, spesso con il sito ufficiale.
+ * Ricerca di case editrici e aziende dei settori affini (vedi sectors.js) attorno a una o più città, da fonti
+ * aperte che si possono interrogare liberamente (con moderazione):
+ *   - OpenStreetMap (Overpass API): uffici e attività del settore, con sito, email e indirizzo;
+ *   - Wikidata: case editrici con la sede entro il raggio e con il sito ufficiale;
+ *   - la ricerca web, se c'è la chiave (vedi websearch.js).
  * Poi, per ognuna, si può visitare il sito per capirne la specializzazione e trovare email e "lavora con noi".
  */
 
@@ -21,9 +23,6 @@ const WIKIDATA_URL = 'https://query.wikidata.org/sparql';
 const WIKIDATA_UA =
   'job-searcher/0.1 (ricerca personale di case editrici; https://github.com/matteovalerio/job-searcher)';
 
-// Parti di nome tipiche di editori e studi editoriali (in minuscolo, per le espressioni regolari di Overpass).
-const NAME_PATTERN = 'edizion|editric|editor|editorial|publish|verlag|libri';
-
 /** Centro della ricerca: un comune italiano (con le sue coordinate). */
 export function resolveCenter(place) {
   const comune = findComune(place);
@@ -31,14 +30,12 @@ export function resolveCenter(place) {
   return { name: comune.name, lat: comune.lat, lon: comune.lon };
 }
 
-export function overpassQuery({ lat, lon }, radiusKm) {
+export function overpassQuery({ lat, lon }, radiusKm, sectors = PUBLISHING_SECTORS) {
   const around = `(around:${Math.round(radiusKm * 1000)},${lat},${lon})`;
+  const selectors = sectors.flatMap((id) => sectorById(id)?.osm ?? []);
   return `[out:json][timeout:60];
 (
-  nwr["office"="publisher"]${around};
-  nwr["office"]["name"~"${NAME_PATTERN}",i]${around};
-  nwr["shop"]["name"~"edizion|editric|editore",i]${around};
-  nwr["craft"]["name"~"edizion|editric|editorial",i]${around};
+${selectors.map((sel) => `  nwr${sel}${around};`).join('\n')}
 );
 out center tags;`;
 }
@@ -51,12 +48,27 @@ const notPublisher = (name) => {
   return NOT_PUBLISHER.test(n) && !/editric|edizion|editore|publish/.test(n);
 };
 
-/** Case editrici dalla risposta di Overpass. */
-export function parseOverpass(json, center) {
+/**
+ * Settore di un elemento di OpenStreetMap tra quelli cercati, nell'ordine della tabella dei settori
+ * ("Libreria Editrice Il Leggio" è una casa editrice, "Libreria Universitaria" una libreria), oppure null.
+ */
+function classify(tags, sectors) {
+  for (const s of SECTORS) {
+    if (!sectors.includes(s.id) || !s.matches(tags)) continue;
+    // Tra gli editori, i nomi da negozio (cartoleria, edicola…) non contano: si prova il settore successivo.
+    if (s.id === 'casa-editrice' && notPublisher(tags.name)) continue;
+    return s.id === 'casa-editrice' ? guessKind(tags.name) : s.id;
+  }
+  return null;
+}
+
+/** Aziende dalla risposta di Overpass, ognuna con il suo settore. */
+export function parseOverpass(json, center, sectors = PUBLISHING_SECTORS) {
   return (json.elements ?? [])
-    .filter((el) => el.tags?.name && !notPublisher(el.tags.name))
-    .filter((el) => el.tags.office || /edizion|editric|editore/i.test(el.tags.name))
-    .map((el) => {
+    .filter((el) => el.tags?.name)
+    .map((el) => ({ el, kind: classify(el.tags, sectors) }))
+    .filter(({ kind }) => kind)
+    .map(({ el, kind }) => {
       const t = el.tags;
       const lat = el.lat ?? el.center?.lat;
       const lon = el.lon ?? el.center?.lon;
@@ -71,7 +83,7 @@ export function parseOverpass(json, center) {
         lat,
         lon,
         distanceKm: lat != null && center ? Math.round(distanceKm(center, { lat, lon })) : null,
-        kind: guessKind(t.name),
+        kind,
         description: t.description ?? null,
         source: 'openstreetmap',
       };
@@ -158,30 +170,36 @@ export function mergeResults(lists) {
   return [...merged.values()].sort((a, b) => (a.distanceKm ?? 999) - (b.distanceKm ?? 999));
 }
 
-async function searchMaps(center, radiusKm, http, problems) {
-  const fromOsm = http
-    .request(OVERPASS_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: `data=${encodeURIComponent(overpassQuery(center, radiusKm))}`,
-      timeoutMs: 70000,
-    })
-    .then((res) => res.json())
-    .then((json) => parseOverpass(json, center))
-    .catch((err) => {
-      problems.push(`OpenStreetMap (${center.name}): ${err.message}`);
-      return [];
-    });
-  const fromWikidata = http
-    .getJson(`${WIKIDATA_URL}?format=json&query=${encodeURIComponent(wikidataQuery(center, radiusKm))}`, {
-      headers: { 'User-Agent': WIKIDATA_UA, Accept: 'application/sparql-results+json' },
-      timeoutMs: 60000,
-    })
-    .then((json) => parseWikidata(json, center))
-    .catch((err) => {
-      problems.push(`Wikidata (${center.name}): ${err.message}`);
-      return [];
-    });
+async function searchMaps(center, radiusKm, sectors, http, problems) {
+  const withOsm = sectors.some((id) => sectorById(id)?.osm.length);
+  const fromOsm = !withOsm
+    ? Promise.resolve([])
+    : http
+        .request(OVERPASS_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: `data=${encodeURIComponent(overpassQuery(center, radiusKm, sectors))}`,
+          timeoutMs: 70000,
+        })
+        .then((res) => res.json())
+        .then((json) => parseOverpass(json, center, sectors))
+        .catch((err) => {
+          problems.push(`OpenStreetMap (${center.name}): ${err.message}`);
+          return [];
+        });
+  // Wikidata serve solo per le case editrici.
+  const fromWikidata = !sectors.includes('casa-editrice')
+    ? Promise.resolve([])
+    : http
+        .getJson(`${WIKIDATA_URL}?format=json&query=${encodeURIComponent(wikidataQuery(center, radiusKm))}`, {
+          headers: { 'User-Agent': WIKIDATA_UA, Accept: 'application/sparql-results+json' },
+          timeoutMs: 60000,
+        })
+        .then((json) => parseWikidata(json, center))
+        .catch((err) => {
+          problems.push(`Wikidata (${center.name}): ${err.message}`);
+          return [];
+        });
   return (await Promise.all([fromOsm, fromWikidata])).flat();
 }
 
@@ -192,15 +210,16 @@ function nearest(p, centers) {
 }
 
 /**
- * Cerca case editrici e studi editoriali entro `radiusKm` da una o più città: OpenStreetMap, Wikidata e, se
- * c'è la chiave BRAVE_SEARCH_API_KEY, la ricerca web.
- * @param {{ places?: string[], place?: string, radiusKm?: number }} options
+ * Cerca aziende dei settori indicati (predefiniti: case editrici, studi editoriali e librerie) entro
+ * `radiusKm` da una o più città: OpenStreetMap, Wikidata e, se c'è la chiave BRAVE_SEARCH_API_KEY, il web.
+ * @param {{ places?: string[], place?: string, radiusKm?: number, sectors?: string[] }} options
  * @returns {Promise<{ centers, results: object[], problems: string[], webSearch: boolean }>}
  */
 export async function discoverPublishers({
   places,
   place,
   radiusKm = 30,
+  sectors = PUBLISHING_SECTORS,
   http = { request, getJson },
   web = searchWeb,
 } = {}) {
@@ -209,8 +228,11 @@ export async function discoverPublishers({
   const centers = names.map(resolveCenter);
   const problems = [];
   const [maps, fromWeb] = await Promise.all([
-    Promise.all(centers.map((c) => searchMaps(c, radiusKm, http, problems))),
-    web(centers.map((c) => c.name)),
+    Promise.all(centers.map((c) => searchMaps(c, radiusKm, sectors, http, problems))),
+    web(
+      centers.map((c) => c.name),
+      { sectors },
+    ),
   ]);
   problems.push(...fromWeb.problems);
   const results = mergeResults([...maps, fromWeb.results].map((list) => list.map((p) => nearest(p, centers))));
