@@ -204,3 +204,33 @@ test('kit separati dalle candidature; quelle create solo aprendo un kit (version
   // Una seconda volta non cambia niente.
   assert.deepEqual(await migrateKits(tracking, kits), { moved: 0, removed: 0 });
 });
+
+test('kit: se sul sito c’è la persona giusta, l’email si rivolge a lei e va al suo indirizzo', () => {
+  const publishers = [
+    {
+      name: 'Edizioni Rosse',
+      email: 'info@edizionirosse.it',
+      people: [
+        { name: 'Anna De Luca', role: 'Direttrice editoriale', rank: 1, email: 'anna.deluca@edizionirosse.it' },
+        { name: 'Marco Neri', role: 'Ufficio stampa', rank: 3 },
+      ],
+    },
+  ];
+  const kit = buildKit({ job, text: 'Requisiti: laurea', cvText: '', publishers });
+  assert.equal(kit.company.contact.name, 'Anna De Luca');
+  assert.equal(kit.email.to, 'anna.deluca@edizionirosse.it');
+  assert.match(kit.email.body, /^Gentile Anna De Luca,\n\nle scrivo per candidarmi/);
+  assert.match(kit.email.body, /In allegato trova il mio CV/);
+  assert.match(kit.followUp.body, /^Gentile Anna De Luca,\n\nle scrivo per sapere/);
+  assert.match(buildKitPrompt(kit, ''), /Persona a cui scrivere \(dal sito\): Anna De Luca, Direttrice editoriale/);
+  // Solo l'ufficio stampa: si scrive all'azienda.
+  const other = buildKit({
+    job,
+    text: 'Requisiti: laurea',
+    cvText: '',
+    publishers: [{ ...publishers[0], people: [publishers[0].people[1]] }],
+  });
+  assert.equal(other.company.contact, null);
+  assert.equal(other.email.to, 'info@edizionirosse.it');
+  assert.match(other.email.body, /^Gentile team di Edizioni Rosse,\n\nvi scrivo/);
+});

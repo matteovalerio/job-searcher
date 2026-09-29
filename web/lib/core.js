@@ -46,6 +46,7 @@ export async function core() {
     load('diagnose.js'),
     load('kit-store.js'),
     load('plan.js'),
+    load('publishers/people.js'),
   ]).then(
     ([
       app,
@@ -71,7 +72,10 @@ export async function core() {
       diagnose,
       kitStore,
       plan,
+      people,
     ]) => ({
+      findPeople: people.findPeople,
+      bestContact: people.bestContact,
       buildPlan: plan.buildPlan,
       loadPlan: plan.loadPlan,
       savePlan: plan.savePlan,
