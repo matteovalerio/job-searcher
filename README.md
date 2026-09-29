@@ -279,7 +279,7 @@ Un profilo è un file JSON dentro `profiles/`. Di solito si crea con `profile ne
   "languages": ["italiano", "italian", "inglese", "english"], // (opz.) scarta chi chiede altre lingue nel titolo
   "searchKeywords": ["redattore", "editor"],        // (opz.) parole cercate sui portali; default: keywords
   "enableSources": ["infojobs"],                   // (opz.) fonti disattivate di default da usare
-  "excludeKeywords": ["video", "software"],        // scarta le offerte che le hanno nel TITOLO
+  "excludeKeywords": ["video", "software"],        // scarta le offerte che le hanno nel TITOLO (non se sono dentro una parola chiave trovata: "documentazione tecnica")
   "boostKeywords": ["casa editrice", "libri"],     // alzano il punteggio (non obbligatorie)
   "matchIn": "title",                              // "title-only" (solo il titolo) o "title+description" (più rumore)
   "maxAgeDays": 30,                                 // ignora offerte più vecchie

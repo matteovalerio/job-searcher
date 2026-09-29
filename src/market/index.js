@@ -1,5 +1,5 @@
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
-import path from 'node:path';
+import { readFile } from 'node:fs/promises';
+import { writeFileAtomic } from '../atomic.js';
 import { stateDir } from '../paths.js';
 import { analyzeCv, findLanguages } from '../profiles/cv.js';
 import { compileKeywords, normalize } from '../text.js';
@@ -88,10 +88,7 @@ export async function updateHistory(profileId, results, now = new Date()) {
     .sort((a, b) => b[1].seenAt.localeCompare(a[1].seenAt))
     .slice(0, MAX_JOBS);
   history.jobs = Object.fromEntries(kept);
-  await mkdir(path.dirname(historyFile(profileId)), { recursive: true });
-  const tmp = `${historyFile(profileId)}.${process.pid}.tmp`;
-  await writeFile(tmp, JSON.stringify(history));
-  await rename(tmp, historyFile(profileId));
+  await writeFileAtomic(historyFile(profileId), JSON.stringify(history));
   return history;
 }
 

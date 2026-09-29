@@ -206,3 +206,14 @@ test('remoto: segnala le offerte che sembrano ibride', () => {
   const full = evaluate(job({ title: 'Editor', location: 'Italia', remote: true, description: 'Full remote' }), m, NOW);
   assert.deepEqual(full.warnings, []);
 });
+
+test('una parola esclusa non conta se fa parte di una parola chiave del titolo', () => {
+  const m = buildMatcher(
+    target({ relatedKeywords: ['documentazione tecnica'], excludeKeywords: ['tecnica', 'tecnico'] }),
+  );
+  assert.ok(!evaluate(job({ title: 'Addetto documentazione tecnica' }), m, NOW).rejected);
+  assert.equal(
+    evaluate(job({ title: 'Tecnico di laboratorio redattore' }), m, NOW).rejected,
+    'parola esclusa nel titolo',
+  );
+});

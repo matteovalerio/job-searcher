@@ -1,5 +1,5 @@
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
-import path from 'node:path';
+import { readFile } from 'node:fs/promises';
+import { writeFileAtomic } from './atomic.js';
 
 /*
  * Memoria dei dettagli scaricati (descrizione e criteri) delle offerte, per le fonti che nei risultati non danno
@@ -38,10 +38,7 @@ export class DetailsCache {
     if (!this.changed) return;
     const limit = now - KEEP_DAYS * 86400000;
     for (const [id, item] of Object.entries(this.items)) if (Date.parse(item.at) < limit) delete this.items[id];
-    await mkdir(path.dirname(this.file), { recursive: true });
-    const tmp = `${this.file}.${process.pid}.tmp`;
-    await writeFile(tmp, JSON.stringify(this.items));
-    await rename(tmp, this.file);
+    await writeFileAtomic(this.file, JSON.stringify(this.items));
     this.changed = false;
   }
 }

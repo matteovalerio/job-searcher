@@ -162,7 +162,11 @@ export function evaluate(job, matcher, now = Date.now()) {
   }
 
   // Le esclusioni si controllano dopo: così "parola esclusa" indica offerte che altrimenti sarebbero passate.
-  if (findKeywords(title, matcher.exclude).length) return { rejected: REJECT.excluded };
+  // Una parola esclusa non conta se fa parte di una parola chiave trovata nel titolo: "tecnica" è esclusa,
+  // "documentazione tecnica" no.
+  const found = [...inTitle, ...relTitle].map(normalize);
+  const excluded = findKeywords(title, matcher.exclude).filter((x) => !found.some((k) => k.includes(normalize(x))));
+  if (excluded.length) return { rejected: REJECT.excluded };
   if (matcher.languages) {
     const other = findKeywords(title, LANGUAGES).filter((l) => !matcher.languages.includes(normalize(l)));
     if (other.length) return { rejected: REJECT.language };

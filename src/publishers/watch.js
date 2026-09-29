@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
-import path from 'node:path';
+import { readFile } from 'node:fs/promises';
 import * as cheerio from 'cheerio';
+import { writeFileAtomic } from '../atomic.js';
 import { getText } from '../http.js';
 import { escapeHtml, splitTelegram } from '../notify.js';
 import { stateDir } from '../paths.js';
@@ -57,10 +57,7 @@ export async function loadWatch(file = fileOf()) {
 }
 
 export async function saveWatch(state, file = fileOf()) {
-  await mkdir(path.dirname(file), { recursive: true });
-  const tmp = `${file}.${process.pid}.tmp`;
-  await writeFile(tmp, `${JSON.stringify(state, null, 2)}\n`);
-  await rename(tmp, file);
+  await writeFileAtomic(file, `${JSON.stringify(state, null, 2)}\n`);
 }
 
 /** Testo principale della pagina, senza menu, piè di pagina e script. */
