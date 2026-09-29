@@ -1,6 +1,6 @@
 import * as cheerio from 'cheerio';
 import { distanceKm, findComune } from '../geo.js';
-import { getJson, getText, request } from '../http.js';
+import { getJson, getText } from '../http.js';
 import { findCareersLink } from '../sources/careers.js';
 import { normalize } from '../text.js';
 import { PUBLISHING_SECTORS, SECTORS, sectorById } from './sectors.js';
@@ -17,11 +17,69 @@ import { searchWeb } from './websearch.js';
  * Poi, per ognuna, si può visitare il sito per capirne la specializzazione e trovare email e "lavora con noi".
  */
 
-const OVERPASS_URL = process.env.OVERPASS_URL ?? 'https://overpass-api.de/api/interpreter';
+// Server Overpass pubblici: se il primo rifiuta o è sovraccarico si prova il successivo.
+// OVERPASS_URL (anche più indirizzi separati da virgola) li sostituisce.
+const OVERPASS_URLS = (
+  process.env.OVERPASS_URL ??
+  'https://overpass-api.de/api/interpreter,https://overpass.kumi.systems/api/interpreter,https://overpass.private.coffee/api/interpreter'
+)
+  .split(',')
+  .map((u) => u.trim())
+  .filter(Boolean);
 const WIKIDATA_URL = 'https://query.wikidata.org/sparql';
-// Wikidata chiede un User-Agent che identifichi il programma.
+// Wikidata e OpenStreetMap chiedono un User-Agent che identifichi il programma (con uno da browser, Overpass
+// può rispondere 406).
 const WIKIDATA_UA =
   'job-searcher/0.1 (ricerca personale di case editrici; https://github.com/matteovalerio/job-searcher)';
+
+/** Testo breve dalla risposta di errore di un server (spesso una pagina HTML con la spiegazione). */
+const errorText = (body) =>
+  body
+    .replace(/<(script|style)[\s\S]*?<\/\1>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 160);
+
+/**
+ * Esegue una query Overpass provando i server uno dopo l'altro. Si passa al successivo se un server rifiuta
+ * (406, 403), è sovraccarico (429, 5xx), non risponde o risponde con un errore di esecuzione.
+ */
+export async function fetchOverpass(query, { fetchFn = fetch, urls = OVERPASS_URLS, timeoutMs = 70000 } = {}) {
+  const failures = [];
+  for (const url of urls) {
+    const host = new URL(url).host;
+    try {
+      const res = await fetchFn(url, {
+        method: 'POST',
+        headers: {
+          'User-Agent': WIKIDATA_UA,
+          Accept: 'application/json',
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `data=${encodeURIComponent(query)}`,
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+      if (!res.ok) {
+        const text = errorText(await res.text().catch(() => ''));
+        failures.push(`${host}: HTTP ${res.status}${text ? ` (${text})` : ''}`);
+        // 400 = query non valida: inutile riprovare altrove.
+        if (res.status === 400) break;
+        continue;
+      }
+      const json = await res.json();
+      // Query troppo pesante: Overpass risponde 200 ma con un "remark" di errore e senza elementi.
+      if (!json.elements?.length && /error|timed out|out of memory/i.test(json.remark ?? '')) {
+        failures.push(`${host}: ${json.remark.trim().slice(0, 160)}`);
+        continue;
+      }
+      return json;
+    } catch (err) {
+      failures.push(`${host}: ${err.name === 'TimeoutError' ? 'nessuna risposta' : (err.cause?.code ?? err.message)}`);
+    }
+  }
+  throw new Error(`nessun server ha risposto. ${failures.join(' | ')}`);
+}
 
 /** Centro della ricerca: un comune italiano (con le sue coordinate). */
 export function resolveCenter(place) {
@@ -174,14 +232,7 @@ async function searchMaps(center, radiusKm, sectors, http, problems) {
   const withOsm = sectors.some((id) => sectorById(id)?.osm.length);
   const fromOsm = !withOsm
     ? Promise.resolve([])
-    : http
-        .request(OVERPASS_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: `data=${encodeURIComponent(overpassQuery(center, radiusKm, sectors))}`,
-          timeoutMs: 70000,
-        })
-        .then((res) => res.json())
+    : fetchOverpass(overpassQuery(center, radiusKm, sectors), { fetchFn: http.fetch ?? fetch })
         .then((json) => parseOverpass(json, center, sectors))
         .catch((err) => {
           problems.push(`OpenStreetMap (${center.name}): ${err.message}`);
@@ -220,7 +271,7 @@ export async function discoverPublishers({
   place,
   radiusKm = 30,
   sectors = PUBLISHING_SECTORS,
-  http = { request, getJson },
+  http = { fetch: (...args) => fetch(...args), getJson },
   web = searchWeb,
 } = {}) {
   const names = (places ?? String(place ?? '').split(',')).map((p) => p.trim()).filter(Boolean);
