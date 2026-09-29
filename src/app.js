@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { applyOverrides, loadProfile, resolveProfile } from './config.js';
+import { updateHistory } from './market/index.js';
 import { notify } from './notify.js';
 import { slugify } from './profiles/store.js';
 import { runSearch } from './search.js';
@@ -56,6 +57,8 @@ export async function searchProfile({
   }
   if (saveSeen) await store.save();
   await saveLastResults(profileId, results, { name: profile.name });
+  // Le caratteristiche delle offerte si accumulano per l'analisi del mercato (vedi market/index.js).
+  await updateHistory(profileId, results);
 
   return { profile, profileId, results, hidden, notification, firstRun: store.firstRun, seenFile: store.file };
 }

@@ -43,6 +43,11 @@ export const BookIcon = (p) => (
     <path d="M4 19V5M8 7h7" />
   </Icon>
 );
+export const ChartIcon = (p) => (
+  <Icon {...p}>
+    <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />
+  </Icon>
+);
 export const UserIcon = (p) => (
   <Icon {...p}>
     <circle cx="12" cy="8" r="4" />

@@ -1,5 +1,4 @@
 import './globals.css';
-import { Suspense } from 'react';
 import { activeProfileId, PROFILE_COOKIE } from '../lib/active-profile.js';
 import { core, resultsForPage } from '../lib/core.js';
 import Sidebar from './Sidebar.js';
@@ -41,9 +40,7 @@ export default async function RootLayout({ children }) {
       </head>
       <body>
         <div className="shell">
-          <Suspense>
-            <Sidebar {...data} cookieName={PROFILE_COOKIE} />
-          </Suspense>
+          <Sidebar {...data} cookieName={PROFILE_COOKIE} />
           <main className="content">{children}</main>
         </div>
       </body>

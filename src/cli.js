@@ -7,6 +7,7 @@ import { parseArgs } from 'node:util';
 import { searchProfile } from './app.js';
 import { browserArgs, isWsl, openInteractive } from './browser.js';
 import { CV_HELP, cvCommand } from './commands/cv.js';
+import { MARKET_HELP, marketCommand } from './commands/market.js';
 import { PUBLISHERS_HELP, publishersCommand } from './commands/publishers.js';
 import { resolveProfile } from './config.js';
 import { runDoctor } from './doctor.js';
@@ -51,6 +52,7 @@ Uso:
                                         (--cv file.pdf, --top 15, --ids a1b2c3d,e4f5a6b, -o file)
   job-searcher publishers               case editrici e candidature spontanee (vedi sotto)
   job-searcher cv tailor <codice>       prepara il testo per adattare il CV a un'offerta o a una casa editrice
+  job-searcher market -p <nome>         analisi del mercato: cosa chiedono gli annunci e come colmare le lacune
   job-searcher browser [infojobs|url]
                                         apre il browser del programma: per controllare che la finestra si veda e
                                         risolvere una volta la verifica anti-robot (i cookie restano)
@@ -90,7 +92,7 @@ Esempi:
   job-searcher search -p redattore-padova --only-new -o offerte.csv
 
 Le chiavi API opzionali (Adzuna, Jooble) si leggono da variabili d'ambiente o dal file .env.
-${PUBLISHERS_HELP}${CV_HELP}`;
+${PUBLISHERS_HELP}${CV_HELP}${MARKET_HELP}`;
 
 const list = (value) =>
   value
@@ -136,6 +138,7 @@ function parseCli(argv) {
       add: { type: 'boolean' },
       sectors: { type: 'string' },
       every: { type: 'string' },
+      prompt: { type: 'boolean' },
       yes: { type: 'boolean', short: 'y' },
       help: { type: 'boolean', short: 'h' },
     },
@@ -163,6 +166,7 @@ function parseCli(argv) {
     add: values.add,
     sectors: values.sectors,
     every: num(values.every, 'every'),
+    prompt: values.prompt,
     yes: values.yes,
     help: values.help,
     profile: values.profile,
@@ -544,6 +548,7 @@ async function main() {
   if (opts.command === 'match') return match(opts);
   if (opts.command === 'publishers' || opts.command === 'editori') return publishersCommand(opts);
   if (opts.command === 'cv') return cvCommand(opts);
+  if (opts.command === 'market' || opts.command === 'mercato') return marketCommand(opts);
   if (opts.command === 'browser') return openBrowserCommand(opts);
   if (opts.command === 'search') return search(opts);
   if (opts.command === 'profiles') return listSavedProfiles();

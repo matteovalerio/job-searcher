@@ -1218,8 +1218,11 @@ details summary {
   }
   .nav {
     flex-direction: row;
+    flex-wrap: wrap;
+    gap: 4px;
   }
   .nav a {
+    height: 36px;
     padding: 0 10px;
   }
   .nav svg {
@@ -1413,4 +1416,130 @@ details summary {
 .event-mark.pagina-trovata {
   background: var(--accent-soft);
   color: var(--accent-hover);
+}
+
+/* Analisi del mercato: barre a una sola serie (colore validato per il tema scuro), riquadri con i numeri */
+:root {
+  --chart-bar: #c07c40;
+  --chart-track: #2a2824;
+}
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 18px 20px;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+.tile-value {
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.bars {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.bar-row {
+  display: grid;
+  grid-template-columns: minmax(96px, 30%) minmax(60px, 1fr) 76px 76px;
+  align-items: center;
+  gap: 14px;
+  font-size: 13px;
+}
+.bar-row .bar-detail {
+  grid-column: 2 / -1;
+  margin-top: -6px;
+}
+/* Senza lo stato "nel CV" l'ultima colonna non serve. */
+.bar-row:not(:has(.cv-status)) {
+  grid-template-columns: minmax(96px, 30%) minmax(60px, 1fr) 76px;
+}
+.bar-label {
+  color: var(--fg-2);
+}
+.bar-track {
+  height: 10px;
+  border-radius: 0 4px 4px 0;
+  background: var(--chart-track);
+  overflow: hidden;
+}
+.bar-fill {
+  display: block;
+  height: 100%;
+  background: var(--chart-bar);
+  border-radius: 0 4px 4px 0;
+}
+.bar-value {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--fg);
+  white-space: nowrap;
+}
+.cv-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  justify-self: start;
+}
+.cv-status.ok {
+  background: var(--green-soft);
+  color: var(--green-fg);
+}
+.cv-status.missing {
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+}
+.gaps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 14px;
+}
+.gap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  border-radius: 12px;
+  background: var(--raised);
+  border: 1px solid #2e2c28;
+}
+.gap ul {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--fg-2);
+}
+@media (max-width: 860px) {
+  .bar-row {
+    grid-template-columns: minmax(0, 1fr) 72px;
+  }
+  .bar-row .bar-track {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+  .bar-row .cv-status {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+  }
+  .bar-row .bar-value {
+    grid-column: 2;
+    grid-row: 3;
+  }
+  .bar-row .bar-detail {
+    grid-column: 1 / -1;
+    margin-top: 0;
+  }
 }
