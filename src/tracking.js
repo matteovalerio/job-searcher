@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
-import { mkdir, readdir, readFile, rename, writeFile } from 'node:fs/promises';
-import path from 'node:path';
+import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
+import { writeFileAtomic } from './atomic.js';
 import { stateDir } from './paths.js';
 
 /*
@@ -67,11 +67,8 @@ export class Tracking {
   }
 
   async save() {
-    await mkdir(path.dirname(this.file), { recursive: true });
     // Scrittura atomica: il file è condiviso tra riga di comando e interfaccia web.
-    const tmp = `${this.file}.${process.pid}.tmp`;
-    await writeFile(tmp, `${JSON.stringify(this.items, null, 2)}\n`);
-    await rename(tmp, this.file);
+    await writeFileAtomic(this.file, `${JSON.stringify(this.items, null, 2)}\n`);
   }
 
   get(jobId) {

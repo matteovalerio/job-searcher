@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { shortDate } from '../lib/format.js';
 import { CheckIcon, CopyIcon, ExternalIcon } from './icons.js';
 import Modal from './Modal.js';
@@ -372,9 +372,14 @@ export default function KitModal({ job, title, onClose, onTracked }) {
     [job],
   );
 
+  // Una sola richiesta per offerta: in sviluppo React esegue gli effetti due volte, e due richieste insieme
+  // salverebbero la candidatura due volte.
+  const built = useRef(null);
   useEffect(() => {
+    if (built.current === job) return;
+    built.current = job;
     build();
-  }, [build]);
+  }, [build, job]);
 
   const { kit, item, prompt, statuses } = state;
   async function onChange(updated) {

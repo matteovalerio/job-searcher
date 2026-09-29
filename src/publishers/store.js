@@ -1,5 +1,5 @@
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
-import path from 'node:path';
+import { readFile } from 'node:fs/promises';
+import { writeFileAtomic } from '../atomic.js';
 import { stateDir } from '../paths.js';
 import { slugify } from '../profiles/store.js';
 import { normalize } from '../text.js';
@@ -74,10 +74,7 @@ export class Publishers {
   }
 
   async save() {
-    await mkdir(path.dirname(this.file), { recursive: true });
-    const tmp = `${this.file}.${process.pid}.tmp`;
-    await writeFile(tmp, `${JSON.stringify(this.items, null, 2)}\n`);
-    await rename(tmp, this.file);
+    await writeFileAtomic(this.file, `${JSON.stringify(this.items, null, 2)}\n`);
   }
 
   get(id) {
