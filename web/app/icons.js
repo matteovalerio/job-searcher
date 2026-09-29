@@ -119,3 +119,9 @@ export const CalendarIcon = (p) => (
     <path d="M3.5 10h17M8 3v4M16 3v4" />
   </Icon>
 );
+export const TicketIcon = (p) => (
+  <Icon {...p}>
+    <path d="M4 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-4Z" />
+    <path d="M14 5v12" strokeDasharray="2 2" />
+  </Icon>
+);

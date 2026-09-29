@@ -3,7 +3,16 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
-import { BoardIcon, BookIcon, BriefcaseIcon, CalendarIcon, ChartIcon, SearchIcon, UserIcon } from './icons.js';
+import {
+  BoardIcon,
+  BookIcon,
+  BriefcaseIcon,
+  CalendarIcon,
+  ChartIcon,
+  SearchIcon,
+  TicketIcon,
+  UserIcon,
+} from './icons.js';
 
 /** Il profilo scelto resta in un cookie: così tutte le pagine sanno qual è quello attivo. */
 function rememberProfile(cookieName, id) {
@@ -58,6 +67,7 @@ export default function Sidebar({ profiles, active, counts, cookieName }) {
       match: (p) => p.startsWith('/case-editrici'),
     },
     { href: '/piano', label: 'Piano', icon: CalendarIcon, count: counts.due, match: (p) => p.startsWith('/piano') },
+    { href: '/eventi', label: 'Eventi', icon: TicketIcon, match: (p) => p.startsWith('/eventi') },
     { href: '/mercato', label: 'Mercato', icon: ChartIcon, match: (p) => p.startsWith('/mercato') },
     { href: '/profili', label: 'Profili', icon: UserIcon, match: (p) => p.startsWith('/profili') },
   ];

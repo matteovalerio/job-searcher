@@ -606,6 +606,22 @@ node src/cli.js piano --notify         # manda il riepilogo su Telegram o per em
 
 Il promemoria su Telegram va lanciato dal tuo computer (per esempio ogni lunedì con cron o con l'Utilità di pianificazione di Windows): la ricerca automatica su GitHub non vede le candidature, che restano sul computer.
 
+## Eventi e associazioni
+
+Nell'editoria i contatti di persona contano molto. La pagina **Eventi** (o `node src/cli.js eventi -p <profilo>`) elenca fiere e festival del settore che si ripetono ogni anno: Bologna Children's Book Fair, Salone del Libro di Torino, Più libri più liberi, BookCity, Pordenonelegge, Festivaletteratura, Incroci di civiltà, Francoforte, Londra… Poi le associazioni utili, come AIE, ADEI, AITI, STradE ed EMWA: i loro elenchi dei soci sono liste di aziende a cui candidarsi.
+
+- **Ordine:** prima i più vicini nel tempo, poi quelli in zona e i più pertinenti al profilo. Per ognuno ci sono cosa fare lì per cercare lavoro e il sito.
+- **Date:** cambiano ogni anno e il programma non le inventa. Indica il mese in cui di solito si tiene l'evento, e **«Promemoria nel calendario»** scarica un promemoria (.ics) per il mese prima: «controlla le date di …».
+- **«Prepara la visita con Claude»:** un testo con il CV e le aziende della tua lista. Claude prepara la presentazione di 30 secondi, le domande da fare agli editori, come riconoscere gli espositori utili e come fare seguito dopo, senza inventare date o espositori.
+
+```bash
+node src/cli.js eventi -p redattore-padova           # i prossimi eventi e le associazioni
+node src/cli.js eventi prepara piu-libri -o visita.txt   # testo per claude.ai
+node src/cli.js eventi promemoria bologna-childrens -o bologna.ics
+```
+
+Il catalogo è in `src/events.js`: per aggiungere un evento basta una riga.
+
 ## CV su misura
 
 Lo stesso CV non va bene per tutti. Per un editore di libri per bambini conviene valorizzare il processo editoriale, i rapporti con autori e illustratori e l'impaginazione in InDesign, più dei contenuti scientifici curati. Per un editore accademico vale il contrario. Il lavoro è diviso in due parti:
@@ -640,6 +656,7 @@ src/
   tailor.js        CV su misura: cosa valorizzare e testo per claude.ai
   kit.js           kit di candidatura: analisi, CV riordinato, email, sollecito, prompt e controllo
   plan.js          piano settimanale: obiettivi, cose da fare, statistiche per canale e settore
+  events.js        fiere, festival e associazioni del settore: catalogo, promemoria, prompt per la visita
   market/          analisi del mercato: competenze richieste, lacune e come colmarle
   publishers/      case editrici e aziende affini: archivio, settori, ricerca (OpenStreetMap, Wikidata, web),
                    specializzazioni, sorveglianza dei siti (watch.js) e giro automatico (auto.js)
