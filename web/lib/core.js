@@ -92,6 +92,8 @@ export async function resultsForPage(profileId) {
             description: job.description,
             isNew: job.isNew,
             score: job.score,
+            // parole del profilo trovate nell'offerta
+            tags: [...new Set([...(job.matched ?? []), ...(job.boosted ?? [])])].slice(0, 4),
             info: job.info ?? null,
             infoText: describeInfo(job.info),
             warnings: job.warnings ?? [],

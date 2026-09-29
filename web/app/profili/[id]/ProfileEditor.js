@@ -28,30 +28,41 @@ export default function ProfileEditor({ id, initialText }) {
   }
 
   return (
-    <div className="stack">
-      <div className="row">
-        <h1>Profilo {id}</h1>
-        <span className="spacer" />
-        <Link href={`/?profile=${id}`}>Vai alle offerte</Link>
-      </div>
-      <p className="muted small">
-        Il significato di ogni campo è spiegato nel README, sezione «Il profilo di ricerca». Prima di salvare il profilo
-        viene controllato (comuni, target, fonti).
-      </p>
-      <textarea rows={30} spellCheck={false} value={text} onChange={(e) => setText(e.target.value)} />
-      <div className="row">
-        <button type="button" onClick={save} disabled={saving || text === initialText}>
-          {saving ? 'Salvataggio…' : 'Salva'}
-        </button>
-        <button
-          type="button"
-          className="secondary"
-          onClick={() => setText(initialText)}
-          disabled={text === initialText}
-        >
+    <div className="page">
+      <header className="page-header">
+        <div className="intro">
+          <Link href="/profili" className="back">
+            ← Profili
+          </Link>
+          <h1>Profilo {id}</h1>
+          <p>
+            Il significato di ogni campo è spiegato nel README, sezione «Il profilo di ricerca». Prima di salvare il
+            profilo viene controllato (comuni, zone, fonti).
+          </p>
+        </div>
+        <Link href={`/?profile=${id}`} className="button">
+          Vai alle offerte
+        </Link>
+      </header>
+      <label htmlFor="profile-json" className="sr-only">
+        Profilo in JSON
+      </label>
+      <textarea
+        id="profile-json"
+        className="code"
+        rows={30}
+        spellCheck={false}
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+      />
+      <div className="save-bar">
+        {message && <span className={message.error ? 'error-box' : 'ok-box'}>{message.text}</span>}
+        <button type="button" className="ghost" onClick={() => setText(initialText)} disabled={text === initialText}>
           Annulla modifiche
         </button>
-        {message && <span className={message.error ? 'error-box' : 'ok-box'}>{message.text}</span>}
+        <button type="button" className="primary" onClick={save} disabled={saving || text === initialText}>
+          {saving ? 'Salvataggio…' : 'Salva'}
+        </button>
       </div>
     </div>
   );
