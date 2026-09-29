@@ -185,7 +185,11 @@ export default function ResultsView({ profile, initialResults, statuses }) {
         jobs: t.jobs
           .map((j) =>
             j.id === jobId
-              ? { ...j, tracking: { status: item.status, label: statuses[item.status], note: item.note } }
+              ? {
+                  ...j,
+                  // item null: l'offerta non si segue più
+                  tracking: item ? { status: item.status, label: statuses[item.status], note: item.note } : null,
+                }
               : j,
           )
           // "non mi interessa" e "non selezionata" spariscono dai risultati, come nella riga di comando

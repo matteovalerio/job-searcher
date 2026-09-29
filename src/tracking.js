@@ -132,14 +132,6 @@ export class Tracking {
     return this.list().filter((t) => t.status === 'candidatura' && t.followUpAt && t.followUpAt <= day(now));
   }
 
-  /** Salva il kit di candidatura di un'offerta (la segue, se non la seguiva già). */
-  setKit(job, kit, now = new Date().toISOString()) {
-    const item = this.items[job.id] ?? this.set(job, {}, now);
-    item.kit = { ...kit, updatedAt: now };
-    item.updatedAt = now;
-    return item;
-  }
-
   remove(jobId) {
     const had = Boolean(this.items[jobId]);
     delete this.items[jobId];

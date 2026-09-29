@@ -42,6 +42,7 @@ di Next. La CI (`.github/workflows/test.yml`) esegue test su Node 20 e 22, lint 
   o si simula `globalThis.fetch`.
 - **Stato:** tutto quello che il programma salva sta in `.job-searcher/` (ignorato da git):
   - `tracking.json`: candidature alle offerte;
+  - `kits.json`: kit di candidatura (separati: aprire un kit non segue l'offerta);
   - `publishers.json`: case editrici e aziende;
   - `cv.txt`: testo del CV;
   - `results-<profilo>.json`: ultimi risultati;

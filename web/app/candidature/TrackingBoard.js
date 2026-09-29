@@ -31,7 +31,7 @@ function when(item, statuses) {
 
 const today = () => new Date().toISOString().slice(0, 10);
 
-function Card({ item, statuses, onChange, onRemove, onKit, dragging, onDragStart, onDragEnd }) {
+function Card({ item, statuses, hasKit, onChange, onRemove, onKit, dragging, onDragStart, onDragEnd }) {
   const [note, setNote] = useState(item.note ?? '');
   return (
     <article
@@ -84,7 +84,7 @@ function Card({ item, statuses, onChange, onRemove, onKit, dragging, onDragStart
         <ClockIcon />
         <span className="spacer">{when(item, statuses)}</span>
         <button type="button" className="small ghost" onClick={() => onKit(item)}>
-          {item.kit ? 'Kit' : 'Prepara il kit'}
+          {hasKit ? 'Kit' : 'Prepara il kit'}
         </button>
         <button
           type="button"
@@ -100,7 +100,7 @@ function Card({ item, statuses, onChange, onRemove, onKit, dragging, onDragStart
   );
 }
 
-export default function TrackingBoard({ initialItems, statuses }) {
+export default function TrackingBoard({ initialItems, statuses, kitIds = [] }) {
   const router = useRouter();
   const [items, setItems] = useState(initialItems);
   const [error, setError] = useState('');
@@ -108,6 +108,7 @@ export default function TrackingBoard({ initialItems, statuses }) {
   const [over, setOver] = useState(null);
   const [closing, setClosing] = useState(null); // offerta trascinata in "Chiuse": si chiede com'è finita
   const [kit, setKit] = useState(null);
+  const [kits, setKits] = useState(() => new Set(kitIds));
   const closeKit = useCallback(() => setKit(null), []);
   const due = items.filter((i) => i.status === 'candidatura' && i.followUpAt && i.followUpAt <= today());
 
@@ -237,7 +238,11 @@ export default function TrackingBoard({ initialItems, statuses }) {
                   statuses={statuses}
                   onChange={change}
                   onRemove={remove}
-                  onKit={setKit}
+                  onKit={(i) => {
+                    setKit(i);
+                    setKits((prev) => new Set(prev).add(i.job.id));
+                  }}
+                  hasKit={kits.has(item.job.id)}
                   dragging={dragged?.job.id === item.job.id}
                   onDragStart={setDragged}
                   onDragEnd={() => {

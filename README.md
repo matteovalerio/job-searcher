@@ -134,7 +134,7 @@ node src/cli.js track 3359919 candidatura --note "CV inviato il 29/9"
 node src/cli.js track 3359919 colloquio
 node src/cli.js track                  # elenco per stato
 node src/cli.js track colloquio        # solo un certo stato
-node src/cli.js track 3359919 rimuovi  # smetti di seguirla
+node src/cli.js track 3359919 rimuovi  # smetti di seguirla (torna "non toccata")
 ```
 
 Gli stati sono:
@@ -155,6 +155,8 @@ node src/cli.js track 3359919 sollecito                       # sollecito inviat
 ```
 
 Nella pagina **Candidature** le schede mostrano la data del sollecito, e in cima compaiono quelle da sollecitare.
+
+**Smettere di seguire un'offerta:** nella pagina Offerte scegli «Non seguire più» nel menu dello stato; in Candidature c'è il cestino. L'offerta torna «non toccata» (il kit, se c'è, resta).
 
 **Nelle ricerche successive:** le offerte seguite mostrano il loro stato accanto al titolo. Quelle segnate `scartata` o `rifiutata` non compaiono più, né nei risultati né nelle notifiche.
 
@@ -572,7 +574,7 @@ node src/cli.js kit 3359919 --prompt -o kit.txt    # testo per claude.ai
 node src/cli.js kit 3359919 import risposta.txt    # importa (e controlla) la risposta di Claude
 ```
 
-Il kit si salva nella candidatura (`.job-searcher/tracking.json`), insieme al testo dell'annuncio.
+Il kit si salva in `.job-searcher/kits.json`, insieme al testo dell'annuncio. Aprire il kit **non** vuol dire seguire l'offerta: la candidatura nasce solo quando scegli uno stato («Mi interessa», «Segna come inviata»…).
 
 ## CV su misura
 

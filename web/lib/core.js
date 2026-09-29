@@ -44,6 +44,7 @@ export async function core() {
     load('kit.js'),
     load('config.js'),
     load('diagnose.js'),
+    load('kit-store.js'),
   ]).then(
     ([
       app,
@@ -67,7 +68,10 @@ export async function core() {
       kit,
       config,
       diagnose,
+      kitStore,
     ]) => ({
+      KitStore: kitStore.KitStore,
+      loadTrackingAndKits: kitStore.loadTrackingAndKits,
       resolveProfile: config.resolveProfile,
       diagnoseLinkedin: diagnose.diagnoseLinkedin,
       buildKit: kit.buildKit,
@@ -144,8 +148,9 @@ export async function core() {
  * ricerca) e i dati già pronti per la pagina.
  */
 export async function resultsForPage(profileId) {
-  const { loadLastResults, Tracking, STATUSES, HIDDEN_STATUSES, shortId, describeInfo } = await core();
-  const [last, tracking] = await Promise.all([loadLastResults(profileId), new Tracking().load()]);
+  const { loadLastResults, loadTrackingAndKits, STATUSES, HIDDEN_STATUSES, shortId, describeInfo } = await core();
+  // loadTrackingAndKits toglie anche le candidature create solo aprendo un kit (versioni precedenti).
+  const [last, { tracking }] = await Promise.all([loadLastResults(profileId), loadTrackingAndKits()]);
   if (!last) return null;
   return {
     ...last,
