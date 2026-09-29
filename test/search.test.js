@@ -23,16 +23,13 @@ test('il profilo di esempio è valido', async () => {
   const [padova, remote] = profile.targets;
   assert.deepEqual(
     padova.places.map((p) => [p.name, p.sigla]),
-    [
-      ['Padova', 'PD'],
-      ['Vicenza', 'VI'],
-    ],
+    [['Piazzola sul Brenta', 'PD']],
   );
   assert.ok(padova.sources.some((s) => s.name === 'linkedin'));
   assert.ok(!padova.sources.some((s) => s.name === 'remotive'), "le fonti solo-remote non servono per un'area");
   assert.ok(remote.sources.some((s) => s.name === 'remotive'));
   assert.ok(remote.keywords.includes('redattore') && remote.relatedKeywords.includes('indesign'));
-  assert.ok(remote.queryKeywords.includes('peer review'));
+  assert.ok(remote.queryKeywords.includes('medical writer'));
   // le parole con "*" non vengono mai inviate ai portali
   assert.ok(profile.targets.every((t) => t.queryKeywords.every((k) => !k.includes('*'))));
 });

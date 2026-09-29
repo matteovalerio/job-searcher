@@ -316,14 +316,14 @@ Un profilo è un file JSON dentro `profiles/`. Di solito si crea con `profile ne
 
 ### Il profilo incluso
 
-`profiles/redattore-padova.json` è pensato per una redattrice/un redattore con 5 anni di esperienza in una casa editrice scientifica (revisione bozze, rapporti con gli autori, coordinamento di progetti editoriali, impaginazione in InDesign) e con una laurea magistrale in linguistica:
+`profiles/redattore-padova.json` è stato creato dal portale a partire dal CV: 9 anni di esperienza in editoria (anche scientifica), laurea magistrale in linguistica, InDesign, Acrobat ed Excel. Il nome del file è rimasto quello di prima, così la ricerca quotidiana, i risultati salvati e gli esempi continuano a funzionare.
 
-- **ruoli principali**: redazione, editor, coordinamento editoriale, correzione e revisione di bozze e testi, i ruoli dell'editoria scientifica internazionale (journal, peer review, manuscript, publishing: Assistant/Managing/Production Editor, Peer Review Coordinator, Journal Manager, Associate Publisher…) e il medical/scientific writing;
-- **lingue**: italiano e inglese;
-- **periodo**: 60 giorni per Padova/Vicenza, dove le offerte sono poche; 30 per il remoto;
-- **ruoli affini**, con meno punti: impaginazione/InDesign, traduzione e localizzazione, ruoli per linguisti;
-- **esclusi**: stage, tirocini e apprendistato (non adatti a 5 anni di esperienza), ruoli commerciali ("promotore editoriale", "agente", sales), video, SEO/social media, ruoli tecnici;
-- **bonus**: contesto scientifico e accademico (riviste, STM, medicina, università) ed editori scientifici/universitari, internazionali (Elsevier, Springer, Wiley, MDPI, Frontiers…) e del territorio (Piccin, Cedam, CLEUP, Il Poligrafo, Neri Pozza, Marsilio…).
+- **ruoli principali**: redazione, editor, correzione e revisione di bozze e testi, i ruoli dell'editoria scientifica internazionale (journal, peer review, manuscript, publishing), il medical/scientific writing e la traduzione e localizzazione (traduttore, interprete, linguista);
+- **zone**: Piazzola sul Brenta e 30 km attorno (Padova, Vicenza e Cittadella comprese) e il full remote in Italia ed Europa, con offerte degli ultimi 30 giorni;
+- **lingue**: italiano, inglese, francese e tedesco;
+- **ruoli affini**, con meno punti: impaginazione/InDesign, sottotitolaggio, terminologia, post-editing, comunicazione scientifica;
+- **esclusi**: stage, tirocini e apprendistato, ruoli commerciali ("promotore editoriale", "agente", sales), video, SEO/social media, ruoli tecnici; offerte che chiedono più di 12 anni di esperienza;
+- **bonus**: case editrici e libri, strumenti di traduzione (Trados, memoQ, Matecat), contesto scientifico e accademico (riviste, STM, medicina, università) ed editori scientifici internazionali (Elsevier, Springer, Wiley, MDPI, Frontiers…).
 
 - **fonti in più**: un Google Alert su "redattore" e le pagine delle offerte di Springer Nature ed Elsevier (vedi sotto, [Siti delle aziende e piattaforme di selezione](#siti-delle-aziende-e-piattaforme-di-selezione)). Le pagine "lavora con noi" delle case editrici del territorio (Piccin, CLEUP, Neri Pozza, Marsilio, libreriauniversitaria.it) sono state provate, ma nessuna pubblica le offerte online, quindi non sono nel profilo.
 
