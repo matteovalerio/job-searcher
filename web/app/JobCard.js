@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { relativeDay, scoreTier } from '../lib/format.js';
 
 /** Riga di un'offerta con i controlli per seguirla (stato e nota). */
-export default function JobCard({ job, statuses, onTracked }) {
+export default function JobCard({ job, statuses, onTracked, onTailor }) {
   const [status, setStatus] = useState(job.tracking?.status ?? '');
   const [note, setNote] = useState(job.tracking?.note ?? '');
   const [saving, setSaving] = useState(false);
@@ -99,6 +99,11 @@ export default function JobCard({ job, statuses, onTracked }) {
             onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
             onBlur={() => note !== (job.tracking?.note ?? '') && save({ status, note })}
           />
+        )}
+        {onTailor && (
+          <button type="button" className="small ghost" onClick={onTailor}>
+            CV su misura
+          </button>
         )}
         {error && <span className="error-box small">{error}</span>}
       </div>

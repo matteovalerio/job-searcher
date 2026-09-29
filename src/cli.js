@@ -5,6 +5,8 @@ import path from 'node:path';
 import { createInterface } from 'node:readline/promises';
 import { parseArgs } from 'node:util';
 import { searchProfile } from './app.js';
+import { CV_HELP, cvCommand } from './commands/cv.js';
+import { PUBLISHERS_HELP, publishersCommand } from './commands/publishers.js';
 import { resolveProfile } from './config.js';
 import { runDoctor } from './doctor.js';
 import { buildMatchPrompt, pickJobs } from './match.js';
@@ -46,6 +48,8 @@ Uso:
   job-searcher track <id> --note "…"    aggiunge o cambia la nota; "track <id> rimuovi" smette di seguirla
   job-searcher match -p <nome>          prepara il testo per claude.ai: confronto tra CV e offerte migliori
                                         (--cv file.pdf, --top 15, --ids a1b2c3d,e4f5a6b, -o file)
+  job-searcher publishers               case editrici e candidature spontanee (vedi sotto)
+  job-searcher cv tailor <codice>       prepara il testo per adattare il CV a un'offerta o a una casa editrice
 
 Opzioni di "profile new", "profile prompt" e "profile import":
       --cv <file.pdf>      ricava le informazioni dal CV (con "prompt": include il testo del CV)
@@ -82,7 +86,7 @@ Esempi:
   job-searcher search -p redattore-padova --only-new -o offerte.csv
 
 Le chiavi API opzionali (Adzuna, Jooble) si leggono da variabili d'ambiente o dal file .env.
-`;
+${PUBLISHERS_HELP}${CV_HELP}`;
 
 const list = (value) =>
   value
@@ -119,6 +123,13 @@ function parseCli(argv) {
       top: { type: 'string' },
       ids: { type: 'string' },
       name: { type: 'string' },
+      site: { type: 'string' },
+      city: { type: 'string' },
+      kind: { type: 'string' },
+      email: { type: 'string' },
+      date: { type: 'string' },
+      status: { type: 'string' },
+      add: { type: 'boolean' },
       yes: { type: 'boolean', short: 'y' },
       help: { type: 'boolean', short: 'h' },
     },
@@ -137,6 +148,13 @@ function parseCli(argv) {
     top: num(values.top, 'top'),
     ids: list(values.ids),
     name: values.name,
+    site: values.site,
+    city: values.city,
+    kind: values.kind,
+    email: values.email,
+    date: values.date,
+    status: values.status,
+    add: values.add,
     yes: values.yes,
     help: values.help,
     profile: values.profile,
@@ -497,6 +515,8 @@ async function main() {
   if (opts.command === 'doctor') return doctor(opts);
   if (opts.command === 'track') return track(opts);
   if (opts.command === 'match') return match(opts);
+  if (opts.command === 'publishers' || opts.command === 'editori') return publishersCommand(opts);
+  if (opts.command === 'cv') return cvCommand(opts);
   if (opts.command === 'search') return search(opts);
   if (opts.command === 'profiles') return listSavedProfiles();
   if (opts.command === 'profile') {

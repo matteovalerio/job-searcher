@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
  * Il CV non viene salvato: si usa solo per le proposte (e il testo torna alla pagina per il prompt di Claude).
  */
 export async function POST(request) {
-  const { readCvData, analyzeCv, detectedFamilies, suggest } = await core();
+  const { readCvData, analyzeCv, detectedFamilies, suggest, saveCvText } = await core();
   try {
     const form = await request.formData();
     const file = form.get('cv');
@@ -15,6 +15,8 @@ export async function POST(request) {
     if (file.size > 10 * 1024 * 1024) throw new Error('Il file è troppo grande (massimo 10 MB)');
     const cvText = await readCvData(new Uint8Array(await file.arrayBuffer()), `"${file.name}"`);
     const analysis = analyzeCv(cvText);
+    // Si ricorda il CV (sul computer) anche per il «CV su misura».
+    await saveCvText(cvText);
     const families = detectedFamilies(analysis);
     return Response.json({
       cvText,

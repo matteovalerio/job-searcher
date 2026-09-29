@@ -1,9 +1,11 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CopyIcon, ExternalIcon, RefreshIcon, SearchIcon, SparkIcon } from './icons.js';
 import JobCard from './JobCard.js';
+import Modal from './Modal.js';
+import TailorModal from './TailorModal.js';
 
 function formatEvent(e) {
   const where = e.target ? `${e.target} · ${e.source}` : '';
@@ -61,15 +63,6 @@ function MatchPrompt({ profile, onClose }) {
     load(15);
   }, [load]);
 
-  // Esc chiude la finestra; all'apertura il focus va su «Chiudi».
-  const closeRef = useRef(null);
-  useEffect(() => {
-    closeRef.current?.focus();
-    const onKey = (e) => e.key === 'Escape' && onClose();
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [onClose]);
-
   async function copy() {
     await navigator.clipboard.writeText(state.prompt);
     setCopied(true);
@@ -77,58 +70,42 @@ function MatchPrompt({ profile, onClose }) {
   }
 
   return (
-    // biome-ignore lint/a11y/useKeyWithClickEvents: il clic sullo sfondo è una scorciatoia, Esc è gestito sul documento
-    <div
-      className="modal"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="match-title"
-      onClick={(e) => e.target === e.currentTarget && onClose()}
-    >
-      <div className="card">
-        <div className="row">
-          <h2 id="match-title">Confronta CV e offerte con Claude</h2>
-          <span className="spacer" />
-          <button type="button" className="small" onClick={onClose} ref={closeRef}>
-            Chiudi
-          </button>
-        </div>
-        <p className="small muted">
-          Copia il testo, apri una nuova chat su claude.ai, <strong>allega il CV in PDF</strong> e incolla. Usa il tuo
-          abbonamento, non l&apos;API. Claude chiama le offerte con i codici tra parentesi quadre, gli stessi che vedi
-          qui.
-        </p>
-        <div className="row small">
-          <label htmlFor="match-top">Offerte migliori</label>
-          <input
-            id="match-top"
-            type="number"
-            min="1"
-            max="40"
-            value={top}
-            onChange={(e) => setTop(Number(e.target.value))}
-            onBlur={() => load(top)}
-          />
-          {state.count != null && <span className="muted">{state.count} offerte nel testo</span>}
-        </div>
-        {state.loading && <p className="muted">Preparo il testo…</p>}
-        {state.error && <div className="error-box">{state.error}</div>}
-        {state.prompt && (
-          <>
-            <textarea className="code" readOnly rows={14} value={state.prompt} aria-label="Testo per Claude" />
-            <div className="row">
-              <button type="button" className="primary" onClick={copy}>
-                <CopyIcon />
-                {copied ? 'Copiato' : 'Copia'}
-              </button>
-              <a className="button" href="https://claude.ai/new" target="_blank" rel="noreferrer">
-                Apri claude.ai <ExternalIcon />
-              </a>
-            </div>
-          </>
-        )}
+    <Modal title="Confronta CV e offerte con Claude" onClose={onClose}>
+      <p className="small muted">
+        Copia il testo, apri una nuova chat su claude.ai, <strong>allega il CV in PDF</strong> e incolla. Usa il tuo
+        abbonamento, non l&apos;API. Claude chiama le offerte con i codici tra parentesi quadre, gli stessi che vedi
+        qui.
+      </p>
+      <div className="row small">
+        <label htmlFor="match-top">Offerte migliori</label>
+        <input
+          id="match-top"
+          type="number"
+          min="1"
+          max="40"
+          value={top}
+          onChange={(e) => setTop(Number(e.target.value))}
+          onBlur={() => load(top)}
+        />
+        {state.count != null && <span className="muted">{state.count} offerte nel testo</span>}
       </div>
-    </div>
+      {state.loading && <p className="muted">Preparo il testo…</p>}
+      {state.error && <div className="error-box">{state.error}</div>}
+      {state.prompt && (
+        <>
+          <textarea className="code" readOnly rows={14} value={state.prompt} aria-label="Testo per Claude" />
+          <div className="row">
+            <button type="button" className="primary" onClick={copy}>
+              <CopyIcon />
+              {copied ? 'Copiato' : 'Copia'}
+            </button>
+            <a className="button" href="https://claude.ai/new" target="_blank" rel="noreferrer">
+              Apri claude.ai <ExternalIcon />
+            </a>
+          </div>
+        </>
+      )}
+    </Modal>
   );
 }
 
@@ -146,6 +123,8 @@ export default function ResultsView({ profile, initialResults, statuses }) {
   const [shown, setShown] = useState(PAGE_SIZE);
   const [showMatch, setShowMatch] = useState(false);
   const closeMatch = useCallback(() => setShowMatch(false), []);
+  const [tailor, setTailor] = useState(null);
+  const closeTailor = useCallback(() => setTailor(null), []);
 
   async function refresh() {
     const res = await fetch(`/api/results?profile=${encodeURIComponent(profile.id)}`);
@@ -282,6 +261,7 @@ export default function ResultsView({ profile, initialResults, statuses }) {
       )}
 
       {showMatch && <MatchPrompt profile={profile.id} onClose={closeMatch} />}
+      {tailor && <TailorModal target={tailor} onClose={closeTailor} />}
 
       {!results ? (
         <div className="empty">Nessuna ricerca ancora per questo profilo: premi «Avvia ricerca».</div>
@@ -336,7 +316,13 @@ export default function ResultsView({ profile, initialResults, statuses }) {
                 <span>Stato</span>
               </div>
               {jobs.slice(0, shown).map((job) => (
-                <JobCard key={job.id} job={job} statuses={statuses} onTracked={onTracked} />
+                <JobCard
+                  key={job.id}
+                  job={job}
+                  statuses={statuses}
+                  onTracked={onTracked}
+                  onTailor={() => setTailor({ job: job.id })}
+                />
               ))}
               <div className="jobs-foot">
                 <span>

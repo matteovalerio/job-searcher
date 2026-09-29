@@ -1268,3 +1268,111 @@ details summary {
     padding: 20px;
   }
 }
+
+/* Case editrici */
+.pubs-head,
+.pub {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 210px 150px;
+  gap: 24px;
+  padding: 12px 20px;
+}
+.pubs-head {
+  border-bottom: 1px solid var(--line);
+}
+.pub {
+  align-items: start;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.pub .main,
+.pub .track,
+.pub .actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.pub .title {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.pub .title a,
+.pub .title .name {
+  color: var(--fg);
+  font-weight: 500;
+  font-size: 15px;
+}
+.pub .title a:hover {
+  color: var(--accent-hover);
+}
+.pub .meta {
+  color: var(--muted);
+  font-size: 13px;
+}
+.pub .links {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.pub .links a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.pub input[type="text"],
+.pub input[type="date"],
+.pub select {
+  height: 36px;
+  font-size: 13px;
+  background: var(--surface-2);
+}
+.pub input[type="date"] {
+  padding: 0 10px;
+  color-scheme: dark;
+}
+.pub .actions {
+  align-items: stretch;
+}
+.pub .actions .icon {
+  align-self: flex-end;
+}
+.discover-list {
+  display: flex;
+  flex-direction: column;
+  max-height: 46vh;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.discover-item {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line-soft);
+  cursor: pointer;
+}
+.discover-item input {
+  margin-top: 3px;
+}
+.discover-item.known {
+  opacity: 0.6;
+  cursor: default;
+}
+@media (max-width: 860px) {
+  .pubs-head {
+    display: none;
+  }
+  .pub {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .pub .actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+}
