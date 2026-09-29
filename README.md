@@ -344,6 +344,18 @@ Le opzioni da riga di comando `-k`, `-l` e `--remote` sostituiscono quelle del p
 
 Durante la ricerca, per ogni fonte vedi quante offerte sono state scartate e per quale motivo, per esempio `LinkedIn: 11 pertinenti su 60 (scartate: 40 fuori zona, 9 nessuna parola chiave)`. Con `--explain`, o aprendo la sezione "Scartate" del report HTML, vedi quali offerte sono state scartate. Così capisci se conviene allargare il raggio, aggiungere parole chiave o togliere un'esclusione.
 
+**Offerte di LinkedIn:** incolla il link di un'offerta che non compare e il programma ti dice perché:
+- **Filtro:** se la tiene e con che punteggio, oppure cosa la scarta (parola esclusa, nessuna parola chiave nel titolo, fuori zona…).
+- **Ricerche:** se le ricerche del profilo su LinkedIn la trovano, e a che pagina.
+- **Titolo:** se non la trova nessuna ricerca, prova a cercare il suo titolo nella stessa località. Così capisci se mancano parole da cercare (`searchKeywords`) o se il problema è la località.
+- **Consigli:** alla fine dice cosa cambiare nel profilo.
+
+```bash
+node src/cli.js perche https://www.linkedin.com/jobs/view/4470018594/ -p redattore-padova
+```
+
+Nella pagina web **Offerte** c'è la casella «Un'offerta di LinkedIn non compare?», in fondo.
+
 ## Aggiungere altri portali o siti
 
 ### 1. Senza programmare: `customSources` nel profilo

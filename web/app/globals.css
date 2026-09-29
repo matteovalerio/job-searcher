@@ -1660,3 +1660,18 @@ details summary {
 .job details p {
   white-space: pre-line;
 }
+
+/* "Un'offerta di LinkedIn non compare?" */
+.why {
+  margin-top: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.why summary {
+  cursor: pointer;
+  font-weight: 500;
+}
+.why[open] summary {
+  margin-bottom: 8px;
+}

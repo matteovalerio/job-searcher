@@ -18,6 +18,8 @@ export function Spinner({ size = 18 }) {
 const LABELS = [
   [/^\/api\/search$/, 'Cerco le offerte'],
   [/^\/api\/match$/, 'Preparo il confronto con il CV'],
+  [/^\/api\/why$/, 'Provo le ricerche su LinkedIn'],
+  [/^\/api\/kit$/, 'Preparo il kit di candidatura', 'POST'],
   [/^\/api\/publishers\/discover$/, 'Cerco case editrici e aziende'],
   [/^\/api\/publishers\/import$/, 'Importo l\'elenco e visito i siti'],
   [/^\/api\/publishers\/watch$/, 'Controllo i siti delle aziende', 'POST'],

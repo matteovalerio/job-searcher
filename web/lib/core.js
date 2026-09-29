@@ -42,6 +42,8 @@ export async function core() {
     load('publishers/watch.js'),
     load('market/index.js'),
     load('kit.js'),
+    load('config.js'),
+    load('diagnose.js'),
   ]).then(
     ([
       app,
@@ -63,7 +65,11 @@ export async function core() {
       watch,
       market,
       kit,
+      config,
+      diagnose,
     ]) => ({
+      resolveProfile: config.resolveProfile,
+      diagnoseLinkedin: diagnose.diagnoseLinkedin,
       buildKit: kit.buildKit,
       buildKitPrompt: kit.buildKitPrompt,
       buildFollowUp: kit.buildFollowUp,
