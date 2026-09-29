@@ -64,24 +64,41 @@ test('le due fonti si uniscono per sito e si completano', async () => {
   assert.ok(merged[0].distanceKm <= merged.at(-1).distanceKm, 'ordinate per distanza');
 });
 
-test('discoverPublishers: interroga le due fonti e riporta i problemi senza fermarsi', async () => {
+test('discoverPublishers: più città, ricerca web facoltativa, problemi riportati senza fermarsi', async () => {
   const calls = [];
   const http = {
-    async request(url, init) {
-      calls.push(['osm', url, init.body.slice(0, 20)]);
+    async request(_url, init) {
+      calls.push(['osm', init.body.slice(0, 5)]);
       return { json: async () => JSON.parse(await fixture('overpass.json')) };
     },
-    async getJson(url) {
-      calls.push(['wikidata', url.slice(0, 40)]);
+    async getJson() {
+      calls.push(['wikidata']);
       throw new Error('HTTP 429');
     },
   };
-  const { center, results, problems } = await discoverPublishers({ place: 'Padova', radiusKm: 40, http });
-  assert.equal(center.name, 'Padova');
-  assert.equal(results.length, 3);
-  assert.deepEqual(problems, ['Wikidata: HTTP 429']);
-  assert.match(calls[0][2], /^data=/);
-  await assert.rejects(discoverPublishers({ place: 'Atlantide', http }), /Non riconosco il comune/);
+  const noWeb = async () => ({ results: [], problems: [], skipped: true });
+  const one = await discoverPublishers({ place: 'Padova', radiusKm: 40, http, web: noWeb });
+  assert.equal(one.center.name, 'Padova');
+  assert.equal(one.results.length, 3);
+  assert.deepEqual(one.problems, ['Wikidata (Padova): HTTP 429']);
+  assert.equal(one.webSearch, false);
+  assert.deepEqual(calls[0], ['osm', 'data=']);
+
+  const web = async (cities) => ({
+    results: [{ name: 'Wetlands', website: 'https://wetlandsbooks.com/', city: 'Venezia', source: 'ricerca web' }],
+    problems: [`cercate: ${cities.join(', ')}`],
+  });
+  const two = await discoverPublishers({ place: 'Padova, Venezia', radiusKm: 20, http, web });
+  assert.deepEqual(
+    two.centers.map((c) => c.name),
+    ['Padova', 'Venezia'],
+  );
+  assert.equal(two.webSearch, true);
+  assert.ok(two.problems.includes('cercate: Padova, Venezia'));
+  assert.ok(two.results.some((r) => r.name === 'Wetlands'));
+  // Lo studio di Vicenza (30 km da Padova) resta a 30 km: la distanza è dal centro più vicino.
+  assert.equal(two.results.find((r) => r.name === 'Studio Editoriale Pagine').distanceKm, 30);
+  await assert.rejects(discoverPublishers({ place: 'Atlantide', http, web: noWeb }), /Non riconosco il comune/);
 });
 
 test('sito della casa editrice: descrizione, specializzazione, email migliore e "lavora con noi"', async () => {

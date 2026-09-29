@@ -447,21 +447,26 @@ Senza `--cv`, allega il PDF del CV nella chat. Le offerte sono quelle dell'ultim
 
 Molte case editrici e studi editoriali non pubblicano offerte e non hanno una pagina «lavora con noi»: ci si candida di propria iniziativa. Il programma aiuta a trovarli e a seguire le candidature.
 
-- **Trovare:** cerca case editrici e studi editoriali attorno a una città su **OpenStreetMap** e **Wikidata**. Sono dati aperti, pensati per essere interrogati. Le mappe non sono complete: quelle che conosci aggiungile a mano.
+- **Trovare:** ci sono tre modi, da combinare, attorno a una o più città (`-l "Padova,Venezia"`).
+  1. **OpenStreetMap e Wikidata:** dati aperti, pensati per essere interrogati. Coprono bene gli editori noti, ma molti piccoli editori indipendenti non ci sono.
+  2. **Ricerca web (facoltativa):** con l'API di [Brave Search](https://brave.com/search/api/) cerca frasi come "casa editrice Venezia" e "studio editoriale Padova", scartando librerie online, social ed elenchi. Serve una chiave, gratuita fino a qualche migliaio di ricerche al mese, da mettere in `.env` come `BRAVE_SEARCH_API_KEY=…`. Ogni ricerca usa 4 frasi per città.
+  3. **Con Claude o da un elenco:** `publishers prompt` prepara un testo che chiede a Claude le case editrici e gli studi editoriali della zona, piccoli compresi. La risposta si importa con `publishers import`. Si può importare anche un elenco scritto a mano, una per riga (`Nome | sito | città`). Prima di aggiungerle il programma visita ogni sito: quelle inventate o chiuse risultano «sito non raggiungibile».
 - **Capire chi sono:** «controlla sito» visita la home e ricava la specializzazione (bambini e ragazzi, scientifica, scolastica, narrativa…), l'email migliore per candidarsi (prima lavoro@, hr@, cv@, poi redazione@, poi info@) e il link alla pagina «lavora con noi», se c'è.
 - **Seguire:** ogni casa editrice ha uno stato: da valutare, da contattare, candidatura inviata, sollecito inviato, colloquio, risposta negativa, nessuna risposta, non mi interessa. Poi la data di invio e le note. Tre settimane dopo l'invio senza risposta viene segnata «da sollecitare».
 
 ```bash
-node src/cli.js publishers find -l Padova -r 40          # anteprima dei risultati
+node src/cli.js publishers find -l "Padova,Venezia" -r 40   # anteprima dei risultati
 node src/cli.js publishers find -l Padova -r 40 --add    # li aggiunge all'elenco ("da valutare")
 node src/cli.js publishers check                         # visita i siti non ancora controllati
+node src/cli.js publishers prompt -l "Padova,Venezia" -r 40 -o editori-prompt.txt
+node src/cli.js publishers import risposta.txt           # risposta di Claude o elenco, e controllo dei siti
 node src/cli.js publishers add "Edizioni Esempio" --site esempio.it --city Vicenza --note "conosco la redattrice"
 node src/cli.js publishers                               # elenco: prima quelle da sollecitare
 node src/cli.js publishers edizioni-esempio inviata --date 2026-09-29 --note "CV a lavoro@esempio.it"
 node src/cli.js publishers edizioni-esempio sollecitata
 ```
 
-`editori` è un sinonimo di `publishers`. I dati sono in `.job-searcher/publishers.json`. Nell'interfaccia web c'è la pagina **Case editrici**, con i filtri per stato e specializzazione.
+`editori` è un sinonimo di `publishers`. I dati sono in `.job-searcher/publishers.json`. Nell'interfaccia web c'è la pagina **Case editrici**, con i filtri per stato e specializzazione. In «Cerca nuove» ci sono due schede: «Mappe e web» e «Con Claude o da un elenco».
 
 ## CV su misura
 

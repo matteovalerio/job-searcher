@@ -36,8 +36,24 @@ export async function core() {
     load('publishers/discover.js'),
     load('publishers/specialties.js'),
     load('tailor.js'),
+    load('publishers/import.js'),
   ]).then(
-    ([app, prompt, store, tracking, extract, cv, builder, roles, match, pubStore, discover, specialties, tailor]) => ({
+    ([
+      app,
+      prompt,
+      store,
+      tracking,
+      extract,
+      cv,
+      builder,
+      roles,
+      match,
+      pubStore,
+      discover,
+      specialties,
+      tailor,
+      pubImport,
+    ]) => ({
       searchProfile: app.searchProfile,
       checkImported: prompt.checkImported,
       buildPrompt: prompt.buildPrompt,
@@ -78,6 +94,8 @@ export async function core() {
       cvInfo: tailor.cvInfo,
       emphasisFor: tailor.emphasisFor,
       buildTailorPrompt: tailor.buildTailorPrompt,
+      buildPublishersPrompt: pubImport.buildPublishersPrompt,
+      parsePublisherList: pubImport.parsePublisherList,
     }),
   );
   return modules;

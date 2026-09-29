@@ -1,0 +1,12 @@
+{
+  "web": {
+    "results": [
+      { "title": "Wetlands – Casa editrice indipendente a Venezia", "url": "https://wetlandsbooks.com/it", "description": "Wetlands è una casa editrice indipendente di <strong>Venezia</strong>: narrativa, saggistica e libri illustrati." },
+      { "title": "Wetlands | Libri", "url": "https://wetlandsbooks.com/it/libri", "description": "Catalogo della casa editrice" },
+      { "title": "Case editrici a Venezia - PagineGialle", "url": "https://www.paginegialle.it/ricerca/case%20editrici/Venezia", "description": "Elenco di case editrici" },
+      { "title": "Home - Studio Redazionale Laguna", "url": "https://www.studiolaguna.it/", "description": "Servizi editoriali: editing, correzione di bozze e impaginazione per editori." },
+      { "title": "Hotel Venezia centro", "url": "https://hotel.example/", "description": "Camere vicino a Rialto" },
+      { "title": "Edizioni Rosse: libri per ragazzi", "url": "https://edizionirosse.it/", "description": "Albi illustrati e narrativa per ragazzi. Sede a Treviso." }
+    ]
+  }
+}

@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useCallback, useMemo, useState } from 'react';
 import { relativeDay, shortDate } from '../../lib/format.js';
-import { ExternalIcon, PlusIcon, RefreshIcon, SearchIcon, TrashIcon } from '../icons.js';
+import { CopyIcon, ExternalIcon, PlusIcon, RefreshIcon, SearchIcon, TrashIcon } from '../icons.js';
 import Modal from '../Modal.js';
 import TailorModal from '../TailorModal.js';
 
@@ -27,11 +27,145 @@ async function send(url, method, body) {
   return data;
 }
 
+/** Elenco preparato da Claude (o scritto a mano): si aggiunge e se ne visitano i siti. */
+function ClaudeImport({ place, setPlace, radiusKm, onAdded }) {
+  const [prompt, setPrompt] = useState('');
+  const [copied, setCopied] = useState(false);
+  const [text, setText] = useState('');
+  const [state, setState] = useState({});
+
+  async function makePrompt() {
+    setState({});
+    try {
+      const data = await send('/api/publishers/prompt', 'POST', { place, radiusKm });
+      setPrompt(data.prompt);
+      await navigator.clipboard.writeText(data.prompt).then(
+        () => setCopied(true),
+        () => setCopied(false),
+      );
+    } catch (err) {
+      setState({ error: err.message });
+    }
+  }
+
+  async function importText() {
+    setState({ loading: true });
+    try {
+      setState({ done: await send('/api/publishers/import', 'POST', { text }) });
+    } catch (err) {
+      setState({ error: err.message });
+    }
+  }
+
+  if (state.done) {
+    const { added, skipped } = state.done;
+    return (
+      <div className="stack">
+        <p>
+          Aggiunte {added.length}
+          {skipped ? `, ${skipped} erano già nell'elenco` : ''}. Ho visitato i siti:
+        </p>
+        <div className="discover-list">
+          {added.map((p) => (
+            <div key={p.id} className="discover-item">
+              <span className="stack" style={{ gap: 4 }}>
+                <strong>{p.name}</strong>
+                <span
+                  className="small"
+                  style={{ color: p.checkProblem || !p.website ? 'var(--accent-hover)' : undefined }}
+                >
+                  {!p.website
+                    ? 'senza sito: da verificare a mano'
+                    : p.checkProblem
+                      ? `sito non raggiungibile: forse non esiste più (${p.checkProblem})`
+                      : ['sito ok', p.email, p.careersUrl && 'lavora con noi ✓'].filter(Boolean).join(' · ')}
+                </span>
+              </span>
+            </div>
+          ))}
+        </div>
+        <div className="row">
+          <button type="button" className="primary" onClick={() => onAdded(added)}>
+            Fatto
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="stack">
+      <p className="small muted">
+        Claude conosce molti piccoli editori che non sono sulle mappe. Prepara il testo, incollalo su claude.ai e poi
+        incolla qui la risposta; va bene anche un elenco scritto da te, una casa editrice per riga («Nome | sito |
+        città»). Prima di aggiungerle visito ogni sito, così quelle inventate o chiuse si riconoscono subito.
+      </p>
+      <div className="row">
+        <label className="field" style={{ flex: '1 1 260px' }}>
+          <span className="label">Zona</span>
+          <input
+            type="text"
+            value={place}
+            onChange={(e) => setPlace(e.target.value)}
+            placeholder="es. Padova, Venezia"
+          />
+        </label>
+        <button type="button" onClick={makePrompt} style={{ alignSelf: 'flex-end' }}>
+          <CopyIcon />
+          {copied ? 'Testo copiato' : 'Prepara e copia il testo'}
+        </button>
+        <a
+          className="button"
+          href="https://claude.ai/new"
+          target="_blank"
+          rel="noreferrer"
+          style={{ alignSelf: 'flex-end' }}
+        >
+          Apri claude.ai <ExternalIcon />
+        </a>
+      </div>
+      {prompt && (
+        <details>
+          <summary>Mostra il testo</summary>
+          <textarea
+            className="code"
+            readOnly
+            rows={8}
+            value={prompt}
+            aria-label="Testo per Claude"
+            style={{ marginTop: 12 }}
+          />
+        </details>
+      )}
+      <label className="field">
+        <span className="label">Risposta di Claude o elenco</span>
+        <textarea
+          className="code"
+          rows={8}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder={
+            '```json\n[{ "name": "…", "website": "…", "city": "…" }]\n```\n\noppure: Wetlands | wetlandsbooks.com | Venezia'
+          }
+        />
+      </label>
+      <div className="row">
+        <button type="button" className="primary" disabled={!text.trim() || state.loading} onClick={importText}>
+          <PlusIcon />
+          {state.loading ? 'Aggiungo e controllo i siti…' : 'Aggiungi e controlla i siti'}
+        </button>
+        {state.error && <span className="error-box">{state.error}</span>}
+      </div>
+    </div>
+  );
+}
+
 function DiscoverModal({ defaultPlace, kinds, specialtyLabel, onAdded, onClose }) {
   const [place, setPlace] = useState(defaultPlace || 'Padova');
   const [radiusKm, setRadiusKm] = useState(30);
   const [state, setState] = useState({});
   const [selected, setSelected] = useState(new Set());
+  const [mode, setMode] = useState('maps');
 
   async function search(e) {
     e.preventDefault();
@@ -61,77 +195,98 @@ function DiscoverModal({ defaultPlace, kinds, specialtyLabel, onAdded, onClose }
 
   return (
     <Modal title="Cerca case editrici e studi editoriali" onClose={onClose} wide>
-      <p className="small muted">
-        Cerca su OpenStreetMap e Wikidata le realtà editoriali attorno a una città. Le mappe non sono complete: aggiungi
-        a mano quelle che conosci. Poi «Controlla sito» ne ricava specializzazione, email e pagina «lavora con noi».
-      </p>
-      <form className="row" onSubmit={search}>
-        <label className="field" style={{ flex: '1 1 220px' }}>
-          <span className="label">Città</span>
-          <input type="text" value={place} onChange={(e) => setPlace(e.target.value)} placeholder="es. Padova" />
-        </label>
-        <label className="field" style={{ width: 140 }}>
-          <span className="label">Raggio</span>
-          <span className="with-unit">
-            <input type="number" min="1" max="200" value={radiusKm} onChange={(e) => setRadiusKm(e.target.value)} />
-            <span>km</span>
-          </span>
-        </label>
-        <button type="submit" className="primary" style={{ alignSelf: 'flex-end' }} disabled={state.loading}>
-          <SearchIcon />
-          {state.loading ? 'Ricerca…' : 'Cerca'}
+      <div className="segmented" role="tablist" aria-label="Modo di ricerca">
+        <button type="button" role="tab" aria-selected={mode === 'maps'} onClick={() => setMode('maps')}>
+          Mappe e web
         </button>
-      </form>
-      {state.loading && <p className="muted small">Può richiedere fino a un minuto.</p>}
-      {state.error && <p className="error-box">{state.error}</p>}
-      {state.problems?.map((p) => (
-        <p key={p} className="small" style={{ color: 'var(--accent-hover)' }}>
-          ! {p}
-        </p>
-      ))}
-      {state.results && (
+        <button type="button" role="tab" aria-selected={mode === 'claude'} onClick={() => setMode('claude')}>
+          Con Claude o da un elenco
+        </button>
+      </div>
+      {mode === 'claude' ? (
+        <ClaudeImport place={place} setPlace={setPlace} radiusKm={radiusKm} onAdded={onAdded} />
+      ) : (
         <>
           <p className="small muted">
-            {state.results.length} trovate, {state.results.filter((r) => !r.known).length} nuove.
+            Cerca su OpenStreetMap, Wikidata e (se c&apos;è la chiave) sul web le realtà editoriali attorno a una o più
+            città, separate da virgole. Poi «Controlla sito» ne ricava specializzazione, email e pagina «lavora con
+            noi».
           </p>
-          <div className="discover-list">
-            {fresh.map((r) => (
-              <label key={r.key} className={`discover-item${r.known ? ' known' : ''}`}>
-                <input
-                  type="checkbox"
-                  disabled={r.known}
-                  checked={!r.known && selected.has(r.key)}
-                  onChange={() => toggle(r.key)}
-                />
-                <span className="stack" style={{ gap: 4 }}>
-                  <span>
-                    <strong>{r.name}</strong> <span className="faint small">{kinds[r.kind]}</span>
-                    {r.known && <span className="badge warn"> già nell&apos;elenco</span>}
-                  </span>
-                  <span className="muted small">
-                    {[r.city, r.distanceKm != null && `${r.distanceKm} km`, r.website, r.email]
-                      .filter(Boolean)
-                      .join(' · ')}
-                  </span>
-                  {r.specialties?.length > 0 && (
-                    <span className="tags">
-                      {r.specialties.map((s) => (
-                        <span key={s} className="tag">
-                          {specialtyLabel(s)}
-                        </span>
-                      ))}
-                    </span>
-                  )}
-                </span>
-              </label>
-            ))}
-          </div>
-          <div className="row">
-            <button type="button" className="primary" disabled={!selected.size} onClick={add}>
-              <PlusIcon />
-              Aggiungi {selected.size} all&apos;elenco
+          <form className="row" onSubmit={search}>
+            <label className="field" style={{ flex: '1 1 220px' }}>
+              <span className="label">Città</span>
+              <input type="text" value={place} onChange={(e) => setPlace(e.target.value)} placeholder="es. Padova" />
+            </label>
+            <label className="field" style={{ width: 140 }}>
+              <span className="label">Raggio</span>
+              <span className="with-unit">
+                <input type="number" min="1" max="200" value={radiusKm} onChange={(e) => setRadiusKm(e.target.value)} />
+                <span>km</span>
+              </span>
+            </label>
+            <button type="submit" className="primary" style={{ alignSelf: 'flex-end' }} disabled={state.loading}>
+              <SearchIcon />
+              {state.loading ? 'Ricerca…' : 'Cerca'}
             </button>
-          </div>
+          </form>
+          {state.loading && <p className="muted small">Può richiedere fino a un minuto.</p>}
+          {state.error && <p className="error-box">{state.error}</p>}
+          {state.problems?.map((p) => (
+            <p key={p} className="small" style={{ color: 'var(--accent-hover)' }}>
+              ! {p}
+            </p>
+          ))}
+          {state.results && !state.webSearch && (
+            <p className="small faint">
+              Mappe e Wikidata non conoscono molti piccoli editori: per trovarne di più usa «Con Claude o da un elenco»,
+              oppure attiva la ricerca web con la chiave BRAVE_SEARCH_API_KEY (vedi README).
+            </p>
+          )}
+          {state.results && (
+            <>
+              <p className="small muted">
+                {state.results.length} trovate, {state.results.filter((r) => !r.known).length} nuove.
+              </p>
+              <div className="discover-list">
+                {fresh.map((r) => (
+                  <label key={r.key} className={`discover-item${r.known ? ' known' : ''}`}>
+                    <input
+                      type="checkbox"
+                      disabled={r.known}
+                      checked={!r.known && selected.has(r.key)}
+                      onChange={() => toggle(r.key)}
+                    />
+                    <span className="stack" style={{ gap: 4 }}>
+                      <span>
+                        <strong>{r.name}</strong> <span className="faint small">{kinds[r.kind]}</span>
+                        {r.known && <span className="badge warn"> già nell&apos;elenco</span>}
+                      </span>
+                      <span className="muted small">
+                        {[r.city, r.distanceKm != null && `${r.distanceKm} km`, r.website, r.email]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </span>
+                      {r.specialties?.length > 0 && (
+                        <span className="tags">
+                          {r.specialties.map((s) => (
+                            <span key={s} className="tag">
+                              {specialtyLabel(s)}
+                            </span>
+                          ))}
+                        </span>
+                      )}
+                    </span>
+                  </label>
+                ))}
+              </div>
+              <div className="row">
+                <button type="button" className="primary" disabled={!selected.size} onClick={add}>
+                  <PlusIcon />
+                  Aggiungi {selected.size} all&apos;elenco
+                </button>
+              </div>
+            </>
+          )}
         </>
       )}
     </Modal>

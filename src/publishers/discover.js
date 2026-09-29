@@ -5,6 +5,7 @@ import { findCareersLink } from '../sources/careers.js';
 import { normalize } from '../text.js';
 import { detectSpecialties, guessKind } from './specialties.js';
 import { normalizeWebsite, publisherKey } from './store.js';
+import { searchWeb } from './websearch.js';
 
 /*
  * Ricerca di case editrici e studi editoriali attorno a una città, da due fonti aperte che si possono
@@ -84,7 +85,8 @@ export function wikidataQuery({ lat, lon }, radiusKm) {
     bd:serviceParam wikibase:center "Point(${lon} ${lat})"^^geo:wktLiteral .
     bd:serviceParam wikibase:radius "${radiusKm}" .
   }
-  ?item wdt:P159 ?place .
+  # sede (P159) oppure comune in cui si trova (P131)
+  { ?item wdt:P159 ?place } UNION { ?item wdt:P131 ?place }
   ?item wdt:P31/wdt:P279* wd:Q2085381 .
   FILTER NOT EXISTS { ?item wdt:P576 ?dissolved }
   OPTIONAL { ?item wdt:P856 ?website }
@@ -143,13 +145,7 @@ export function mergeResults(lists) {
   return [...merged.values()].sort((a, b) => (a.distanceKm ?? 999) - (b.distanceKm ?? 999));
 }
 
-/**
- * Cerca case editrici e studi editoriali entro `radiusKm` da `place`.
- * @returns {Promise<{ center, results: object[], problems: string[] }>}
- */
-export async function discoverPublishers({ place, radiusKm = 30, http = { request, getJson } } = {}) {
-  const center = resolveCenter(place);
-  const problems = [];
+async function searchMaps(center, radiusKm, http, problems) {
   const fromOsm = http
     .request(OVERPASS_URL, {
       method: 'POST',
@@ -160,7 +156,7 @@ export async function discoverPublishers({ place, radiusKm = 30, http = { reques
     .then((res) => res.json())
     .then((json) => parseOverpass(json, center))
     .catch((err) => {
-      problems.push(`OpenStreetMap: ${err.message}`);
+      problems.push(`OpenStreetMap (${center.name}): ${err.message}`);
       return [];
     });
   const fromWikidata = http
@@ -170,11 +166,42 @@ export async function discoverPublishers({ place, radiusKm = 30, http = { reques
     })
     .then((json) => parseWikidata(json, center))
     .catch((err) => {
-      problems.push(`Wikidata: ${err.message}`);
+      problems.push(`Wikidata (${center.name}): ${err.message}`);
       return [];
     });
-  const results = mergeResults(await Promise.all([fromOsm, fromWikidata]));
-  return { center, results, problems };
+  return (await Promise.all([fromOsm, fromWikidata])).flat();
+}
+
+/** Distanza dal centro più vicino (con più città la ricerca ha più centri). */
+function nearest(p, centers) {
+  if (p.lat == null || p.lon == null) return p;
+  return { ...p, distanceKm: Math.round(Math.min(...centers.map((c) => distanceKm(c, p)))) };
+}
+
+/**
+ * Cerca case editrici e studi editoriali entro `radiusKm` da una o più città: OpenStreetMap, Wikidata e, se
+ * c'è la chiave BRAVE_SEARCH_API_KEY, la ricerca web.
+ * @param {{ places?: string[], place?: string, radiusKm?: number }} options
+ * @returns {Promise<{ centers, results: object[], problems: string[], webSearch: boolean }>}
+ */
+export async function discoverPublishers({
+  places,
+  place,
+  radiusKm = 30,
+  http = { request, getJson },
+  web = searchWeb,
+} = {}) {
+  const names = (places ?? String(place ?? '').split(',')).map((p) => p.trim()).filter(Boolean);
+  if (!names.length) throw new Error('Indica almeno una città, es. Padova.');
+  const centers = names.map(resolveCenter);
+  const problems = [];
+  const [maps, fromWeb] = await Promise.all([
+    Promise.all(centers.map((c) => searchMaps(c, radiusKm, http, problems))),
+    web(centers.map((c) => c.name)),
+  ]);
+  problems.push(...fromWeb.problems);
+  const results = mergeResults([...maps, fromWeb.results].map((list) => list.map((p) => nearest(p, centers))));
+  return { center: centers[0], centers, results, problems, webSearch: !fromWeb.skipped };
 }
 
 // Email da preferire per una candidatura: prima quelle del personale o della redazione.
