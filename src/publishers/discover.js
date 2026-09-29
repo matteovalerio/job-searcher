@@ -46,9 +46,30 @@ const errorText = (body) =>
   body
     .replace(/<(script|style)[\s\S]*?<\/\1>/gi, ' ')
     .replace(/<[^>]+>/g, ' ')
+    // Intestazione fissa delle pagine di errore di Overpass: non dice niente sull'errore.
+    .replace(
+      /OSM3S Response|The data included in this document is from \S+\.|The data is made available under ODbL\./g,
+      ' ',
+    )
     .replace(/\s+/g, ' ')
     .trim()
     .slice(0, 160);
+
+/**
+ * Stato dei server durante una ricerca: quello che ha risposto si prova per primo, e quelli che non rispondono
+ * affatto (tempo scaduto, connessione rifiutata) si saltano per le query successive.
+ */
+export function overpassServers() {
+  return { good: null, down: new Set() };
+}
+
+function serverOrder(urls, servers) {
+  if (!servers) return urls;
+  const alive = urls.filter((u) => !servers.down.has(new URL(u).host));
+  // Se sembrano tutti giù si riprova comunque con tutti: magari nel frattempo uno è tornato.
+  const list = alive.length ? alive : urls;
+  return [...list].sort((a, b) => (new URL(b).host === servers.good) - (new URL(a).host === servers.good));
+}
 
 /**
  * Esegue una query Overpass provando i server uno dopo l'altro. Si passa al successivo se un server rifiuta
@@ -56,16 +77,20 @@ const errorText = (body) =>
  */
 export async function fetchOverpass(
   query,
-  { fetchFn = fetch, urls = OVERPASS_URLS, timeoutMs = 45000, busyPause = 10000 } = {},
+  { fetchFn = fetch, urls = OVERPASS_URLS, timeoutMs = 45000, busyPause = 10000, servers = null } = {},
 ) {
   const failures = [];
-  for (const url of urls) {
+  for (const url of serverOrder(urls, servers)) {
     const host = new URL(url).host;
     // Un server sovraccarico ("too busy", 429, 504 "open64") spesso risponde dopo qualche secondo: si riprova
     // una volta prima di passare al successivo.
     for (let attempt = 0; attempt < 2; attempt++) {
       const outcome = await tryOverpass(url, host, query, fetchFn, timeoutMs);
-      if (outcome.json) return outcome.json;
+      if (outcome.json) {
+        if (servers) servers.good = host;
+        return outcome.json;
+      }
+      if (outcome.unreachable) servers?.down.add(host);
       if (outcome.busy && attempt === 0) {
         if (busyPause) await sleep(busyPause);
         continue;
@@ -107,6 +132,7 @@ async function tryOverpass(url, host, query, fetchFn, timeoutMs) {
   } catch (err) {
     return {
       failure: `${host}: ${err.name === 'TimeoutError' ? 'nessuna risposta' : (err.cause?.code ?? err.message)}`,
+      unreachable: true,
     };
   }
 }
@@ -271,47 +297,71 @@ export function mergeResults(lists) {
 }
 
 const OSM_CACHE_HOURS = 24;
+// Se i server non rispondono, risultati salvati usabili comunque (con un avviso).
+const OSM_STALE_DAYS = 30;
 
 /**
  * Query Overpass con una memoria di 24 ore su file: ripetere la stessa ricerca (stessa zona, stesso settore)
- * non interroga di nuovo i server pubblici, che sono spesso sovraccarichi.
+ * non interroga di nuovo i server pubblici, che sono spesso sovraccarichi. Se i server non rispondono si usano
+ * i risultati salvati anche se più vecchi (fino a 30 giorni): `stale` dice di quando sono.
+ * @returns {Promise<{ json: object, stale?: string }>}
  */
 async function cachedOverpass(query, { cacheDir, ...options }) {
-  if (!cacheDir) return fetchOverpass(query, options);
+  if (!cacheDir) return { json: await fetchOverpass(query, options) };
   const file = path.join(cacheDir, `${createHash('sha1').update(query).digest('hex').slice(0, 16)}.json`);
+  let saved = null;
   try {
-    const { at, json } = JSON.parse(await readFile(file, 'utf8'));
-    if (Date.now() - new Date(at).getTime() < OSM_CACHE_HOURS * 3600 * 1000) return json;
+    saved = JSON.parse(await readFile(file, 'utf8'));
+    if (Date.now() - new Date(saved.at).getTime() < OSM_CACHE_HOURS * 3600 * 1000) return { json: saved.json };
   } catch {
     // niente in memoria (o file illeggibile): si interroga il server
   }
-  const json = await fetchOverpass(query, options);
-  await mkdir(cacheDir, { recursive: true });
-  await writeFile(file, JSON.stringify({ at: new Date().toISOString(), json }));
-  return json;
+  try {
+    const json = await fetchOverpass(query, options);
+    await mkdir(cacheDir, { recursive: true });
+    await writeFile(file, JSON.stringify({ at: new Date().toISOString(), json }));
+    return { json };
+  } catch (err) {
+    if (saved?.json && Date.now() - new Date(saved.at).getTime() < OSM_STALE_DAYS * 86400 * 1000) {
+      return { json: saved.json, stale: saved.at };
+    }
+    throw err;
+  }
 }
 
 /**
  * OpenStreetMap, un settore alla volta: query piccole che i server pubblici reggono, e se un settore fallisce
  * gli altri arrivano comunque. Dopo due settori falliti di fila si smette (i server sono giù o sovraccarichi).
  */
-async function searchOsm(center, radiusKm, sectors, http, problems, cacheDir) {
+async function searchOsm(center, radiusKm, sectors, http, problems, cacheDir, osm) {
   const out = [];
   let failedInARow = 0;
   for (const id of sectors.filter((s) => sectorById(s)?.osm.length)) {
     try {
-      const json = await cachedOverpass(overpassQuery(center, radiusKm, [id]), {
-        cacheDir,
-        fetchFn: http.fetch ?? fetch,
-        busyPause: http.busyPause,
-      });
+      // Una query alla volta anche con più città: i server pubblici limitano le richieste contemporanee.
+      const { json, stale } = await osm.queue(() =>
+        cachedOverpass(overpassQuery(center, radiusKm, [id]), {
+          cacheDir,
+          fetchFn: http.fetch ?? fetch,
+          busyPause: http.busyPause,
+          servers: osm.servers,
+        }),
+      );
+      if (stale) {
+        problems.push(
+          `OpenStreetMap (${center.name}, ${sectorById(id).label.toLowerCase()}): i server non rispondono, ` +
+            `uso i risultati salvati il ${new Date(stale).toLocaleDateString('it-IT')}.`,
+        );
+      }
       out.push(...parseOverpass(json, center, sectors).filter((p) => p.distanceKm == null || p.distanceKm <= radiusKm));
       failedInARow = 0;
     } catch (err) {
       problems.push(`OpenStreetMap (${center.name}, ${sectorById(id).label.toLowerCase()}): ${err.message}`);
       if (++failedInARow >= 2) {
         problems.push(
-          `OpenStreetMap (${center.name}): i server non rispondono, gli altri settori non sono stati cercati.`,
+          `OpenStreetMap (${center.name}): i server pubblici sono sovraccarichi o non rispondono (non dipende da ` +
+            "job-searcher), gli altri settori non sono stati cercati. Riprova tra un po': i settori già trovati " +
+            'restano in memoria per 24 ore. Intanto puoi usare la ricerca web o «Chiedi a Claude».',
         );
         break;
       }
@@ -320,8 +370,8 @@ async function searchOsm(center, radiusKm, sectors, http, problems, cacheDir) {
   return out;
 }
 
-async function searchMaps(center, radiusKm, sectors, http, problems, cacheDir) {
-  const fromOsm = searchOsm(center, radiusKm, sectors, http, problems, cacheDir);
+async function searchMaps(center, radiusKm, sectors, http, problems, cacheDir, osm) {
+  const fromOsm = searchOsm(center, radiusKm, sectors, http, problems, cacheDir, osm);
   // Wikidata serve solo per le case editrici.
   const fromWikidata = !sectors.includes('casa-editrice')
     ? Promise.resolve([])
@@ -364,8 +414,17 @@ export async function discoverPublishers({
   if (!names.length) throw new Error('Indica almeno una città, es. Padova.');
   const centers = names.map(resolveCenter);
   const problems = [];
+  let last = Promise.resolve();
+  const osm = {
+    servers: overpassServers(),
+    queue: (fn) => {
+      const next = last.then(fn);
+      last = next.catch(() => {});
+      return next;
+    },
+  };
   const [maps, fromWeb] = await Promise.all([
-    Promise.all(centers.map((c) => searchMaps(c, radiusKm, sectors, http, problems, osmCache))),
+    Promise.all(centers.map((c) => searchMaps(c, radiusKm, sectors, http, problems, osmCache, osm))),
     web(
       centers.map((c) => c.name),
       { sectors },
