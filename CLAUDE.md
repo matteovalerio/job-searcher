@@ -73,6 +73,7 @@ di Next. La CI (`.github/workflows/test.yml`) esegue test su Node 20 e 22, lint 
 - `src/market/` fa l'analisi del mercato: le offerte viste si accumulano per profilo; `catalog.js` elenca le
   competenze con le risorse per colmarle.
 - `src/match.js` prepara il confronto tra CV e offerte; `src/tracking.js` segue le candidature.
+- `src/diagnose.js` spiega perché un'offerta di LinkedIn non compare (comando `perche`, casella nella pagina Offerte).
 - `src/commands/` contiene i comandi `publishers` e `cv`; gli altri sono in `src/cli.js`.
 - `web/app/` contiene pagine, componenti e route `/api`; lo stile è tutto in `web/app/globals.css` (token di colore
   su `:root`, tema scuro).

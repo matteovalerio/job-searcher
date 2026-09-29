@@ -7,6 +7,7 @@ import { CopyIcon, ExternalIcon, RefreshIcon, SearchIcon, SparkIcon } from './ic
 import JobCard from './JobCard.js';
 import KitModal from './KitModal.js';
 import Modal from './Modal.js';
+import WhyPanel from './WhyPanel.js';
 
 function formatEvent(e) {
   const where = e.target ? `${e.target} · ${e.source}` : '';
@@ -352,6 +353,7 @@ export default function ResultsView({ profile, initialResults, statuses }) {
           )}
         </>
       )}
+      <WhyPanel profile={profile.id} />
     </div>
   );
 }

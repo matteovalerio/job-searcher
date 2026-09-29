@@ -58,6 +58,18 @@ export function findComune(name, near = []) {
   return candidates ? closestTo(candidates, near) : null;
 }
 
+// Nomi inglesi di città e regioni italiane: LinkedIn e i portali internazionali scrivono "Padua, Veneto, Italy".
+// biome-ignore format: tabella
+const EXONYMS = {
+  padua: 'padova', venice: 'venezia', milan: 'milano', rome: 'roma', turin: 'torino', florence: 'firenze',
+  naples: 'napoli', genoa: 'genova', mantua: 'mantova', syracuse: 'siracusa', leghorn: 'livorno', trent: 'trento',
+  bozen: 'bolzano', 'south tyrol': 'bolzano', lombardy: 'lombardia', piedmont: 'piemonte', tuscany: 'toscana',
+  sicily: 'sicilia', sardinia: 'sardegna', apulia: 'puglia', 'aosta valley': "valle d'aosta",
+  'friuli venezia giulia': 'friuli-venezia giulia', 'trentino-south tyrol': 'trentino-alto adige',
+};
+const EXONYM_RE = new RegExp(`\\b(${Object.keys(EXONYMS).join('|')})\\b`, 'g');
+const italianNames = (text) => text.replace(EXONYM_RE, (w) => EXONYMS[w]);
+
 const PROVINCE_PREFIX = /^(?:provincia di|province of|area metropolitana di|citta metropolitana di|greater)\s+/;
 const AREA_SUFFIX = /\s+(?:e dintorni|area|metropolitan area)$/;
 // Enti con il nome della città: "Comune di Padova", "Università degli Studi di Padova", "ULSS 6 Euganea - Padova".
@@ -74,7 +86,7 @@ export function locate(location, near = []) {
   const { provinces, regions } = load();
   const parts = String(location ?? '')
     .split(/[,;|]|\s+-\s+/)
-    .map((p) => normalize(p.replace(/\((\w{2})\)/, ', $1')))
+    .map((p) => italianNames(normalize(p.replace(/\((\w{2})\)/, ', $1'))))
     .flatMap((p) => p.split(','))
     .map((p) => p.trim())
     .filter(Boolean);

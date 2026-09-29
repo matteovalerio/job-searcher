@@ -69,6 +69,95 @@ export function parseDetail(html) {
   return { description: truncate(description, 1500), tags };
 }
 
+/** Id numerico di un'offerta da un link di LinkedIn (/jobs/view/…-4470018594, ?currentJobId=…) o dall'id. */
+export function linkedinJobId(ref) {
+  const text = String(ref ?? '').trim();
+  return (
+    text.match(/currentJobId=(\d{6,})/)?.[1] ??
+    text.match(/\/jobs\/view\/(?:[^/?]*?-)?(\d{6,})/)?.[1] ??
+    text.match(/^(\d{6,})$/)?.[1] ??
+    null
+  );
+}
+
+// "3 giorni fa", "2 weeks ago": la pagina di un'offerta dice da quanto è pubblicata, non la data.
+const AGO_UNITS = [
+  [/^(minut|minute|or[ae]|hour)/, 1 / 24],
+  [/^(giorn|day)/, 1],
+  [/^(settiman|week)/, 7],
+  [/^(mes[ei]|month)/, 30],
+];
+function postedFromAgo(text, now = Date.now()) {
+  const m = String(text ?? '')
+    .toLowerCase()
+    .match(/(\d+)\s+([a-z]+)/);
+  if (!m) return null;
+  const days = AGO_UNITS.find(([re]) => re.test(m[2]))?.[1];
+  return days ? new Date(now - Number(m[1]) * days * 86400000).toISOString() : null;
+}
+
+/** Un'offerta dalla sua pagina (endpoint pubblico jobPosting): titolo, azienda, luogo, data, descrizione. */
+export function parsePosting(html, id, now = Date.now()) {
+  const $ = cheerio.load(html);
+  const text = (sel) => $(sel).first().text().replace(/\s+/g, ' ').trim();
+  const detail = parseDetail(html);
+  return makeJob('linkedin', {
+    id,
+    title: text('.top-card-layout__title, .topcard__title'),
+    company: text('.topcard__org-name-link, .topcard__flavor a'),
+    location: text('.topcard__flavor--bullet'),
+    url: `https://www.linkedin.com/jobs/view/${id}/`,
+    postedAt: postedFromAgo(text('.posted-time-ago__text'), now),
+    description: detail.description,
+    tags: detail.tags,
+  });
+}
+
+/** Scarica la pagina di un'offerta di LinkedIn. */
+export async function fetchPosting(ref, { get = getText } = {}) {
+  const id = linkedinJobId(ref);
+  if (!id)
+    throw new Error(`Non riconosco il link di LinkedIn "${ref}": serve un indirizzo come …/jobs/view/4470018594/`);
+  return parsePosting(await get(`${DETAIL}/${id}`), id);
+}
+
+/** Località (testi LinkedIn) interrogate per un target: per il remoto più d'una, per un'area il luogo. */
+export function linkedinLocations(target) {
+  return target.type === 'remote'
+    ? (target.linkedinLocations ?? ['Italia', 'Unione Europea', 'Worldwide'])
+    : [linkedinLocation(target)];
+}
+
+/**
+ * Una ricerca (parola + località), pagina per pagina: restituisce le offerte di ogni pagina.
+ * La usano sia la ricerca normale sia la diagnosi ("perché non trovo questa offerta?").
+ */
+export async function searchPages({
+  keyword,
+  location,
+  target,
+  maxAgeDays,
+  maxPages = 2,
+  get = getText,
+  pause = 1500,
+}) {
+  const pages = [];
+  for (let page = 0; page < maxPages; page++) {
+    const params = new URLSearchParams({ keywords: keyword, location, start: String(page * PAGE_SIZE) });
+    const geoId = GEO_IDS[location.toLowerCase()] ?? target.linkedinGeoId;
+    if (geoId) params.set('geoId', geoId);
+    if (target.type === 'remote') params.set('f_WT', '2');
+    else params.set('distance', String(kmToLinkedinMiles(target.radiusKm ?? 30)));
+    if (maxAgeDays) params.set('f_TPR', `r${maxAgeDays * 86400}`);
+    const html = await get(`${BASE}?${params}`);
+    const found = parse(html, { remote: target.type === 'remote' ? true : null });
+    pages.push(found);
+    if (pause) await sleep(pause); // LinkedIn limita rapidamente chi fa troppe richieste
+    if (found.length < PAGE_SIZE) break;
+  }
+  return pages;
+}
+
 export default {
   name: 'linkedin',
   label: 'LinkedIn',
@@ -83,30 +172,10 @@ export default {
   },
   async search({ keywords, target, maxAgeDays, maxPages = 2, warn }) {
     // Per il remoto interroghiamo più "località" LinkedIn con il filtro "Da remoto" (f_WT=2).
-    const locations =
-      target.type === 'remote'
-        ? (target.linkedinLocations ?? ['Italia', 'Unione Europea', 'Worldwide'])
-        : [linkedinLocation(target)];
-    const queries = keywords.flatMap((keyword) => locations.map((location) => ({ keyword, location })));
+    const queries = keywords.flatMap((keyword) => linkedinLocations(target).map((location) => ({ keyword, location })));
     return eachQuery(
       queries,
-      async ({ keyword, location }) => {
-        const jobs = [];
-        for (let page = 0; page < maxPages; page++) {
-          const params = new URLSearchParams({ keywords: keyword, location, start: String(page * PAGE_SIZE) });
-          const geoId = GEO_IDS[location.toLowerCase()] ?? target.linkedinGeoId;
-          if (geoId) params.set('geoId', geoId);
-          if (target.type === 'remote') params.set('f_WT', '2');
-          else params.set('distance', String(kmToLinkedinMiles(target.radiusKm ?? 30)));
-          if (maxAgeDays) params.set('f_TPR', `r${maxAgeDays * 86400}`);
-          const html = await getText(`${BASE}?${params}`);
-          const found = parse(html, { remote: target.type === 'remote' ? true : null });
-          jobs.push(...found);
-          await sleep(1500); // LinkedIn limita rapidamente chi fa troppe richieste
-          if (found.length < PAGE_SIZE) break;
-        }
-        return jobs;
-      },
+      async ({ keyword, location }) => (await searchPages({ keyword, location, target, maxAgeDays, maxPages })).flat(),
       warn,
     );
   },
