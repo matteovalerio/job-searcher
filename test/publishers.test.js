@@ -87,7 +87,7 @@ test('discoverPublishers: più città, ricerca web facoltativa, problemi riporta
     },
   };
   const noWeb = async () => ({ results: [], problems: [], skipped: true });
-  const one = await discoverPublishers({ place: 'Padova', radiusKm: 40, http, web: noWeb });
+  const one = await discoverPublishers({ osmCache: null, place: 'Padova', radiusKm: 40, http, web: noWeb });
   assert.equal(one.center.name, 'Padova');
   assert.equal(one.results.length, 4);
   assert.deepEqual(one.problems, ['Wikidata (Padova): HTTP 429']);
@@ -98,7 +98,7 @@ test('discoverPublishers: più città, ricerca web facoltativa, problemi riporta
     results: [{ name: 'Wetlands', website: 'https://wetlandsbooks.com/', city: 'Venezia', source: 'ricerca web' }],
     problems: [`cercate: ${cities.join(', ')}`],
   });
-  const two = await discoverPublishers({ place: 'Padova, Venezia', radiusKm: 40, http, web });
+  const two = await discoverPublishers({ osmCache: null, place: 'Padova, Venezia', radiusKm: 40, http, web });
   assert.deepEqual(
     two.centers.map((c) => c.name),
     ['Padova', 'Venezia'],
@@ -108,7 +108,10 @@ test('discoverPublishers: più città, ricerca web facoltativa, problemi riporta
   assert.ok(two.results.some((r) => r.name === 'Wetlands'));
   // Lo studio di Vicenza (30 km da Padova) resta a 30 km: la distanza è dal centro più vicino.
   assert.equal(two.results.find((r) => r.name === 'Studio Editoriale Pagine').distanceKm, 30);
-  await assert.rejects(discoverPublishers({ place: 'Atlantide', http, web: noWeb }), /Non riconosco il comune/);
+  await assert.rejects(
+    discoverPublishers({ osmCache: null, place: 'Atlantide', http, web: noWeb }),
+    /Non riconosco il comune/,
+  );
 });
 
 test('sito della casa editrice: descrizione, specializzazione, email migliore e "lavora con noi"', async () => {
@@ -270,6 +273,7 @@ test('OpenStreetMap un settore alla volta: se uno fallisce gli altri arrivano; d
   };
   const noWeb = async () => ({ results: [], problems: [], skipped: true });
   const found = await discoverPublishers({
+    osmCache: null,
     place: 'Padova',
     radiusKm: 30,
     sectors: ['agenzia-comunicazione', 'tipografia'],
@@ -285,6 +289,7 @@ test('OpenStreetMap un settore alla volta: se uno fallisce gli altri arrivano; d
   assert.match(found.problems[0], /agenzie pubblicitarie e di comunicazione\): nessun server ha risposto/);
 
   const down = await discoverPublishers({
+    osmCache: null,
     place: 'Padova',
     sectors: ['agenzia-comunicazione', 'tipografia', 'libreria'],
     http: { ...http, fetch: async () => new Response('down', { status: 503 }) },
@@ -292,4 +297,30 @@ test('OpenStreetMap un settore alla volta: se uno fallisce gli altri arrivano; d
   });
   assert.equal(down.problems.length, 3);
   assert.match(down.problems[2], /gli altri settori non sono stati cercati/);
+});
+
+test('OpenStreetMap: la stessa ricerca entro 24 ore usa la memoria, senza interrogare i server', async () => {
+  const cacheDir = await mkdtemp(path.join(tmpdir(), 'osm-cache-'));
+  let calls = 0;
+  const http = {
+    async fetch() {
+      calls++;
+      return Response.json({
+        elements: [{ type: 'node', lat: 45.41, lon: 11.88, tags: { name: 'Tipografia Veneta', craft: 'printer' } }],
+      });
+    },
+    async getJson() {
+      return { results: { bindings: [] } };
+    },
+  };
+  const noWeb = async () => ({ results: [], problems: [], skipped: true });
+  const run = () =>
+    discoverPublishers({ place: 'Padova', sectors: ['tipografia'], http, web: noWeb, osmCache: cacheDir });
+  const first = await run();
+  const second = await run();
+  assert.equal(calls, 1);
+  assert.deepEqual(
+    second.results.map((r) => r.name),
+    first.results.map((r) => r.name),
+  );
 });
