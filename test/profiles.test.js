@@ -121,7 +121,7 @@ test('builder: il profilo generato è valido per la ricerca', () => {
     remote: 'europa',
     browserSources: true,
   });
-  assert.deepEqual(profile.enableSources, ['indeed', 'infojobs']);
+  assert.deepEqual(profile.enableSources, ['infojobs']);
   assert.ok(profile.languages.includes('english'));
   const resolved = resolveProfile(profile);
   assert.deepEqual(

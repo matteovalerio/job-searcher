@@ -122,7 +122,7 @@ Per un uso quotidiano è più veloce la versione compilata: `npm run build` una 
   - *Procedura guidata:* carichi il CV in PDF (facoltativo); le aree, gli anni di esperienza, le parole chiave, le lingue e i filtri vengono proposti dal CV. Controlli, correggi e salvi.
   - *Con l'aiuto di Claude:* il programma prepara il testo (con il CV, se l'hai caricato), tu lo incolli su claude.ai e poi incolli qui la risposta con il blocco JSON. Il profilo viene controllato prima di salvarlo.
 
-Si può fare una ricerca alla volta. Indeed e InfoJobs aprono il browser come dalla riga di comando; se non ti servono, spunta «senza Indeed e InfoJobs». Il codice dell'interfaccia è in `web/app` (pagine e route `/api`). Il collegamento con il programma è in `web/lib/core.js`.
+Si può fare una ricerca alla volta. InfoJobs apre il browser come dalla riga di comando; se non ti serve, spunta «Salta InfoJobs». Il codice dell'interfaccia è in `web/app` (pagine e route `/api`). Il collegamento con il programma è in `web/lib/core.js`.
 
 ## Seguire le candidature
 
@@ -155,7 +155,7 @@ Per ritrovare un'offerta dal codice si usano gli ultimi risultati di ogni profil
 
 Il repository contiene un workflow (`.github/workflows/ricerca-quotidiana.yml`) che ogni mattina esegue la ricerca sui server di GitHub, gratis, e manda **solo le offerte nuove** su Telegram, per email o su entrambi. Non serve tenere acceso il computer.
 
-- **Fonti:** Indeed e InfoJobs sono esclusi, perché richiedono un browser e la verifica anti-robot. Tutte le altre fonti funzionano.
+- **Fonti:** InfoJobs è escluso, perché richiede un browser e la verifica anti-robot. Tutte le altre fonti funzionano.
 - **Prima esecuzione:** arriva un riepilogo con le 10 offerte migliori per zona. Dalla seconda in poi arrivano solo quelle mai viste.
 - **Memoria:** l'elenco delle offerte già viste è conservato nella cache di GitHub Actions.
 - **Se l'invio fallisce:** l'elenco non viene aggiornato, così le offerte arrivano con l'esecuzione successiva.
@@ -189,14 +189,13 @@ Per le fonti con chiave API aggiungi anche `ADZUNA_APP_ID`, `ADZUNA_APP_KEY` e `
 **Da sapere:**
 - Se il repository è **pubblico**, i profili e i log delle esecuzioni sono visibili a tutti. I segreti restano nascosti; i profili contengono solo parole chiave e città, ma il blocco `candidate` creato da `profile new` riporta anche studi e anni di esperienza. Se preferisci, rendi il repository privato: per un uso come questo i minuti gratuiti di GitHub Actions bastano ampiamente.
 - GitHub sospende i workflow pianificati dei repository pubblici senza attività da 60 giorni e manda un'email; basta riattivarlo dalla scheda *Actions*.
-- Lo stesso comando funziona anche sul tuo computer, per esempio con cron: `node src/cli.js search -p <nome> --notify`. Le variabili vanno nel file `.env`; lì Indeed e InfoJobs restano disponibili, a meno di usare `--no-browser`.
+- Lo stesso comando funziona anche sul tuo computer, per esempio con cron: `node src/cli.js search -p <nome> --notify`. Le variabili vanno nel file `.env`; lì InfoJobs resta disponibile, a meno di usare `--no-browser`.
 
 ## Fonti incluse
 
 | Fonte | Zona geografica | Full remote | Note |
 |---|---|---|---|
 | LinkedIn | ✓ | ✓ | pagina pubblica delle offerte, senza login. Spesso ignora la località (i risultati vengono filtrati per distanza) e, se si fanno troppe richieste, risponde con errore 429 |
-| Indeed | ✓ | ✓ | **da attivare** (`"enableSources": ["indeed"]`, già attiva nel profilo incluso). Usa un vero browser: vedi sotto |
 | InfoJobs | ✓ | | **da attivare** (`"enableSources": ["infojobs"]`). Usa un vero browser: vedi sotto |
 | Adzuna | ✓ | ✓ | aggregatore con API gratuita, copre l'Italia (per il remoto cerca offerte italiane che citano il lavoro da remoto). Richiede `ADZUNA_APP_ID` e `ADZUNA_APP_KEY` |
 | Jooble | ✓ | | aggrega molti portali italiani (InfoJobs, Indeed, siti aziendali…). Richiede `JOOBLE_API_KEY`; se dà sempre 0 risultati prova `JOOBLE_HOST=it.jooble.org` |
@@ -209,13 +208,15 @@ Per le fonti con chiave API aggiungi anche `ADZUNA_APP_ID`, `ADZUNA_APP_KEY` e `
 
 Le fonti che richiedono una chiave vengono **saltate** se la chiave manca: la ricerca funziona lo stesso. Consiglio comunque di registrarti gratis su Adzuna e Jooble, perché sono il modo più affidabile per coprire i portali italiani. Subito blocca le letture automatiche delle sue pagine.
 
-### Indeed e InfoJobs (con il browser)
+### InfoJobs (con il browser)
 
-Indeed e InfoJobs non hanno un'API pubblica e bloccano gli script, quindi queste due fonti aprono **Chrome** (tramite Playwright, installato da `npm install`) e leggono le pagine dei risultati come farebbe una persona.
+InfoJobs non ha un'API pubblica e blocca gli script, quindi questa fonte apre **Chrome** (tramite Playwright, installato da `npm install`) e legge le pagine dei risultati come farebbe una persona.
+
+**Indeed non c'è più.** Anche con il browser vero, la verifica anti-robot di Cloudflare sul suo sito ricominciava all'infinito. Le sue offerte arrivano comunque in parte da Jooble, che lo aggrega. Per seguirlo direttamente si può creare un Google Alert, per esempio `redattore site:it.indeed.com`, e aggiungerne il feed RSS al profilo come quello già presente.
 
 - **Quale browser:** Chrome o Edge se ci sono, altrimenti un altro browser basato su Chromium installato (Chromium, Brave, Vivaldi…). Se non ce n'è nessuno, `npm run browser:install` scarica il Chromium di Playwright, circa 150 MB.
 - **Prima esecuzione:** si apre una finestra del browser. Se il sito mostra la verifica "non sono un robot", risolvila a mano nella finestra (hai 2 minuti) e il programma prosegue da solo. Il profilo del browser è salvato in `.job-searcher/browser`, quindi le volte successive la verifica di solito non ricompare.
-- **Superare la verifica con calma:** `node src/cli.js browser` apre il browser del programma su Indeed (`browser infojobs` per InfoJobs). Risolvi la verifica, fai una ricerca qualsiasi e chiudi la finestra: i cookie restano per le ricerche successive.
+- **Superare la verifica con calma:** `node src/cli.js browser` apre il browser del programma su InfoJobs. Risolvi la verifica, fai una ricerca qualsiasi e chiudi la finestra: i cookie restano per le ricerche successive.
 - **Più lente delle altre fonti:** tra una pagina e l'altra fanno pause di 3–6 secondi.
 - **Se un sito cambia struttura** e non viene riconosciuta nessuna offerta, la pagina viene salvata in `.job-searcher/debug/` e il riepilogo lo segnala: quel file serve per aggiornare il riconoscimento.
 - **Variabili d'ambiente** (nel file `.env`):
@@ -223,14 +224,13 @@ Indeed e InfoJobs non hanno un'API pubblica e bloccano gli script, quindi queste
   - `JOB_SEARCHER_BROWSER=msedge` usa Edge invece di Chrome;
   - `JOB_SEARCHER_BROWSER_PATH=/percorso/del/browser` usa un altro browser basato su Chromium (Brave, Chromium…);
   - `JOB_SEARCHER_BROWSER_ARGS="--opzione …"` passa opzioni in più a Chrome (sostituiscono quelle per WSL);
-  - `INDEED_HOST=it.indeed.com` cambia il dominio di Indeed;
   - `INFOJOBS_SEARCH_URL` cambia l'indirizzo della ricerca su InfoJobs (vedi sotto).
-- **Da sapere:** i termini d'uso di Indeed e InfoJobs non consentono la lettura automatica. Per questo le due fonti sono disattivate di default e si attivano con `"enableSources": ["indeed", "infojobs"]` nel profilo; la procedura guidata lo chiede. Per un uso personale, con poche richieste, il rischio pratico è basso, ma la scelta è tua.
+- **Da sapere:** i termini d'uso di InfoJobs non consentono la lettura automatica. Per questo la fonte è disattivata di default e si attiva con `"enableSources": ["infojobs"]` nel profilo; la procedura guidata lo chiede. Per un uso personale, con poche richieste, il rischio pratico è basso, ma la scelta è tua.
 
 **Su WSL (Linux dentro Windows).** Le finestre delle app Linux passano da WSLg, e con Chrome capita che compaia solo l'icona nella barra, senza finestra. Su WSL il programma avvia Chrome con `--disable-gpu --ozone-platform=x11`, che di solito risolve. Per controllare, usa `node src/cli.js browser`. Se la finestra ancora non si vede:
 - aggiorna WSL da Windows con `wsl --update` e riavvialo con `wsl --shutdown`;
 - prova altre opzioni, per esempio `JOB_SEARCHER_BROWSER_ARGS="--disable-gpu"` oppure `JOB_SEARCHER_BROWSER_ARGS="--disable-gpu --ozone-platform=wayland"`;
-- se non ne vale la pena, lascia Indeed e InfoJobs fuori dal profilo, oppure cerca con `--no-browser`.
+- se non ne vale la pena, lascia InfoJobs fuori dal profilo, oppure cerca con `--no-browser`.
 
 **InfoJobs: indirizzo della ricerca.** Il programma riconosce le offerte in tre modi:
 - dati strutturati JSON-LD;
@@ -248,7 +248,7 @@ L'indirizzo predefinito della ricerca non è stato provato sul sito vero. Se Inf
 ```bash
 node src/cli.js doctor                          # fonti base
 node src/cli.js doctor -p redattore-padova      # le fonti e le parole di un profilo
-node src/cli.js doctor -s indeed,infojobs       # solo alcune (queste due aprono il browser)
+node src/cli.js doctor -s infojobs,linkedin      # solo alcune (InfoJobs apre il browser)
 ```
 
 `doctor` fa una ricerca di prova con una sola parola, un solo luogo e una sola pagina su ogni fonte. Per ciascuna dice se funziona, se non restituisce nulla, se è in errore o se è stata saltata perché manca una chiave. Con un profilo (`-p`) dice anche quanti risultati sono pertinenti, cioè passerebbero i filtri, e mostra come esempio uno di questi. Se in zona non trova nulla, riprova con le parole del remoto: così un sito in inglese non risulta vuoto solo perché ha cercato "redattore". Per le pagine "lavora con noi" indica quale pagina ha usato e come l'ha trovata. Se un servizio risponde in un formato diverso da quello atteso lo segnala, invece di mostrare semplicemente 0 risultati. Se una fonte non trova nulla, `doctor` riprova con una parola comunissima (per esempio "impiegato"). Così distingue una fonte che funziona ma non ha offerte per quella parola da una che non funziona. Quando qualcosa non va aggiunge un suggerimento: chiave sbagliata, sito che blocca le richieste, indirizzo cambiato, troppe richieste. Per LinkedIn prova anche il download dei dettagli. Con `-f json` produce il riepilogo completo, utile per segnalare un problema.
@@ -266,7 +266,7 @@ Un profilo è un file JSON dentro `profiles/`. Di solito si crea con `profile ne
   "relatedKeywords": ["impaginat*", "traduttore"],  // (opz.) ruoli affini: tengono l'offerta ma con meno punti
   "languages": ["italiano", "italian", "inglese", "english"], // (opz.) scarta chi chiede altre lingue nel titolo
   "searchKeywords": ["redattore", "editor"],        // (opz.) parole cercate sui portali; default: keywords
-  "enableSources": ["indeed"],                     // (opz.) fonti disattivate di default da usare
+  "enableSources": ["infojobs"],                   // (opz.) fonti disattivate di default da usare
   "excludeKeywords": ["video", "software"],        // scarta le offerte che le hanno nel TITOLO
   "boostKeywords": ["casa editrice", "libri"],     // alzano il punteggio (non obbligatorie)
   "matchIn": "title",                              // oppure "title+description" (più risultati, più rumore)
@@ -506,7 +506,7 @@ src/
   app.js           percorso completo di una ricerca (usato da riga di comando e interfaccia web)
   paths.js         dove stanno i file (JOB_SEARCHER_HOME)
   job.js           formato comune di un'offerta
-  browser.js       browser vero (Playwright) per Indeed e InfoJobs
+  browser.js       browser vero (Playwright) per InfoJobs
   profiles/        archivio dei profili, analisi del CV, procedura guidata, prompt per claude.ai, aree professionali (roles.js)
   sources/         un modulo per portale + fonti generiche (rss, html, careers, piattaforme di selezione)
   output/          terminale, HTML, CSV, JSON

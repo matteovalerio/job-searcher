@@ -140,7 +140,7 @@ export function buildProfile(a) {
     languages: languageForms(a.languages ?? ['italiano']),
     excludeKeywords: a.exclude ?? [],
     boostKeywords: a.boost ?? [],
-    ...(a.browserSources ? { enableSources: ['indeed', 'infojobs'] } : {}),
+    ...(a.browserSources ? { enableSources: ['infojobs'] } : {}),
     matchIn: 'title',
     ...(a.filters ? { filters: a.filters } : {}),
     maxAgeDays: a.maxAgeDays ?? 30,

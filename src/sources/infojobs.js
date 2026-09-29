@@ -7,7 +7,7 @@ import { parseJsonLd } from './jsonld.js';
 import { eachQuery } from './queries.js';
 
 /*
- * InfoJobs Italia non ha un'API pubblica e protegge il sito dagli script: come per Indeed si usa un vero
+ * InfoJobs Italia non ha un'API pubblica e protegge il sito dagli script: si usa un vero
  * browser (vedi src/browser.js). È disattivata di default; si attiva con "enableSources": ["infojobs"].
  *
  * L'indirizzo della ricerca si può cambiare senza toccare il codice, con INFOJOBS_SEARCH_URL o con

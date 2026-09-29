@@ -370,9 +370,9 @@ function Guided({ options, cv, onCv, onSaved }) {
             <label className="check">
               <input type="checkbox" checked={browserSources} onChange={(e) => setBrowserSources(e.target.checked)} />
               <span>
-                <strong>Cerca anche su Indeed e InfoJobs</strong>
+                <strong>Cerca anche su InfoJobs</strong>
                 <span className="muted small">
-                  Si apre il browser: i loro termini d&apos;uso non consentono la lettura automatica.
+                  Si apre il browser: i suoi termini d&apos;uso non consentono la lettura automatica.
                 </span>
               </span>
             </label>

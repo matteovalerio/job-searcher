@@ -4,7 +4,7 @@ import path from 'node:path';
 import { stateDir } from './paths.js';
 
 /*
- * Browser vero (Chrome tramite Playwright) per i siti che bloccano le richieste automatiche, come Indeed e
+ * Browser vero (Chrome tramite Playwright) per i siti che bloccano le richieste automatiche, come
  * InfoJobs. Il profilo del browser è salvato in .job-searcher/browser: dopo aver superato una volta la
  * verifica "non sono un robot", i cookie restano e le esecuzioni successive di solito passano direttamente.
  *

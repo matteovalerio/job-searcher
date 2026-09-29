@@ -51,7 +51,7 @@ Uso:
                                         (--cv file.pdf, --top 15, --ids a1b2c3d,e4f5a6b, -o file)
   job-searcher publishers               case editrici e candidature spontanee (vedi sotto)
   job-searcher cv tailor <codice>       prepara il testo per adattare il CV a un'offerta o a una casa editrice
-  job-searcher browser [indeed|infojobs|url]
+  job-searcher browser [infojobs|url]
                                         apre il browser del programma: per controllare che la finestra si veda e
                                         risolvere una volta la verifica anti-robot (i cookie restano)
 
@@ -78,7 +78,7 @@ Opzioni di ricerca:
       --limit <n>          massimo di offerte per target mostrate a terminale (default 50)
       --no-report          non generare il report HTML in reports/
       --notify             manda le offerte nuove su Telegram e/o email (vedi README)
-      --no-browser         salta le fonti che usano il browser (Indeed, InfoJobs)
+      --no-browser         salta le fonti che usano il browser (InfoJobs)
   -h, --help
 
 Esempi:
@@ -224,7 +224,7 @@ async function doctor(opts) {
   if (opts.format !== 'json') {
     console.log(c.bold(`Controllo di ${sources.length} fonti (una ricerca di prova ciascuna)`));
     if (!opts.sources?.some((name) => builtinSources.find((s) => s.name === name)?.optIn) && !profile) {
-      console.log(c.dim('Indeed e InfoJobs aprono il browser: provale con "doctor -s indeed,infojobs".'));
+      console.log(c.dim('InfoJobs apre il browser: provala con "doctor -s infojobs".'));
     }
   }
   const results = await runDoctor(sources, {
@@ -511,12 +511,12 @@ async function importProfile(opts, file) {
   console.log(`Per cercare: ${c.bold(`job-searcher search -p ${id}`)}`);
 }
 
-const BROWSER_SITES = { indeed: 'https://it.indeed.com/', infojobs: 'https://www.infojobs.it/' };
+const BROWSER_SITES = { infojobs: 'https://www.infojobs.it/' };
 
 async function openBrowserCommand(opts) {
-  const target = opts.args[0] ?? 'indeed';
+  const target = opts.args[0] ?? 'infojobs';
   const url = BROWSER_SITES[target] ?? (/^https?:\/\//.test(target) ? target : null);
-  if (!url) throw new Error('Indica indeed, infojobs o un indirizzo: job-searcher browser indeed');
+  if (!url) throw new Error('Indica infojobs o un indirizzo: job-searcher browser infojobs');
   const args = browserArgs();
   const note = [isWsl() && 'WSL', args.length && `opzioni: ${args.join(' ')}`].filter(Boolean).join(', ');
   console.error(c.dim(`Apro ${url}${note ? ` (${note})` : ''}…`));

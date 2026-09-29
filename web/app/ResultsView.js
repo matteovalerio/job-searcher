@@ -232,7 +232,7 @@ export default function ResultsView({ profile, initialResults, statuses }) {
       <div className="statusbar">
         <label>
           <input type="checkbox" checked={noBrowser} onChange={(e) => setNoBrowser(e.target.checked)} />
-          Salta Indeed e InfoJobs (niente browser)
+          Salta InfoJobs (niente browser)
         </label>
         {running ? (
           <span>Può richiedere qualche minuto: alcune fonti rispondono lentamente di proposito.</span>

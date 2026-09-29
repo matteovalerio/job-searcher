@@ -116,7 +116,7 @@ export function resolveProfile(profile, { onlySources, noBrowser = false } = {})
         return s;
       });
     } else {
-      // Le fonti "optIn" (es. Indeed) si usano solo se richieste esplicitamente.
+      // Le fonti "optIn" (es. InfoJobs) si usano solo se richieste esplicitamente.
       const enabled = new Set([...(profile.enableSources ?? []), ...(onlySources ?? [])]);
       sources = all.filter((s) => !s.optIn || enabled.has(s.name));
     }

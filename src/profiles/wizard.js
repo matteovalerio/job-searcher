@@ -169,7 +169,7 @@ export async function runWizard(io, { cv, name, now = new Date() } = {}) {
 
   const maxAgeDays = await askNumber('\nOfferte pubblicate negli ultimi quanti giorni', 30);
   const browserSources = await askYesNo(
-    "Cercare anche su Indeed e InfoJobs? Si apre Chrome; i loro termini d'uso non consentono la lettura automatica",
+    "Cercare anche su InfoJobs? Si apre Chrome; i suoi termini d'uso non consentono la lettura automatica",
     false,
   );
 
