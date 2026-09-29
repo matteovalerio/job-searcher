@@ -23,7 +23,8 @@ Case editrici e aziende affini (candidature spontanee):
   job-searcher publishers                     elenco, prima quelle da sollecitare (anche: "editori")
   job-searcher publishers sectors [-p profilo] settori affini al profilo e al CV salvato: perché e che ruolo proporre
   job-searcher publishers find -l "Padova,Venezia" -r 40 [--sectors affini] [--add]
-                                              cerca su OpenStreetMap, Wikidata e (con BRAVE_SEARCH_API_KEY) sul web;
+                                              cerca su OpenStreetMap, Wikidata e, con le chiavi,
+                                              su Google Maps (GOOGLE_MAPS_API_KEY) e sul web (BRAVE_SEARCH_API_KEY);
                                               --sectors: editoria (predefinito), affini, tutti o un elenco di settori;
                                               con --add le aggiunge all'elenco
   job-searcher publishers prompt -l "Padova,Venezia" -r 40 [--sectors affini] [-p profilo] [-o file]
@@ -185,13 +186,18 @@ async function find(opts, store) {
       `Cerco ${chosen.map((id) => sectorById(id).label.toLowerCase()).join(', ')} entro ${radiusKm} km da ${opts.place}…`,
     ),
   );
-  const { results, problems, webSearch } = await discoverPublishers({ place: opts.place, radiusKm, sectors: chosen });
+  const { results, problems, webSearch, googleMaps } = await discoverPublishers({
+    place: opts.place,
+    radiusKm,
+    sectors: chosen,
+  });
   for (const p of problems) console.error(c.yellow(`! ${p}`));
-  if (!webSearch) {
+  if (!webSearch && !googleMaps) {
     console.error(
       c.dim(
-        'Le mappe e Wikidata non conoscono molte piccole aziende. Per trovarne di più: la ricerca web (chiave gratuita\n' +
-          'BRAVE_SEARCH_API_KEY, vedi README) oppure "publishers prompt" per farsi aiutare da Claude.',
+        'OpenStreetMap e Wikidata non conoscono molte piccole aziende. Per trovarne di più: Google Maps\n' +
+          '(GOOGLE_MAPS_API_KEY), la ricerca web (BRAVE_SEARCH_API_KEY), vedi README, oppure "publishers prompt"\n' +
+          'per farsi aiutare da Claude.',
       ),
     );
   }

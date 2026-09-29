@@ -1,0 +1,43 @@
+{
+  "places": [
+    {
+      "id": "ChIJ-esempio-1",
+      "displayName": { "text": "Edizioni del Brenta", "languageCode": "it" },
+      "formattedAddress": "Via dei Contarini, 12, 35016 Piazzola sul Brenta PD, Italia",
+      "location": { "latitude": 45.5421, "longitude": 11.7852 },
+      "websiteUri": "https://www.edizionidelbrenta.it/chi-siamo",
+      "businessStatus": "OPERATIONAL"
+    },
+    {
+      "id": "ChIJ-esempio-2",
+      "displayName": { "text": "Studio Editoriale Punto e Virgola" },
+      "formattedAddress": "Corso Milano, 40, 35139 Padova PD, Italia",
+      "location": { "latitude": 45.4086, "longitude": 11.8702 },
+      "businessStatus": "OPERATIONAL"
+    },
+    {
+      "id": "ChIJ-esempio-3",
+      "displayName": { "text": "Tipografia Chiusa" },
+      "formattedAddress": "Via Roma, 1, 35010 Limena PD, Italia",
+      "location": { "latitude": 45.4769, "longitude": 11.8456 },
+      "websiteUri": "https://www.tipografiachiusa.it/",
+      "businessStatus": "CLOSED_PERMANENTLY"
+    },
+    {
+      "id": "ChIJ-esempio-4",
+      "displayName": { "text": "laFeltrinelli Padova" },
+      "formattedAddress": "Via San Francesco, 7, 35121 Padova PD, Italia",
+      "location": { "latitude": 45.4062, "longitude": 11.8795 },
+      "websiteUri": "https://www.lafeltrinelli.it/",
+      "businessStatus": "OPERATIONAL"
+    },
+    {
+      "id": "ChIJ-esempio-5",
+      "displayName": { "text": "Casa Editrice Lontana" },
+      "formattedAddress": "Piazza Walther, 1, 39100 Bolzano BZ, Italia",
+      "location": { "latitude": 46.4983, "longitude": 11.3548 },
+      "websiteUri": "https://www.editricelontana.it/",
+      "businessStatus": "OPERATIONAL"
+    }
+  ]
+}

@@ -17,7 +17,7 @@ export const searchQueries = (city, sectors = PUBLISHING_SECTORS) =>
   sectors.flatMap((id) => (sectorById(id)?.web ?? []).map((q) => ({ q: q.replace('{city}', city), sector: id })));
 
 // Siti che non sono aziende da contattare: grandi catene e negozi online, social, elenchi, giornali nazionali.
-const NOT_PUBLISHER_SITES =
+export const NOT_PUBLISHER_SITES =
   /(^|\.)(amazon|ibs|feltrinelli|lafeltrinelli|mondadoristore|libraccio|hoepli|goodreads|anobii|facebook|instagram|linkedin|youtube|tiktok|twitter|x|pinterest|wikipedia|wikidata|paginegialle|paginebianche|tripadvisor|yelp|google|virgilio|infojobs|indeed|subito|ebay|unilibro|bookdealer|giuntialpunto|repubblica|corriere|gazzettino|ilgazzettino|mattinopadova|ilmattino|nuovavenezia|ansa|glassdoor|kompass|reteimprese|registroimprese|ufficiocamerale|companyreports|informazione-aziende|trovaziende|cylex|misterimprese)\.[a-z.]+$/;
 
 // Parti del titolo da togliere per ricavare il nome ("Home - Edizioni X", "Edizioni X | Sito ufficiale").
