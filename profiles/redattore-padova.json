@@ -133,6 +133,11 @@
   ],
   "enableSources": ["indeed", "infojobs"],
   "matchIn": "title",
+  "filters": {
+    "maxYearsRequired": 10,
+    "excludeSeniority": ["stage"],
+    "excludeContracts": ["stage", "apprendistato"]
+  },
   "maxAgeDays": 30,
   "targets": [
     {

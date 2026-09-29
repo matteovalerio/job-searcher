@@ -1,3 +1,4 @@
+import { describeInfo } from '../extract.js';
 const useColor = process.stdout.isTTY && !process.env.NO_COLOR;
 const paint = (code) => (text) => (useColor ? `\x1b[${code}m${text}\x1b[0m` : String(text));
 export const c = {
@@ -22,6 +23,8 @@ export function renderTerminal(results, { limit = 50 } = {}) {
         (job.isNew ? c.green(' [NUOVA]') : '') + (job.warnings ?? []).map((w) => c.yellow(` [${w}]`)).join('');
       lines.push(`${c.bold(job.title)}${badge}  ${c.dim(`punti ${job.score}`)}`);
       lines.push(`  ${[job.company, job.location, formatDate(job.postedAt), job.source].filter(Boolean).join(' · ')}`);
+      const info = describeInfo(job.info);
+      if (info) lines.push(`  ${c.cyan(info)}`);
       lines.push(`  ${c.dim(job.url)}`);
     }
     if (jobs.length > limit) lines.push(c.dim(`  … altre ${jobs.length - limit} (usa --limit o il report HTML)`));

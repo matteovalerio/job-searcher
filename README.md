@@ -230,6 +230,25 @@ Un profilo è un file JSON dentro `profiles/`. Di solito si crea con `profile ne
 - **Target `area`**: una o più località (`place` oppure `places`) con un raggio. Molti portali non rispettano il raggio: cercando "Padova", LinkedIn restituisce offerte di tutta Italia. Per questo il programma riconosce da solo la località di ogni offerta ("Abano Terme", "Provincia di Vicenza", "Castelfranco Veneto, Provincia di Treviso"…) usando le coordinate di tutti i comuni italiani, e tiene solo quelle entro il raggio o nella stessa provincia di uno dei luoghi cercati. Se l'offerta indica solo la regione (es. "Veneto") viene tenuta. Se la località non si riconosce (es. "Italia") viene scartata, a meno di impostare `"unknownLocation": "keep"`. Il filtro per distanza vale per le ricerche in Italia (`"country": "it"`, il default).
 - **Target `remote`**: offerte full remote. Un'offerta viene scartata se è riservata a paesi fuori da `acceptedRegions` (per esempio "USA only"); le località italiane vanno bene se tra le regioni c'è "italia". Per le fonti che non dicono se un'offerta è remota si cerca nel testo "full remote", "da remoto" e simili ("smart working" non basta, perché di solito indica un lavoro ibrido).
 - **Fonti per target**: con `"sources": ["linkedin", "adzuna"]` dentro un target limiti le fonti usate. Di default si usano tutte quelle compatibili con il tipo di target.
+- **Livello, esperienza, contratto e stipendio** (`filters`): il programma ricava dal testo degli annunci:
+  - il livello (stage, junior, mid, senior);
+  - gli anni di esperienza richiesti ("almeno 3 anni", "3+ years of experience");
+  - il tipo di contratto (indeterminato, determinato, autonomo cioè partita IVA/freelance/collaborazione, somministrazione, apprendistato, stage);
+  - l'orario (part-time o full-time);
+  - lo stipendio ("RAL 28-32k", "1.600 € al mese", "$25 per hour"), con una stima lorda annua.
+
+  Queste informazioni compaiono nei risultati, nel report, nel CSV e nelle notifiche. Nel profilo si possono usare per filtrare:
+
+  ```json
+  "filters": {
+    "maxYearsRequired": 10,
+    "excludeSeniority": ["stage"],
+    "excludeContracts": ["stage", "apprendistato"],
+    "minSalary": 22000
+  }
+  ```
+
+  Un'informazione che nell'annuncio non c'è non fa mai scartare l'offerta. Un contratto viene escluso solo se tutti quelli citati sono tra gli esclusi ("somministrazione finalizzata al tempo indeterminato" resta). `minSalary` è lordo annuo in euro (`salaryCurrency` per un'altra valuta). La procedura guidata imposta i filtri in base agli anni di esperienza.
 - **Punteggio**: una parola chiave nel titolo vale 10 punti, nella descrizione 2. Un ruolo affine vale 5 punti (una volta sola), quindi resta sotto i ruoli principali. Una parola "boost" vale 5 punti nel titolo e 2 altrove (azienda compresa, quindi ci si possono mettere i nomi degli editori preferiti). Le offerte sono ordinate per punteggio e poi per data.
 - **Lingue**: con `languages` si scartano le offerte che nel titolo chiedono una lingua diversa da quelle indicate, per esempio "Hebrew Localization Specialist" o "English to Korean Translator". Senza `languages` la regola non si applica.
 - **Descrizioni di LinkedIn**: nei risultati di ricerca LinkedIn mostra solo titolo, azienda e luogo. Per le offerte che passano il filtro sul titolo il programma scarica anche la descrizione (al massimo 40 per ricerca, modificabile con `maxEnrich` nel target), così può assegnare i punti bonus. Nelle offerte "da remoto" segnala `possibile ibrido` se la descrizione parla di lavoro ibrido o in ufficio.

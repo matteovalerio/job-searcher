@@ -13,6 +13,9 @@ const TIMEOUT_MS = 90000;
 /** Suggerimento leggibile per un errore di una fonte. */
 export function hintFor(err, source) {
   const status = err.status;
+  if (/non parte/.test(err.message) && /browser/i.test(err.message)) {
+    return "il browser c'è ma non parte: il motivo e la soluzione sono nel messaggio";
+  }
   if (/nessun browser|playwright|browser/i.test(err.message)) {
     return 'installa Chrome o Chromium, oppure esegui "npm run browser:install" per scaricare il browser di Playwright';
   }

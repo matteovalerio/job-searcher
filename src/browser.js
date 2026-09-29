@@ -67,26 +67,74 @@ export function installedBrowsers(platform = process.platform, exists = existsSy
  */
 async function launch(chromium, userDataDir, options) {
   if (env('BROWSER_PATH')) {
-    return chromium.launchPersistentContext(userDataDir, { ...options, executablePath: env('BROWSER_PATH') });
+    try {
+      return await chromium.launchPersistentContext(userDataDir, { ...options, executablePath: env('BROWSER_PATH') });
+    } catch (err) {
+      const reason = launchProblem(err.message) ?? 'il file indicato non esiste';
+      throw new Error(`il browser indicato in JOB_SEARCHER_BROWSER_PATH (${env('BROWSER_PATH')}) non parte: ${reason}`);
+    }
   }
   const attempts = [
     ...(env('BROWSER') ? [{ channel: env('BROWSER') }] : [{ channel: 'chrome' }, { channel: 'msedge' }]),
     ...installedBrowsers().map((executablePath) => ({ executablePath })),
     {}, // Chromium di Playwright
   ];
-  // Errori dei browser trovati sul computer ma che non partono: aiutano a capire il problema.
+  // Errori dei browser presenti ma che non partono: sono quelli che spiegano il problema.
   const failures = [];
+  let expectedPath = null;
   for (const attempt of attempts) {
     try {
       return await chromium.launchPersistentContext(userDataDir, { ...options, ...attempt });
     } catch (err) {
-      if (attempt.executablePath) failures.push(`${attempt.executablePath}: ${err.message.split('\n')[0]}`);
+      const reason = launchProblem(err.message);
+      if (reason) failures.push(`${attempt.executablePath ?? attempt.channel ?? 'Chromium di Playwright'}: ${reason}`);
+      // Dove Playwright cerca il suo Chromium: serve a capire se "npm run browser:install" ha funzionato.
+      if (!attempt.channel && !attempt.executablePath) expectedPath = err.message.match(/doesn't exist at (\S+)/)?.[1];
     }
   }
+  if (failures.length) throw new Error(`il browser non parte. ${failures.join(' | ')}`);
   throw new Error(
-    (failures.length ? `nessun browser è partito (${failures.join('; ')}). ` : 'nessun browser trovato. ') +
-      'Installa Chrome o Chromium, oppure scarica il browser di Playwright con "npm run browser:install", ' +
-      'oppure indica il percorso con JOB_SEARCHER_BROWSER_PATH',
+    'nessun browser trovato. Installa Chrome o Chromium, oppure scarica il browser di Playwright con ' +
+      '"npm run browser:install" (dalla cartella del progetto), oppure indica il percorso con ' +
+      'JOB_SEARCHER_BROWSER_PATH.' +
+      (expectedPath
+        ? ` Il browser di Playwright dovrebbe essere in ${expectedPath}, ma lì non c'è: se hai già eseguito ` +
+          '"npm run browser:install", controlla che sia finito senza errori.'
+        : ''),
+  );
+}
+
+/**
+ * Spiega perché un browser non è partito, oppure null se semplicemente non è installato.
+ * Esportata per i test.
+ */
+export function launchProblem(message) {
+  const text = String(message);
+  if (
+    /is not found at|Executable doesn't exist|not installed|Please run the following command to download/i.test(text)
+  ) {
+    return null;
+  }
+  if (/missing dependencies|error while loading shared libraries|install-deps/i.test(text)) {
+    return (
+      'mancano alcune librerie di sistema. Su Ubuntu/Debian installale con ' +
+      '"sudo npx playwright-core install-deps chromium"'
+    );
+  }
+  if (/X ?server|\$DISPLAY|Missing X|ozone|wayland|cannot open display/i.test(text)) {
+    return (
+      "non c'è uno schermo per aprire la finestra (per esempio su WSL o su un server). Usa " +
+      'JOB_SEARCHER_HEADLESS=1 (ma la verifica anti-robot non si potrà risolvere) oppure lancialo da una sessione grafica'
+    );
+  }
+  if (/ProcessSingleton|profile.*in use|SingletonLock/i.test(text)) {
+    return 'il profilo del browser è già in uso: chiudi altre ricerche in corso, o cancella .job-searcher/browser';
+  }
+  return (
+    text
+      .split('\n')
+      .find((l) => l.trim() && !/^=+|browserType\./.test(l.trim()))
+      ?.trim() ?? text.split('\n')[0]
   );
 }
 

@@ -1,3 +1,4 @@
+import { describeInfo } from '../extract.js';
 const esc = (s) =>
   String(s ?? '').replace(
     /[&<>"']/g,
@@ -36,6 +37,7 @@ function renderJob(job) {
   return `<article class="job${job.isNew ? ' new' : ''}">
   <h3><a href="${esc(job.url)}" target="_blank" rel="noopener">${esc(job.title)}</a>${job.isNew ? ' <span class="badge">nuova</span>' : ''}${(job.warnings ?? []).map((w) => ` <span class="badge warn">${esc(w)}</span>`).join('')}</h3>
   <p class="meta">${[job.company, job.location, date(job.postedAt), job.salary].filter(Boolean).map(esc).join(' · ')}</p>
+  ${job.info && describeInfo(job.info) ? `<p class="meta info">${esc(describeInfo(job.info))}</p>` : ''}
   <p class="meta">${esc(job.source)}${also} · punti ${job.score} · parole: ${esc([...job.matched, ...job.boosted].join(', '))}</p>
   ${job.description ? `<details><summary>Descrizione</summary><p>${esc(job.description)}</p></details>` : ''}
 </article>`;
@@ -69,6 +71,7 @@ export function renderHtml(results, { title = 'Offerte di lavoro', generatedAt =
   .job { padding:10px 0; border-bottom:1px solid var(--line); } .meta { margin:2px 0; }
   .badge { background:var(--new); color:var(--bg); border-radius:4px; font-size:.75em; padding:1px 6px; vertical-align:middle; }
   .badge.warn { background:#b7791f; }
+  .info { color:var(--accent); }
   .err { color:#c0392b; } .skip { color:#b7791f; }
   input { width:100%; box-sizing:border-box; padding:8px; font:inherit; background:var(--bg); color:var(--fg); border:1px solid var(--line); border-radius:6px; }
   label { color:var(--muted); font-size:.9em; }
