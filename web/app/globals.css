@@ -1873,3 +1873,39 @@ ul.week-bars {
   gap: 12px;
   align-items: end;
 }
+
+/* Proposte per il profilo, dalle scelte sulle offerte */
+.learn {
+  margin-bottom: 16px;
+}
+.learn-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.learn-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--surface);
+}
+.learn-list li > div:first-child {
+  flex: 1 1 320px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.warn-text {
+  color: var(--accent-hover);
+  margin: 0;
+}
+.learn-hint {
+  margin: 0 0 12px;
+  color: var(--muted);
+}

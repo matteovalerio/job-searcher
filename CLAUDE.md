@@ -44,6 +44,7 @@ di Next. La CI (`.github/workflows/test.yml`) esegue test su Node 20 e 22, lint 
   - `tracking.json`: candidature alle offerte;
   - `kits.json`: kit di candidatura (separati: aprire un kit non segue l'offerta);
   - `plan.json`: obiettivi settimanali;
+  - `learn.json`: proposte per il profilo rifiutate;
   - `publishers.json`: case editrici e aziende;
   - `cv.txt`: testo del CV;
   - `results-<profilo>.json`: ultimi risultati;
@@ -74,6 +75,8 @@ di Next. La CI (`.github/workflows/test.yml`) esegue test su Node 20 e 22, lint 
 - `src/tailor.js` fa il CV su misura, con `src/publishers/specialties.js` per le specializzazioni editoriali.
 - `src/kit.js` fa il kit di candidatura (analisi dell'annuncio, confronto con il CV, CV riordinato con sole righe del
   CV, email, sollecito, prompt e controllo della risposta di Claude); i solleciti sono in `src/tracking.js`.
+- `src/learn.js` propone esclusioni e bonus per il profilo dalle offerte scartate e seguite (comando `impara`,
+  pagina del profilo); le proposte rifiutate stanno in `learn.json`.
 - `src/interview.js` prepara il colloquio a partire dal kit (domande probabili, episodi, domande da fare,
   ringraziamento, evento .ics, prompt per la simulazione); data e dettagli stanno in `tracking.json` (`interview`).
 - `src/market/` fa l'analisi del mercato: le offerte viste si accumulano per profilo; `catalog.js` elenca le

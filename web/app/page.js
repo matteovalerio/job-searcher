@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function Home({ searchParams }) {
   const params = await searchParams;
-  const { STATUSES, listProfiles } = await core();
+  const { STATUSES, listProfiles, learnForProfile } = await core();
   const profiles = await listProfiles();
   if (!profiles.length) {
     return (
@@ -22,12 +22,18 @@ export default async function Home({ searchParams }) {
   const selected = await activeProfileId(profiles, params.profile);
   const profile = profiles.find((p) => p.id === selected);
   const results = await resultsForPage(selected);
+  // Proposte per il profilo dalle scelte sulle offerte: se ci sono, un avviso porta alla pagina del profilo.
+  const learnCount = await learnForProfile(selected).then(
+    (r) => r.suggestions.length,
+    () => 0,
+  );
   return (
     <ResultsView
       key={selected}
       profile={{ id: profile.id, name: profile.name, description: profile.description }}
       initialResults={results}
       statuses={STATUSES}
+      learnCount={learnCount}
     />
   );
 }
