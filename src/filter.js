@@ -1,3 +1,4 @@
+import { extractInfo } from './extract.js';
 import { checkDistance, locate } from './geo.js';
 import { compileKeywords, findKeywords, normalize } from './text.js';
 
@@ -63,6 +64,7 @@ export function buildMatcher(target) {
     radiusKm: target.radiusKm,
     unknownLocation: target.unknownLocation ?? 'drop',
     minScore: target.minScore ?? 1,
+    filters: target.filters ?? {},
   };
 }
 
@@ -74,6 +76,10 @@ export const REJECT = {
   notRemote: 'non è full remote',
   region: 'remoto solo per altri paesi',
   language: "richiede un'altra lingua",
+  tooExperienced: 'chiede troppa esperienza',
+  seniority: 'livello escluso',
+  contract: 'contratto escluso',
+  lowSalary: 'stipendio troppo basso',
   farAway: 'fuori zona',
   unknownPlace: 'località non riconosciuta',
   lowScore: 'punteggio basso',
@@ -92,6 +98,31 @@ function remoteProblem(job, matcher, fullText) {
   // Una località italiana ("Milano, Lombardia") va bene se l'Italia è tra le regioni accettate.
   if (matcher.acceptsItaly && locate(job.location)) return null;
   return REJECT.region;
+}
+
+/**
+ * Filtri su livello, esperienza, contratto e stipendio (sezione "filters" del profilo).
+ * Un'informazione assente non scarta mai l'offerta.
+ */
+function filterProblem(info, filters) {
+  const { maxYearsRequired, excludeSeniority = [], excludeContracts = [], minSalary } = filters;
+  if (maxYearsRequired !== undefined && info.yearsRequired !== null && info.yearsRequired > maxYearsRequired) {
+    return REJECT.tooExperienced;
+  }
+  if (info.seniority && excludeSeniority.includes(info.seniority)) return REJECT.seniority;
+  // Scartata solo se TUTTI i contratti citati sono esclusi ("stage o apprendistato" sì, "determinato con
+  // possibilità di indeterminato" no se è escluso solo il determinato).
+  if (info.contracts.length && info.contracts.every((c) => excludeContracts.includes(c))) return REJECT.contract;
+  const salary = info.salary;
+  if (
+    minSalary &&
+    salary?.annualMax &&
+    salary.currency === (filters.salaryCurrency ?? 'EUR') &&
+    salary.annualMax < minSalary
+  ) {
+    return REJECT.lowSalary;
+  }
+  return null;
 }
 
 function areaProblem(job, matcher) {
@@ -136,6 +167,10 @@ export function evaluate(job, matcher, now = Date.now()) {
   const problem = matcher.remoteOnly ? remoteProblem(job, matcher, fullText) : areaProblem(job, matcher);
   if (problem) return { rejected: problem };
 
+  const info = extractInfo(job);
+  const infoProblem = filterProblem(info, matcher.filters);
+  if (infoProblem) return { rejected: infoProblem, info };
+
   // Una parola già contata come parola chiave non vale di nuovo come "bonus".
   const matched = [...inTitle, ...inBody, ...relTitle, ...relBody].map(normalize);
   const notMatched = (k) => !matched.includes(normalize(k));
@@ -151,6 +186,7 @@ export function evaluate(job, matcher, now = Date.now()) {
 
   return {
     score,
+    info,
     matched: [...inTitle, ...inBody, ...relTitle, ...relBody],
     boosted: [...boostTitle, ...boostBody],
     warnings,

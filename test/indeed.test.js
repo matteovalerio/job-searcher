@@ -74,3 +74,17 @@ test('indeed è attiva solo se richiesta', () => {
   assert.ok(names({ ...base, enableSources: ['indeed'] }).includes('indeed'));
   assert.deepEqual(names(base, { onlySources: ['indeed'] }), ['indeed']);
 });
+
+test('browser: spiega perché non parte', async () => {
+  const { launchProblem } = await import('../src/browser.js');
+  assert.equal(launchProblem("browserType.launchPersistentContext: Executable doesn't exist at /x/chrome"), null);
+  assert.equal(launchProblem("Chromium distribution 'chrome' is not found at /opt/google/chrome/chrome"), null);
+  assert.match(launchProblem('Host system is missing dependencies to run browsers'), /install-deps chromium/);
+  assert.match(
+    launchProblem(
+      'Target page closed\nBrowser logs:\nLooks like you launched a headed browser without having a XServer running.',
+    ),
+    /non c'è uno schermo.*JOB_SEARCHER_HEADLESS=1/,
+  );
+  assert.match(launchProblem('Failed to create a ProcessSingleton for your profile directory'), /già in uso/);
+});

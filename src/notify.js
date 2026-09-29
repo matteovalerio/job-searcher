@@ -1,4 +1,5 @@
 import { dedupeKey } from './dedupe.js';
+import { describeInfo } from './extract.js';
 
 /*
  * Notifiche delle offerte nuove, pensate per la ricerca quotidiana automatica (GitHub Actions o cron).
@@ -52,7 +53,7 @@ export function selectForDigest(results, { firstRun = false, perTarget = 25 } = 
 }
 
 function jobLine(job) {
-  return [job.company, job.location, job.source].filter(Boolean).join(' · ');
+  return [job.company, job.location, describeInfo(job.info), job.source].filter(Boolean).join(' · ');
 }
 
 /** Testo del messaggio: oggetto, versione testuale, HTML (email) e messaggi Telegram (già divisi). */

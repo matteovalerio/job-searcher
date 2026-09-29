@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs';
 import { findComune } from '../geo.js';
 import { normalize } from '../text.js';
-import { REMOTE_SCOPES, buildProfile, describeCandidate, suggest } from './builder.js';
+import { REMOTE_SCOPES, buildProfile, describeCandidate, suggest, suggestFilters } from './builder.js';
 import { analyzeCv, readCvText } from './cv.js';
 import { ROLE_FAMILIES } from './roles.js';
 import { profilePath, slugify } from './store.js';
@@ -195,6 +195,7 @@ export async function runWizard(io, { cv, name, now = new Date() } = {}) {
     maxAgeDays,
     browserSources,
     candidate,
+    filters: suggestFilters(years),
   });
 
   print(`\nRiepilogo di "${profileName}"`);

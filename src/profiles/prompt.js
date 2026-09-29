@@ -36,6 +36,7 @@ const EXAMPLE = {
     'springer',
   ],
   matchIn: 'title',
+  filters: { maxYearsRequired: 10, excludeSeniority: ['stage'], excludeContracts: ['stage', 'apprendistato'] },
   maxAgeDays: 30,
   targets: [
     {
@@ -90,6 +91,7 @@ COME FUNZIONA IL PROGRAMMA (serve a scegliere bene le parole)
   - type "remote": solo offerte full remote. Usa i valori esatti in base alla scelta:
 ${scopes}
   - searchKeywords (in ogni target): le ricerche da fare sui portali, 4-8 parole brevi e generiche. Ogni parola è una ricerca per ogni portale, quindi non esagerare. Per il remoto includi anche termini inglesi.
+- filters: filtri ricavati dal testo degli annunci, che non scartano mai un'offerta se l'informazione manca. maxYearsRequired: scarta le offerte che chiedono più anni di esperienza di questo numero (di solito gli anni del candidato + 3). excludeSeniority: livelli da scartare tra "stage", "junior", "mid", "senior". excludeContracts: contratti da scartare tra "indeterminato", "determinato", "autonomo" (partita IVA, freelance, collaborazioni), "somministrazione", "apprendistato", "stage". minSalary: stipendio lordo annuo minimo in euro (mettilo solo se il candidato lo indica).
 - matchIn: lascia "title". maxAgeDays: giorni di anzianità massima delle offerte (30 va bene; 60 se in zona ci sono poche offerte).
 - name: un nome breve e descrittivo. description: una riga con esperienza e studi.
 

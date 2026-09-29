@@ -69,6 +69,18 @@ export function suggest(familyIds, cv = {}) {
   };
 }
 
+/**
+ * Filtri proposti in base all'esperienza: niente stage e apprendistato per chi ha già lavorato, e niente
+ * offerte che chiedono molti più anni di esperienza di quelli che ha il candidato.
+ */
+export function suggestFilters(years = 0) {
+  if (!years) return undefined;
+  return {
+    maxYearsRequired: years + 3,
+    ...(years >= 2 ? { excludeSeniority: ['stage'], excludeContracts: ['stage', 'apprendistato'] } : {}),
+  };
+}
+
 /** Forme con cui una lingua compare negli annunci: "inglese" -> ["inglese", "english"]. */
 export function languageForms(names) {
   return unique(names.flatMap((n) => LANGUAGE_NAMES[normalize(n)] ?? [normalize(n)]));
@@ -117,6 +129,7 @@ export function buildProfile(a) {
     boostKeywords: a.boost ?? [],
     ...(a.browserSources ? { enableSources: ['indeed', 'infojobs'] } : {}),
     matchIn: 'title',
+    ...(a.filters ? { filters: a.filters } : {}),
     maxAgeDays: a.maxAgeDays ?? 30,
     targets,
     ...(a.candidate ? { candidate: a.candidate } : {}),
