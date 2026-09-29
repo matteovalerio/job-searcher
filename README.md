@@ -271,6 +271,8 @@ Durante la ricerca, per ogni fonte vedi quante offerte sono state scartate e per
 ```
 
 > Suggerimento: su [google.com/alerts](https://www.google.com/alerts) crea un avviso tipo `"redattore" "casa editrice" Padova` e scegli "Invia a: Feed RSS". Così intercetti anche gli annunci pubblicati sui siti degli editori.
+>
+> Gli elementi di un Google Alert non hanno una località, e il filtro per zona li scarterebbe come "località non riconosciuta". Per questo conviene aggiungere alla fonte `"location": "Padova"`, cioè la città dell'avviso. I link degli alert, che passano da un reindirizzamento di Google, vengono ripuliti automaticamente.
 
 **Pagina HTML** con selettori CSS:
 
