@@ -35,14 +35,32 @@ export function parseFeed(xml) {
  * Crea una fonte da un feed RSS/Atom. Nell'URL si possono usare {keyword}, {place}, {radiusKm}:
  * se manca {keyword} il feed viene scaricato una sola volta e filtrato in locale.
  */
-export function createRssSource({ name, label, url, supports = ['area', 'remote'], remote = null, mapItem }) {
+/** I link dei Google Alert passano da un reindirizzamento (google.com/url?...&url=<indirizzo vero>). */
+export function unwrapRedirect(link) {
+  try {
+    const u = new URL(link);
+    if (/(^|\.)google\.[a-z.]+$/.test(u.hostname) && u.pathname === '/url') {
+      return u.searchParams.get('url') || u.searchParams.get('q') || link;
+    }
+  } catch {
+    // non è un indirizzo valido: lo si lascia com'è
+  }
+  return link;
+}
+
+/**
+ * Opzioni utili oltre all'indirizzo:
+ *   location  località da dare agli elementi che non ne hanno (es. un Google Alert su "Padova"):
+ *             senza, il filtro per zona li scarterebbe come "località non riconosciuta".
+ */
+export function createRssSource({ name, label, url, supports = ['area', 'remote'], remote = null, location, mapItem }) {
   const toJob = (item) =>
     makeJob(name, {
       id: item.guid || item.link,
       title: item.title,
       company: item.company,
-      location: item.location,
-      url: item.link,
+      location: item.location || location || '',
+      url: unwrapRedirect(item.link),
       postedAt: item.date,
       description: item.description,
       remote,

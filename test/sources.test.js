@@ -180,3 +180,22 @@ test('linkedin: dettaglio con descrizione e criteri', () => {
   assert.match(detail.description, /Rapporti con gli autori/);
   assert.deepEqual(detail.tags, ['Livello intermedio', 'Editoria di libri e periodici']);
 });
+
+test('rss: link dei Google Alert senza reindirizzamento e località predefinita', async (t) => {
+  const { createRssSource, unwrapRedirect } = await import('../src/sources/rss.js');
+  assert.equal(
+    unwrapRedirect('https://www.google.com/url?rct=j&sa=t&url=https://editore.it/lavora-con-noi&ct=ga&cd=1'),
+    'https://editore.it/lavora-con-noi',
+  );
+  assert.equal(unwrapRedirect('https://editore.it/a'), 'https://editore.it/a');
+  const feed = fixture('atom.xml').replace(
+    'https://example.org/annuncio/1',
+    'https://www.google.com/url?url=https://example.org/annuncio/1',
+  );
+  t.mock.method(globalThis, 'fetch', async () => new Response(feed));
+  const source = createRssSource({ name: 'alert', url: 'https://www.google.com/alerts/feeds/1/2', location: 'Padova' });
+  const [job] = await source.search({ keywords: ['redattore'], target: { type: 'area', place: 'Padova' } });
+  assert.equal(job.url, 'https://example.org/annuncio/1');
+  assert.equal(job.location, 'Padova');
+  assert.equal(job.title, 'Cercasi redattore per casa editrice a Padova');
+});

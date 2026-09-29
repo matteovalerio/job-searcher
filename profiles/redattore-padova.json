@@ -188,6 +188,14 @@
   ],
   "customSources": [
     {
+      "type": "rss",
+      "name": "google-alert-redattore",
+      "label": "Google Alert redattore",
+      "url": "https://www.google.com/alerts/feeds/03098798727986713716/4066704971798291894",
+      "supports": ["area"],
+      "location": "Padova"
+    },
+    {
       "type": "careers",
       "name": "editori-veneto",
       "label": "Case editrici del Veneto",
