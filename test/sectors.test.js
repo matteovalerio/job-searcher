@@ -50,7 +50,7 @@ test('scelta dei settori: predefiniti, affini, tutti, elenco', () => {
 test('OpenStreetMap per settore: agenzie, tipografie, librerie', () => {
   const center = { name: 'Padova', lat: 45.407, lon: 11.8763 };
   const q = overpassQuery(center, 20, ['agenzia-comunicazione', 'tipografia']);
-  assert.match(q, /nwr\["office"="advertising_agency"\]\(around:20000,45.407,11.8763\);/);
+  assert.match(q, /nwr\["office"="advertising_agency"\]\(45\.2273,11\.6204,45\.5867,12\.1322\);/);
   assert.match(q, /nwr\["craft"="printer"\]/);
   assert.doesNotMatch(q, /publisher/);
   const json = {
