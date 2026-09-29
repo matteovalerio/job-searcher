@@ -14,7 +14,11 @@ export function parse(data) {
       url: j.redirect_url,
       postedAt: j.created,
       description: j.description,
-      salary: j.salary_min ? `${Math.round(j.salary_min)}-${Math.round(j.salary_max)}` : '',
+      // Se l'annuncio non lo dice Adzuna stima lo stipendio (salary_is_predicted): la stima non si usa.
+      salary:
+        j.salary_min && String(j.salary_is_predicted) !== '1'
+          ? `${Math.round(j.salary_min)}-${Math.round(j.salary_max ?? j.salary_min)} EUR`
+          : '',
       tags: [j.category?.label, j.contract_type, j.contract_time],
     }),
   );

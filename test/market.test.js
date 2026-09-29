@@ -121,3 +121,16 @@ test('prompt per il piano personale', () => {
   assert.match(prompt, /Non inventare corsi/);
   assert.match(prompt, /<cv>/);
 });
+
+test('mercato: gli stipendi salvati con il calcolo vecchio non contano', async () => {
+  const { analyzeMarket, jobFeatures } = await import('../src/market/index.js');
+  const fresh = jobFeatures({
+    title: 'Redattore',
+    description: 'Casa editrice cerca redattore con esperienza. '.repeat(3),
+    info: { salary: { currency: 'EUR', annualMin: 26000, annualMax: 30000 } },
+  });
+  const old = { ...fresh, title: 'Editor', salary: { min: 99000, max: 99000 } };
+  delete old.salaryVersion;
+  const a = analyzeMarket([fresh, old]);
+  assert.deepEqual(a.salary, { count: 1, min: 28000, median: 28000, max: 28000 });
+});

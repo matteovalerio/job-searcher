@@ -116,3 +116,19 @@ test('filtri del profilo: esperienza, livello, contratto, stipendio; mai per inf
   const kept = evaluate(makeJob('x', { title: 'Redattore', description: 'tempo indeterminato' }), m);
   assert.deepEqual(kept.info.contracts, ['indeterminato']);
 });
+
+test('stipendio: niente dollari presi per euro, niente capitale sociale, fatturato, bonus o anni', () => {
+  const s = (field, text = '') => parseSalary(field, text);
+  // Senza valuta e senza parole italiane (tipico degli annunci remoti americani) la valuta resta ignota.
+  assert.equal(s('90000-120000').currency, null);
+  assert.equal(s(null, 'RAL 28.000 - 32.000').currency, 'EUR');
+  assert.equal(s(null, 'Retribuzione: 1.400 - 1.700 euro netti mensili').annualMax, 20400);
+  assert.equal(s(null, 'Capitale sociale 150.000 €'), null);
+  assert.equal(s(null, 'Fatturato di 100.000.000 € nel 2025'), null);
+  assert.equal(s(null, 'buoni pasto da 8 €'), null);
+  assert.equal(s(null, 'Salary: competitive. Founded 2015'), null);
+  // Il primo importo non è uno stipendio, il secondo sì.
+  assert.equal(s(null, 'Capitale sociale 150.000 €. RAL 30.000 €').annualMin, 30000);
+  // Importi annui impossibili si scartano.
+  assert.equal(s(null, 'compenso 2.000.000 €'), null);
+});

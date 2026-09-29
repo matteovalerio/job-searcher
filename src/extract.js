@@ -114,47 +114,64 @@ function amount(raw) {
   return Number.isFinite(n) ? { value: k ? n * 1000 : n, k } : null;
 }
 
+// Parole che dicono che l'importo è uno stipendio italiano anche senza "€" ("RAL 28.000 - 32.000").
+const EUR_CONTEXT = /\b(ral|retribuzion|stipendi|lord|nett|mensil|annu|compenso)/;
+// Importi che non sono stipendi: si scartano se una di queste parole sta subito prima.
+const NOT_SALARY =
+  /(capitale|fatturato|budget|finanziament|investiment|milion|miliard|bonus|buon[io] pasto|welfare|premio|rimborso|contribut|borsa di studio|fondat|founded|since|dal|nel|anno|year)[^\d]{0,30}$/;
+// Stipendi annui lordi plausibili: fuori da questo intervallo è quasi sempre un altro numero.
+const ANNUAL_RANGE = [6000, 250000];
+
 /**
  * Stipendio da un campo dedicato o dal testo. Restituisce { min, max, currency, period, annualMin, annualMax }
  * oppure null. annualMin/annualMax sono una stima lorda annua (mensile x 12), assenti per le paghe orarie.
+ * `currency` è null se l'annuncio non la dice e niente fa pensare all'euro (molti annunci remoti sono in dollari).
  */
 export function parseSalary(fieldText, text) {
   const NUM = String.raw`\d[\d.,]*\s?k?`;
   const RANGE = String.raw`(${NUM})\s*(?:€|eur|euro|\$|usd|£)?(?:\s*(?:-|–|a|to|fino a)\s*(?:€|eur|euro|\$|usd|£)?\s*(${NUM}))?`;
   const candidates = [];
-  if (fieldText) candidates.push(normalize(fieldText));
+  if (fieldText) candidates.push({ c: normalize(fieldText), field: true });
   const t = normalize(text);
   const patterns = [
-    new RegExp(
-      String.raw`(?:ral|retribuzione|stipendio|compenso|salary|pay|compensation)[^\d€$£]{0,25}(€|eur|euro|\$|usd|£)?\s*${RANGE}`,
-    ),
-    new RegExp(String.raw`(€|eur|euro|\$|usd|£)\s*${RANGE}`),
-    new RegExp(String.raw`()${RANGE}\s*(?:€|eur|euro|\$|usd|£)`),
+    String.raw`(?:ral|retribuzione|stipendio|compenso|salary|pay|compensation)[^\d€$£]{0,25}(€|eur|euro|\$|usd|£)?\s*${RANGE}`,
+    String.raw`(€|eur|euro|\$|usd|£)\s*${RANGE}`,
+    String.raw`()${RANGE}\s*(?:€|eur|euro|\$|usd|£)`,
   ];
   for (const re of patterns) {
-    const m = t.match(re);
-    if (m) candidates.push(m[0]);
+    for (const m of t.matchAll(new RegExp(re, 'g'))) {
+      // Il testo subito prima dice che è un altro importo (capitale sociale, bonus, "fondata nel 2015"…).
+      const before = t.slice(Math.max(0, m.index - 40), m.index) + m[0].replace(/\d[\s\S]*$/, '');
+      if (NOT_SALARY.test(before)) continue;
+      candidates.push({ c: m[0], at: m.index });
+    }
   }
-  for (const c of candidates) {
+  for (const { c, at } of candidates) {
     const m = c.match(new RegExp(RANGE));
     if (!m) continue;
     const a = amount(m[1]);
     const b = m[2] ? amount(m[2]) : null;
     if (!a) continue;
+    // Un anno ("2015") senza valuta non è uno stipendio.
+    const hasSymbol = Object.keys(CURRENCY).some((sym) => c.includes(sym));
+    if (!hasSymbol && /^(19|20)\d\d$/.test(m[1].trim())) continue;
     // "28-32k": la "k" vale per entrambi i numeri.
     if (b?.k && !a.k && a.value < 1000) a.value *= 1000;
     const min = a.value;
     const max = b?.value ?? a.value;
     if (min < 5 || max < min) continue;
-    const cur = Object.entries(CURRENCY).find(([sym]) => c.includes(sym))?.[1] ?? 'EUR';
-    let period =
-      /mese|mensil|month|\/m\b|al mese/.test(c) ||
-      /mese|mensil|month/.test(t.slice(t.indexOf(c), t.indexOf(c) + c.length + 20))
-        ? 'mese'
+    const around = at == null ? c : t.slice(Math.max(0, at - 40), at + c.length + 30);
+    const cur = hasSymbol
+      ? Object.entries(CURRENCY).find(([sym]) => c.includes(sym))[1]
+      : EUR_CONTEXT.test(around)
+        ? 'EUR'
         : null;
+    const after = at == null ? '' : t.slice(at + c.length, at + c.length + 20);
+    let period = /mese|mensil|month|\/m\b|al mese/.test(c) || /mese|mensil|month/.test(after) ? 'mese' : null;
     if (/\bora\b|oraria|hour|\/h\b|per hour|all'ora/.test(c)) period = 'ora';
     if (!period) period = min >= 8000 ? 'anno' : min >= 400 ? 'mese' : 'ora';
     const factor = period === 'anno' ? 1 : period === 'mese' ? 12 : null;
+    if (factor && (min * factor < ANNUAL_RANGE[0] || max * factor > ANNUAL_RANGE[1])) continue;
     return {
       min,
       max,

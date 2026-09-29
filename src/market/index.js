@@ -14,6 +14,9 @@ import { CEFR, LANGUAGE_LEARN, MARKET_SKILLS } from './catalog.js';
  */
 
 const KEEP_DAYS = 180;
+// Versione del calcolo dello stipendio: quelli salvati con una versione precedente non si usano (erano
+// sbagliati, per esempio dollari presi per euro); si aggiornano quando l'offerta ricompare in una ricerca.
+const SALARY_VERSION = 2;
 const MAX_JOBS = 3000;
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -57,6 +60,7 @@ export function jobFeatures(job) {
     contracts: info.contracts ?? [],
     workTime: info.workTime ?? null,
     salary: salary ? { min: salary.annualMin ?? null, max: salary.annualMax ?? null } : null,
+    salaryVersion: SALARY_VERSION,
   };
 }
 
@@ -157,11 +161,12 @@ export function analyzeMarket(features, cvText = '') {
 
   const years = withText.map((f) => f.yearsRequired).filter((y) => y != null);
   const salaries = withText
+    .filter((f) => f.salaryVersion >= SALARY_VERSION)
     .map(
       (f) =>
         f.salary && (f.salary.min && f.salary.max ? (f.salary.min + f.salary.max) / 2 : (f.salary.min ?? f.salary.max)),
     )
-    .filter((v) => v && v > 5000);
+    .filter((v) => v && v >= 6000 && v <= 250000);
 
   const gaps = skillStats
     .filter((s) => !s.inCv && (s.count >= 2 || s.share >= 0.1) && cvText)
