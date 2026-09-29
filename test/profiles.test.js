@@ -225,5 +225,5 @@ test('archivio: salva, elenca e carica per nome', async () => {
 
 test('il profilo incluso si carica anche per nome', async () => {
   const profile = await loadProfile('redattore-padova');
-  assert.equal(profile.name, 'Redattore casa editrice');
+  assert.equal(profile.name, 'Editoria e redazione - Piazzola sul Brenta');
 });
