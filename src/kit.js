@@ -364,12 +364,12 @@ export function companyName(name) {
     .trim();
 }
 
-function signature(contacts) {
+export function signature(contacts) {
   return [contacts.name, contacts.phone, contacts.email].filter(Boolean).join('\n');
 }
 
 /** Saluto e forma di cortesia: a una persona ("Gentile Anna De Luca, le scrivo") o all'azienda ("vi scrivo"). */
-function salutation(company, job, language) {
+export function salutation(company, job, language) {
   const who = companyName(company.name ?? job.company) || null;
   const person = company.contact?.name;
   if (language === 'en') return { dear: `Dear ${person ?? (who ? `${who} team` : 'Hiring Manager')},` };

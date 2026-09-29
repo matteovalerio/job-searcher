@@ -47,7 +47,16 @@ export async function planCommand(opts) {
   for (const a of plan.advice) console.log(`  ${c.yellow('→')} ${a}`);
 
   const { followUps, toApply, toContact } = plan.todo;
-  if (followUps.length || toApply.length || toContact.length) console.log(`\n${c.bold('Da fare')}`);
+  if (followUps.length || toApply.length || toContact.length || plan.todo.interviews.length)
+    console.log(`\n${c.bold('Da fare')}`);
+  if (plan.todo.interviews.length) {
+    console.log(c.cyan('  Colloqui in arrivo'));
+    for (const i of plan.todo.interviews) {
+      console.log(
+        `    ${i.title}${i.company ? c.dim(` · ${i.company}`) : ''}  ${new Date(i.at).toLocaleString('it-IT')}`,
+      );
+    }
+  }
   if (followUps.length) {
     console.log(c.cyan('  Da sollecitare'));
     for (const f of followUps)

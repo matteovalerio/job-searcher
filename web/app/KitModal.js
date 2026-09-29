@@ -11,7 +11,179 @@ const TABS = [
   { id: 'email', label: 'Email' },
   { id: 'followup', label: 'Sollecito' },
   { id: 'claude', label: 'Con Claude' },
+  { id: 'interview', label: 'Colloquio' },
 ];
+
+// Data e ora del colloquio: il campo del browser vuole "AAAA-MM-GGTHH:MM" nell'ora locale.
+const toLocalInput = (iso) => {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+
+/** Preparazione al colloquio: data e dettagli, domande probabili, azienda, domande da fare, ringraziamento. */
+function InterviewTab({ job, onTracked }) {
+  const [data, setData] = useState(null);
+  const [error, setError] = useState('');
+  const [form, setForm] = useState({ at: '', mode: 'in presenza', where: '', with: '' });
+
+  const apply = useCallback((d) => {
+    setData(d);
+    const i = d.item?.interview;
+    if (i) setForm({ at: toLocalInput(i.at), mode: i.mode ?? 'in presenza', where: i.where ?? '', with: i.with ?? '' });
+  }, []);
+  useEffect(() => {
+    fetch(`/api/interview?job=${encodeURIComponent(job)}`)
+      .then(async (r) => {
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error);
+        apply(d);
+      })
+      .catch((err) => setError(err.message));
+  }, [job, apply]);
+
+  async function save(e) {
+    e.preventDefault();
+    setError('');
+    try {
+      const d = await send('/api/interview', 'POST', {
+        job,
+        interview: form.at ? { ...form, at: new Date(form.at).toISOString() } : null,
+      });
+      apply(d);
+      if (d.item) onTracked?.(d.item);
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  if (error && !data) return <p className="error-box">{error}</p>;
+  if (!data) return <p className="muted">Preparo…</p>;
+  const { prep, prompt, item } = data;
+  return (
+    <div className="stack">
+      <form className="interview-form" onSubmit={save}>
+        <label className="stack" style={{ gap: 4 }}>
+          <span className="overline">Data e ora</span>
+          <input
+            type="datetime-local"
+            value={form.at}
+            onChange={(e) => setForm((f) => ({ ...f, at: e.target.value }))}
+          />
+        </label>
+        <label className="stack" style={{ gap: 4 }}>
+          <span className="overline">Modalità</span>
+          <select value={form.mode} onChange={(e) => setForm((f) => ({ ...f, mode: e.target.value }))}>
+            <option>in presenza</option>
+            <option>online</option>
+            <option>telefono</option>
+          </select>
+        </label>
+        <label className="stack" style={{ gap: 4 }}>
+          <span className="overline">Dove / collegamento</span>
+          <input type="text" value={form.where} onChange={(e) => setForm((f) => ({ ...f, where: e.target.value }))} />
+        </label>
+        <label className="stack" style={{ gap: 4 }}>
+          <span className="overline">Con chi</span>
+          <input
+            type="text"
+            value={form.with}
+            placeholder="es. Anna De Luca"
+            onChange={(e) => setForm((f) => ({ ...f, with: e.target.value }))}
+          />
+        </label>
+        <div className="row" style={{ alignSelf: 'end' }}>
+          <button type="submit" className="primary small">
+            Salva
+          </button>
+          {item?.interview?.at && (
+            <a className="button small" href={`/api/interview/ics?job=${encodeURIComponent(job)}`} download>
+              Nel calendario
+            </a>
+          )}
+        </div>
+      </form>
+      {error && <p className="error-box small">{error}</p>}
+      <p className="small faint" style={{ margin: 0 }}>
+        Salvare la data porta la candidatura a «colloquio». Il promemoria nel calendario suona un'ora prima.
+      </p>
+
+      <div className="stack" style={{ gap: 6 }}>
+        <span className="overline">Domande probabili</span>
+        <ul className="kit-reqs">
+          {prep.questions.map((q) => (
+            <li key={q.question} className="ok">
+              <span className="req">{q.question}</span>
+              <span className="evidence">{q.hint}</span>
+              {q.evidence?.length > 0 && <span className="evidence">Dal tuo CV: «{q.evidence.join('» / «')}»</span>}
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {prep.stories.length > 0 && (
+        <div className="stack" style={{ gap: 6 }}>
+          <span className="overline">Episodi da preparare (situazione, cosa hai fatto, risultato)</span>
+          <ul className="small" style={{ margin: 0, paddingLeft: 18, lineHeight: 1.6 }}>
+            {prep.stories.map((st) => (
+              <li key={st}>{st}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <div className="grid-2 even">
+        <div className="stack" style={{ gap: 6 }}>
+          <span className="overline">L'azienda: cosa sai</span>
+          <ul className="small" style={{ margin: 0, paddingLeft: 18, lineHeight: 1.6 }}>
+            {(prep.company.known.length ? prep.company.known : ['Ancora poco: vedi cosa controllare']).map((k) => (
+              <li key={k}>{k}</li>
+            ))}
+          </ul>
+          <span className="overline">Da controllare prima</span>
+          <ul className="small muted" style={{ margin: 0, paddingLeft: 18, lineHeight: 1.6 }}>
+            {prep.company.toCheck.map((k) => (
+              <li key={k}>{k}</li>
+            ))}
+          </ul>
+        </div>
+        <div className="stack" style={{ gap: 6 }}>
+          <span className="overline">Domande da fare</span>
+          <ul className="small" style={{ margin: 0, paddingLeft: 18, lineHeight: 1.6 }}>
+            {prep.ask.map((k) => (
+              <li key={k}>{k}</li>
+            ))}
+          </ul>
+        </div>
+      </div>
+
+      <div className="stack" style={{ gap: 6 }}>
+        <span className="overline">Dopo il colloquio: email di ringraziamento (entro un giorno)</span>
+        <input type="text" readOnly value={prep.thankYou.subject} aria-label="Oggetto del ringraziamento" />
+        <textarea className="code" readOnly rows={8} value={prep.thankYou.body} aria-label="Testo del ringraziamento" />
+        <div className="row">
+          <CopyButton text={prep.thankYou.body} label="Copia il testo" />
+          <CopyButton text={prep.thankYou.subject} label="Copia l'oggetto" />
+        </div>
+      </div>
+
+      <div className="stack" style={{ gap: 6 }}>
+        <span className="overline">Simulazione con Claude</span>
+        <p className="small muted" style={{ margin: 0 }}>
+          Claude prepara le domande più probabili con una traccia di risposta presa dal tuo CV, poi ti fa una domanda
+          alla volta e commenta le risposte.
+        </p>
+        <div className="row">
+          <CopyButton text={prompt} label="Copia il testo per Claude" primary />
+          <a className="button small" href="https://claude.ai/new" target="_blank" rel="noreferrer">
+            Apri claude.ai <ExternalIcon />
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 async function send(url, method, body) {
   const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -395,6 +567,8 @@ export default function KitModal({ job, title, onClose, onTracked }) {
         const data = await send('/api/kit', 'POST', { job, ...(text ? { text } : {}) });
         setState(data);
         setVersion(data.kit.claude ? 'claude' : 'internal');
+        // Candidatura già al colloquio: si apre la preparazione.
+        if (!text && data.item?.status === 'colloquio') setTab('interview');
       } catch (err) {
         setState({ error: err.message });
       }
@@ -462,6 +636,7 @@ export default function KitModal({ job, title, onClose, onTracked }) {
               note="Il primo sollecito si manda una settimana dopo l'invio, il secondo dieci giorni dopo il primo."
             />
           )}
+          {tab === 'interview' && <InterviewTab job={job} onTracked={onChange} />}
           {tab === 'claude' && (
             <ClaudeTab
               prompt={prompt}

@@ -201,6 +201,11 @@ export function buildPlan({ tracking = [], publishers = [], goals = DEFAULT_GOAL
       .sort((a, b) => (b.job.score ?? 0) - (a.job.score ?? 0) || b.updatedAt.localeCompare(a.updatedAt))
       .slice(0, 8)
       .map((t) => ({ id: t.job.id, title: t.job.title, company: t.job.company, url: t.job.url })),
+    // Colloqui da oggi in poi, dal più vicino.
+    interviews: tracking
+      .filter((t) => t.interview?.at && dayOf(t.interview.at) >= today)
+      .sort((a, b) => a.interview.at.localeCompare(b.interview.at))
+      .map((t) => ({ id: t.job.id, title: t.job.title, company: t.job.company, ...t.interview })),
     toContact: publishers
       .filter((p) => p.status === 'da_contattare')
       .slice(0, 8)
@@ -278,6 +283,20 @@ export function planMessage(plan) {
     `Candidature spontanee: ${w.spontaneous.done}/${w.spontaneous.goal}`,
     `Solleciti fatti: ${w.followUps.done}`,
   ];
+  if (plan.todo.interviews?.length) {
+    lines.push('', 'Colloqui in arrivo:');
+    for (const i of plan.todo.interviews) {
+      const when = new Date(i.at).toLocaleString('it-IT', {
+        timeZone: TZ,
+        weekday: 'short',
+        day: 'numeric',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+      lines.push(`- ${i.title}${i.company ? ` (${i.company})` : ''}: ${when}`);
+    }
+  }
   if (plan.todo.followUps.length) {
     lines.push('', 'Da sollecitare:');
     for (const f of plan.todo.followUps)

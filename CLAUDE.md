@@ -74,6 +74,8 @@ di Next. La CI (`.github/workflows/test.yml`) esegue test su Node 20 e 22, lint 
 - `src/tailor.js` fa il CV su misura, con `src/publishers/specialties.js` per le specializzazioni editoriali.
 - `src/kit.js` fa il kit di candidatura (analisi dell'annuncio, confronto con il CV, CV riordinato con sole righe del
   CV, email, sollecito, prompt e controllo della risposta di Claude); i solleciti sono in `src/tracking.js`.
+- `src/interview.js` prepara il colloquio a partire dal kit (domande probabili, episodi, domande da fare,
+  ringraziamento, evento .ics, prompt per la simulazione); data e dettagli stanno in `tracking.json` (`interview`).
 - `src/market/` fa l'analisi del mercato: le offerte viste si accumulano per profilo; `catalog.js` elenca le
   competenze con le risorse per colmarle.
 - `src/match.js` prepara il confronto tra CV e offerte; `src/tracking.js` segue le candidature.

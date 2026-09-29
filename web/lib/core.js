@@ -48,6 +48,7 @@ export async function core() {
     load('plan.js'),
     load('publishers/people.js'),
     load('events.js'),
+    load('interview.js'),
   ]).then(
     ([
       app,
@@ -75,7 +76,12 @@ export async function core() {
       plan,
       people,
       events,
+      interview,
     ]) => ({
+      buildInterviewPrep: interview.buildInterviewPrep,
+      buildInterviewPrompt: interview.buildInterviewPrompt,
+      interviewIcs: interview.interviewIcs,
+      profileOfJob: tracking.profileOfJob,
       upcomingEvents: events.upcomingEvents,
       associations: events.associations,
       reminderIcs: events.reminderIcs,
