@@ -5,8 +5,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useBusy } from './Busy.js';
 import { CopyIcon, ExternalIcon, RefreshIcon, SearchIcon, SparkIcon } from './icons.js';
 import JobCard from './JobCard.js';
+import KitModal from './KitModal.js';
 import Modal from './Modal.js';
-import TailorModal from './TailorModal.js';
 
 function formatEvent(e) {
   const where = e.target ? `${e.target} · ${e.source}` : '';
@@ -124,8 +124,8 @@ export default function ResultsView({ profile, initialResults, statuses }) {
   const [shown, setShown] = useState(PAGE_SIZE);
   const [showMatch, setShowMatch] = useState(false);
   const closeMatch = useCallback(() => setShowMatch(false), []);
-  const [tailor, setTailor] = useState(null);
-  const closeTailor = useCallback(() => setTailor(null), []);
+  const [kit, setKit] = useState(null);
+  const closeKit = useCallback(() => setKit(null), []);
 
   // Durante la ricerca la pagina è bloccata: l'ultima riga dell'avanzamento compare sotto la rotella.
   const { setDetail } = useBusy();
@@ -268,7 +268,14 @@ export default function ResultsView({ profile, initialResults, statuses }) {
       )}
 
       {showMatch && <MatchPrompt profile={profile.id} onClose={closeMatch} />}
-      {tailor && <TailorModal target={tailor} onClose={closeTailor} />}
+      {kit && (
+        <KitModal
+          job={kit.id}
+          title={kit.title}
+          onClose={closeKit}
+          onTracked={(item) => onTracked(item.job.id, item)}
+        />
+      )}
 
       {!results ? (
         <div className="empty">Nessuna ricerca ancora per questo profilo: premi «Avvia ricerca».</div>
@@ -328,7 +335,7 @@ export default function ResultsView({ profile, initialResults, statuses }) {
                   job={job}
                   statuses={statuses}
                   onTracked={onTracked}
-                  onTailor={() => setTailor({ job: job.id })}
+                  onKit={() => setKit({ id: job.id, title: job.title })}
                 />
               ))}
               <div className="jobs-foot">

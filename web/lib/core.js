@@ -41,6 +41,7 @@ export async function core() {
     load('publishers/candidate.js'),
     load('publishers/watch.js'),
     load('market/index.js'),
+    load('kit.js'),
   ]).then(
     ([
       app,
@@ -61,7 +62,15 @@ export async function core() {
       candidate,
       watch,
       market,
+      kit,
     ]) => ({
+      buildKit: kit.buildKit,
+      buildKitPrompt: kit.buildKitPrompt,
+      buildFollowUp: kit.buildFollowUp,
+      importKitAnswer: kit.importKitAnswer,
+      companySiteFromJob: kit.companySiteFromJob,
+      findCompany: kit.findCompany,
+      cvContacts: kit.cvContacts,
       searchProfile: app.searchProfile,
       checkImported: prompt.checkImported,
       buildPrompt: prompt.buildPrompt,

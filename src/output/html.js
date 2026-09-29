@@ -40,7 +40,7 @@ function renderJob(job) {
   <p class="meta">${[job.company, job.location, date(job.postedAt), job.salary].filter(Boolean).map(esc).join(' · ')}</p>
   ${job.info && describeInfo(job.info) ? `<p class="meta info">${esc(describeInfo(job.info))}</p>` : ''}
   <p class="meta">${job.shortId ? `<code title="job-searcher track ${esc(job.shortId)} &lt;stato&gt;">${esc(job.shortId)}</code> · ` : ''}${esc(job.source)}${also} · punti ${job.score} · parole: ${esc([...job.matched, ...job.boosted].join(', '))}</p>
-  ${job.description ? `<details><summary>Descrizione</summary><p>${esc(job.description)}</p></details>` : ''}
+  ${job.description ? `<details><summary>Descrizione</summary><p style="white-space:pre-line">${esc(job.description)}</p></details>` : ''}
 </article>`;
 }
 

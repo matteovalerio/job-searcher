@@ -1,14 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { relativeDay, scoreTier } from '../lib/format.js';
 
 /** Riga di un'offerta con i controlli per seguirla (stato e nota). */
-export default function JobCard({ job, statuses, onTracked, onTailor }) {
+export default function JobCard({ job, statuses, onTracked, onKit }) {
   const [status, setStatus] = useState(job.tracking?.status ?? '');
   const [note, setNote] = useState(job.tracking?.note ?? '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  // Lo stato può cambiare anche dal kit di candidatura.
+  useEffect(() => setStatus(job.tracking?.status ?? ''), [job.tracking?.status]);
 
   async function save(next) {
     setSaving(true);
@@ -100,9 +102,9 @@ export default function JobCard({ job, statuses, onTracked, onTailor }) {
             onBlur={() => note !== (job.tracking?.note ?? '') && save({ status, note })}
           />
         )}
-        {onTailor && (
-          <button type="button" className="small ghost" onClick={onTailor}>
-            CV su misura
+        {onKit && (
+          <button type="button" className="small ghost" onClick={onKit}>
+            Kit candidatura
           </button>
         )}
         {error && <span className="error-box small">{error}</span>}

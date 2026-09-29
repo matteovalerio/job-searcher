@@ -7,6 +7,7 @@ import { parseArgs } from 'node:util';
 import { searchProfile } from './app.js';
 import { browserArgs, isWsl, openInteractive } from './browser.js';
 import { CV_HELP, cvCommand } from './commands/cv.js';
+import { KIT_HELP, kitCommand } from './commands/kit.js';
 import { MARKET_HELP, marketCommand } from './commands/market.js';
 import { PUBLISHERS_HELP, publishersCommand } from './commands/publishers.js';
 import { resolveProfile } from './config.js';
@@ -47,11 +48,14 @@ Uso:
   job-searcher doctor [-p nome] [-s f]  prova ogni fonte con una ricerca minima e dice cosa funziona
   job-searcher track                    elenca le offerte che stai seguendo, per stato
   job-searcher track <id> <stato>       segna un'offerta (l'id è il codice tra [ ] nei risultati)
-                                        stati: interessante, candidatura, colloquio, offerta, rifiutata, scartata
+                                        stati: interessante, candidatura, colloquio, offerta, rifiutata, nessuna,
+                                        scartata; con "candidatura" si programma il sollecito (--date AAAA-MM-GG)
+  job-searcher track <id> sollecito     segna un sollecito inviato; "track solleciti" elenca quelli da fare
   job-searcher track <id> --note "…"    aggiunge o cambia la nota; "track <id> rimuovi" smette di seguirla
   job-searcher match -p <nome>          prepara il testo per claude.ai: confronto tra CV e offerte migliori
                                         (--cv file.pdf, --top 15, --ids a1b2c3d,e4f5a6b, -o file)
   job-searcher publishers               case editrici e candidature spontanee (vedi sotto)
+  job-searcher kit <codice>             kit di candidatura: analisi, CV riordinato, email e sollecito (vedi sotto)
   job-searcher cv tailor <codice>       prepara il testo per adattare il CV a un'offerta o a una casa editrice
   job-searcher market -p <nome>         analisi del mercato: cosa chiedono gli annunci e come colmare le lacune
   job-searcher browser [infojobs|url]
@@ -93,7 +97,7 @@ Esempi:
   job-searcher search -p redattore-padova --only-new -o offerte.csv
 
 Le chiavi API opzionali (Adzuna, Jooble) si leggono da variabili d'ambiente o dal file .env.
-${PUBLISHERS_HELP}${CV_HELP}${MARKET_HELP}`;
+${PUBLISHERS_HELP}${KIT_HELP}${CV_HELP}${MARKET_HELP}`;
 
 const list = (value) =>
   value
@@ -140,6 +144,7 @@ function parseCli(argv) {
       sectors: { type: 'string' },
       every: { type: 'string' },
       prompt: { type: 'boolean' },
+      text: { type: 'string' },
       yes: { type: 'boolean', short: 'y' },
       help: { type: 'boolean', short: 'h' },
     },
@@ -168,6 +173,7 @@ function parseCli(argv) {
     sectors: values.sectors,
     every: num(values.every, 'every'),
     prompt: values.prompt,
+    text: values.text,
     yes: values.yes,
     help: values.help,
     profile: values.profile,
@@ -398,6 +404,19 @@ async function match(opts) {
 async function track(opts) {
   const tracking = await new Tracking().load();
   const [ref, status] = opts.args;
+  if (ref === 'solleciti') {
+    const due = tracking.due();
+    if (!due.length) return console.log('Nessuna candidatura da sollecitare oggi.');
+    console.log(c.bold('Candidature da sollecitare'));
+    for (const t of due) {
+      console.log(`  ${c.dim(`[${t.shortId}]`)} ${c.bold(t.job.title)}  ${c.dim(`inviata il ${t.sentAt}`)}`);
+      console.log(`    ${[t.job.company, t.job.location].filter(Boolean).join(' · ')}`);
+    }
+    console.log(
+      c.dim('\nIl testo del sollecito: job-searcher kit <codice>. Poi: job-searcher track <codice> sollecito'),
+    );
+    return;
+  }
   if (!ref || STATUSES[ref]) {
     const items = tracking.list({ status: ref });
     if (!items.length) {
@@ -418,10 +437,25 @@ async function track(opts) {
       console.log(`  ${c.dim(`[${t.shortId}]`)} ${c.bold(t.job.title)}  ${c.dim(t.updatedAt.slice(0, 10))}`);
       console.log(`    ${[t.job.company, t.job.location].filter(Boolean).join(' · ')}  ${c.dim(t.job.url)}`);
       if (t.note) console.log(`    ${c.yellow(`nota: ${t.note}`)}`);
+      if (t.status === 'candidatura' && t.followUpAt) {
+        const late = t.followUpAt <= new Date().toISOString().slice(0, 10);
+        console.log(`    ${late ? c.yellow('da sollecitare') : c.dim(`sollecito il ${t.followUpAt}`)}`);
+      }
     }
     return;
   }
   const existing = tracking.find(ref);
+  if (status === 'sollecito') {
+    if (!existing) throw new Error(`Non stai seguendo l'offerta "${ref}"`);
+    const item = tracking.followedUp(existing.job.id);
+    await tracking.save();
+    return console.log(
+      `${c.green('✓')} Sollecito ${item.followUps.length} segnato per "${item.job.title}". ` +
+        (item.followUpAt
+          ? `Il prossimo: ${item.followUpAt}.`
+          : 'Non ne sono previsti altri: se non rispondono, "track <codice> nessuna".'),
+    );
+  }
   if (status === 'rimuovi') {
     if (!existing) throw new Error(`Non stai seguendo l'offerta "${ref}"`);
     tracking.remove(existing.job.id);
@@ -437,11 +471,13 @@ async function track(opts) {
       `Offerta "${ref}" non trovata negli ultimi risultati: rilancia la ricerca e usa il codice tra [ ].`,
     );
   }
-  const item = tracking.set(job, { status, note: opts.note });
+  const item = tracking.set(job, { status, note: opts.note, sentAt: opts.date });
   await tracking.save();
   console.log(
     `${c.green('✓')} [${item.shortId}] ${item.job.title} → ${c.bold(STATUSES[item.status])}${item.note ? `  (nota: ${item.note})` : ''}`,
   );
+  if (item.status === 'candidatura' && item.followUpAt)
+    console.log(c.dim(`  Sollecito programmato il ${item.followUpAt}.`));
 }
 
 async function listSavedProfiles() {
@@ -571,6 +607,7 @@ async function main() {
   if (opts.command === 'match') return match(opts);
   if (opts.command === 'publishers' || opts.command === 'editori') return publishersCommand(opts);
   if (opts.command === 'cv') return cvCommand(opts);
+  if (opts.command === 'kit') return kitCommand(opts);
   if (opts.command === 'market' || opts.command === 'mercato') return marketCommand(opts);
   if (opts.command === 'browser') return openBrowserCommand(opts);
   if (opts.command === 'search') return search(opts);

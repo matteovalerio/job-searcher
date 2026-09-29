@@ -1607,3 +1607,56 @@ details summary {
     animation-duration: 0s;
   }
 }
+
+/* Kit di candidatura */
+.kit-reqs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.kit-reqs li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border-left: 3px solid var(--green);
+  background: var(--surface);
+  font-size: 14px;
+}
+.kit-reqs li.gap {
+  border-left-color: var(--danger);
+}
+.kit-reqs .evidence {
+  color: var(--muted);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.kit-reqs .evidence.warn {
+  color: var(--accent-hover);
+}
+.kit-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.kit-status .due,
+.due-box strong {
+  color: var(--accent-hover);
+}
+.due-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.job details p {
+  white-space: pre-line;
+}
