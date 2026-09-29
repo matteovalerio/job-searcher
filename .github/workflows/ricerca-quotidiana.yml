@@ -1,4 +1,5 @@
-# Ricerca quotidiana: cerca le offerte e manda quelle nuove su Telegram e/o email.
+# Ricerca quotidiana: cerca le offerte e manda quelle nuove su Telegram e/o email; poi sorveglia le case
+# editrici e le aziende affini (e una volta a settimana ne cerca di nuove nella zona del profilo).
 # Configurazione (segreti e variabili del repository): vedi il README, sezione "Ricerca automatica ogni giorno".
 # InfoJobs è escluso: richiede un browser e la verifica anti-robot.
 name: Ricerca quotidiana
@@ -23,7 +24,7 @@ concurrency:
 jobs:
   search:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     env:
       PROFILE: ${{ inputs.profile || vars.JOB_SEARCHER_PROFILE || 'redattore-padova' }}
     steps:
@@ -37,7 +38,7 @@ jobs:
       # Senza le dipendenze opzionali: il browser (Playwright) qui non serve.
       - run: npm ci --omit=optional
 
-      - name: Ripristina l'elenco delle offerte già viste
+      - name: Ripristina lo stato (offerte già viste, aziende, sorveglianza)
         uses: actions/cache/restore@v4
         with:
           path: .job-searcher
@@ -62,8 +63,24 @@ jobs:
           NO_COLOR: '1'
         run: node src/cli.js search -p "$PROFILE" --no-browser --notify --limit 20
 
-      - name: Salva l'elenco delle offerte già viste
-        if: always() && hashFiles('.job-searcher/seen-*.json') != ''
+      # Anche se la ricerca delle offerte fallisce: l'elenco delle aziende va sorvegliato comunque.
+      - name: Case editrici e aziende affini (ricerca settimanale e sorveglianza)
+        if: always()
+        env:
+          BRAVE_SEARCH_API_KEY: ${{ secrets.BRAVE_SEARCH_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+          NO_COLOR: '1'
+        run: node src/cli.js publishers auto -p "$PROFILE" --notify
+
+      - name: Salva lo stato (offerte già viste, aziende, sorveglianza)
+        if: always() && hashFiles('.job-searcher/*.json') != ''
         uses: actions/cache/save@v4
         with:
           path: .job-searcher

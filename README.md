@@ -160,6 +160,7 @@ Il repository contiene un workflow (`.github/workflows/ricerca-quotidiana.yml`) 
 - **Memoria:** l'elenco delle offerte già viste è conservato nella cache di GitHub Actions.
 - **Se l'invio fallisce:** l'elenco non viene aggiornato, così le offerte arrivano con l'esecuzione successiva.
 - **Report completo:** il report HTML di ogni esecuzione si scarica dalla pagina dell'esecuzione su GitHub (sezione *Artifacts*), a cui porta il link "Report completo" del messaggio.
+- **Case editrici e aziende affini:** dopo le offerte, il workflow esegue `publishers auto`. Una volta a settimana cerca nuove aziende nella zona del profilo, sia editoria sia settori affini. Ogni giorno sorveglia tutte quelle in elenco e manda un messaggio con le novità: annunci nuovi nelle pagine «lavora con noi», avvisi come «cerchiamo…», aziende nuove da valutare. Vedi [Sorvegliare le aziende](#sorvegliare-le-aziende). Con il segreto facoltativo `BRAVE_SEARCH_API_KEY` la ricerca settimanale usa anche il web. L'elenco usato da GitHub è separato da quello sul tuo computer: vive nella cache del workflow.
 
 ### Configurazione
 
@@ -176,7 +177,7 @@ Tutto si fa da GitHub, nel repository: **Settings → Secrets and variables → 
   - Facoltativo: `EMAIL_FROM`, se deve essere diverso da `SMTP_USER`.
   - Con Gmail: `SMTP_HOST` = `smtp.gmail.com`, `SMTP_PORT` = `465`, `SMTP_USER` = il tuo indirizzo Gmail. Come `SMTP_PASS` crea una [password per le app](https://myaccount.google.com/apppasswords); serve la verifica in due passaggi attiva.
 
-Per le fonti con chiave API aggiungi anche `ADZUNA_APP_ID`, `ADZUNA_APP_KEY` e `JOOBLE_API_KEY`.
+Per le fonti con chiave API aggiungi anche `ADZUNA_APP_ID`, `ADZUNA_APP_KEY` e `JOOBLE_API_KEY`; per la ricerca web delle aziende, `BRAVE_SEARCH_API_KEY`.
 
 **2. Facoltativo: variabili** (scheda *Variables*):
 - `JOB_SEARCHER_PROFILE`: il profilo da usare (default `redattore-padova`). Il profilo deve essere nel repository, cioè in `profiles/` con commit e push.
@@ -483,6 +484,29 @@ node src/cli.js publishers edizioni-esempio sollecitata
 
 `editori` è un sinonimo di `publishers`. I dati sono in `.job-searcher/publishers.json`. Nell'interfaccia web c'è la pagina **Case editrici**, con i filtri per stato e specializzazione. In «Cerca nuove» ci sono due schede. In «Mappe e web» si scelgono i settori, con quelli consigliati per il profilo in evidenza. In «Con Claude o da un elenco» si può chiedere a Claude di proporre le case editrici oppure le aziende affini al CV.
 
+## Sorvegliare le aziende
+
+Molte case editrici e aziende pubblicano un annuncio solo sul proprio sito, e per pochi giorni. La sorveglianza controlla le aziende dell'elenco e segnala:
+- **annunci nuovi** nella pagina «lavora con noi», con una ★ quelli che corrispondono alle parole chiave del profilo;
+- **avvisi** comparsi nella home, come «cerchiamo», «stiamo cercando» o «posizioni aperte»;
+- **una pagina «lavora con noi» comparsa**, dove prima non c'era;
+- **una pagina «lavora con noi» cambiata**, anche senza annunci riconosciuti.
+
+La prima volta salva solo un'istantanea di ogni pagina: le novità si vedono dal controllo successivo. Le aziende segnate «non mi interessa» o «risposta negativa» non vengono controllate.
+
+```bash
+node src/cli.js publishers watch -p redattore-padova            # controlla ora
+node src/cli.js publishers auto -p redattore-padova --notify    # il giro della GitHub Action
+```
+
+`publishers auto` ripete la ricerca delle aziende ogni 7 giorni (`--every` per cambiare) e sorveglia ogni volta. Poi, con `--notify`, manda un unico messaggio con le novità e le aziende nuove. Zona e settori sono quelli del profilo: le città dei target «area», il loro raggio (al massimo 50 km) e «editoria,affini». Per cambiarli aggiungi al profilo:
+
+```json
+"publishers": { "places": ["Padova", "Venezia"], "radiusKm": 40, "sectors": "editoria,affini" }
+```
+
+Nell'interfaccia web, in cima alla pagina «Case editrici e aziende affini», c'è il riquadro **Novità dalle aziende seguite** con il pulsante «Controlla ora». Lo stato della sorveglianza è in `.job-searcher/watch.json`.
+
 ## CV su misura
 
 Lo stesso CV non va bene per tutti. Per un editore di libri per bambini conviene valorizzare il processo editoriale, i rapporti con autori e illustratori e l'impaginazione in InDesign, più dei contenuti scientifici curati. Per un editore accademico vale il contrario. Il lavoro è diviso in due parti:
@@ -515,7 +539,8 @@ src/
   tracking.js      candidature e ultimi risultati
   match.js         testo per confrontare CV e offerte su claude.ai
   tailor.js        CV su misura: cosa valorizzare e testo per claude.ai
-  publishers/      case editrici e aziende affini: archivio, settori, ricerca (OpenStreetMap, Wikidata, web), specializzazioni
+  publishers/      case editrici e aziende affini: archivio, settori, ricerca (OpenStreetMap, Wikidata, web),
+                   specializzazioni, sorveglianza dei siti (watch.js) e giro automatico (auto.js)
   commands/        comandi publishers e cv della riga di comando
   extract.js       livello, esperienza, contratto e stipendio ricavati dal testo
   app.js           percorso completo di una ricerca (usato da riga di comando e interfaccia web)

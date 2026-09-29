@@ -18,7 +18,10 @@ export default async function CaseEditrici() {
     candidateText,
     suggestSectors,
     affineSectors,
+    loadWatch,
+    describeEvent,
   } = await core();
+  const watchState = await loadWatch();
   const [store, profiles] = await Promise.all([new Publishers().load(), listProfiles()]);
   // La ricerca parte dalla prima città del profilo attivo.
   const activeId = await activeProfileId(profiles);
@@ -45,6 +48,14 @@ export default async function CaseEditrici() {
       specialties={SPECIALTIES.map(({ id, label }) => ({ id, label }))}
       defaultPlace={place}
       sectors={sectors}
+      initialWatch={{
+        events: (watchState.events ?? []).slice(0, 30).map((e) => ({ ...e, description: describeEvent(e) })),
+        checkedAt:
+          Object.values(watchState.byId)
+            .map((s) => s.checkedAt)
+            .sort()
+            .at(-1) ?? null,
+      }}
       initialStale={store.staleFromWikidata().length}
     />
   );

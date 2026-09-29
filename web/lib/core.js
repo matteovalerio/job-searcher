@@ -39,6 +39,7 @@ export async function core() {
     load('publishers/import.js'),
     load('publishers/sectors.js'),
     load('publishers/candidate.js'),
+    load('publishers/watch.js'),
   ]).then(
     ([
       app,
@@ -57,6 +58,7 @@ export async function core() {
       pubImport,
       sectors,
       candidate,
+      watch,
     ]) => ({
       searchProfile: app.searchProfile,
       checkImported: prompt.checkImported,
@@ -107,6 +109,10 @@ export async function core() {
       affineSectors: sectors.affineSectors,
       resolveSectors: sectors.resolveSectors,
       candidateText: candidate.candidateText,
+      loadWatch: watch.loadWatch,
+      saveWatch: watch.saveWatch,
+      watchPublishers: watch.watchPublishers,
+      describeEvent: watch.describeEvent,
     }),
   );
   return modules;

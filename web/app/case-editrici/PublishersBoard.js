@@ -556,6 +556,91 @@ function Row({ p, statuses, kinds, specialtyLabel, onChange, onCheck, onRemove, 
   );
 }
 
+/** Novità della sorveglianza: annunci nuovi, avvisi di ricerca di personale, pagine comparse o cambiate. */
+function WatchPanel({ initial, count, onChecked }) {
+  const [watch, setWatch] = useState(initial);
+  const [running, setRunning] = useState(false);
+  const [outcome, setOutcome] = useState(null);
+  const [all, setAll] = useState(false);
+
+  async function run() {
+    setRunning(true);
+    setOutcome(null);
+    try {
+      const data = await send('/api/publishers/watch', 'POST');
+      setWatch({ events: data.events, checkedAt: data.checkedAt });
+      setOutcome(data);
+      onChecked?.();
+    } catch (err) {
+      setOutcome({ error: err.message });
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  const shown = all ? watch.events : watch.events.slice(0, 6);
+  return (
+    <section className="card stack" aria-labelledby="watch-title" style={{ gap: 12 }}>
+      <div className="row">
+        <h2 id="watch-title">Novità dalle aziende seguite</h2>
+        <span className="spacer" />
+        {watch.checkedAt && <span className="faint small">Ultimo controllo {relativeDay(watch.checkedAt)}</span>}
+        <button type="button" className="small" onClick={run} disabled={running || !count}>
+          <RefreshIcon size={14} />
+          {running ? `Controllo ${count} aziende…` : 'Controlla ora'}
+        </button>
+      </div>
+      {outcome?.error && <p className="error-box small">{outcome.error}</p>}
+      {outcome && !outcome.error && (
+        <p className="small muted">
+          {outcome.firstTime
+            ? `Controllate ${outcome.checked} aziende: istantanee salvate, le novità si vedranno dal prossimo controllo.`
+            : `Controllate ${outcome.checked} aziende: ${outcome.found.length ? `${outcome.found.length} novità.` : 'nessuna novità.'}`}
+          {outcome.problems.length > 0 && ` ${outcome.problems.length} siti non hanno risposto.`}
+        </p>
+      )}
+      {watch.events.length === 0 ? (
+        <p className="small muted">
+          Ogni controllo guarda le pagine «lavora con noi» (o la home) delle aziende in elenco e segnala annunci nuovi,
+          frasi come «cerchiamo» e pagine comparse o cambiate. La prima volta salva solo un&apos;istantanea. Con la
+          GitHub Action il controllo avviene ogni giorno e le novità arrivano su Telegram o per email.
+        </p>
+      ) : (
+        <ul className="events">
+          {shown.map((e) => (
+            <li key={`${e.at}-${e.publisherId}-${e.type}-${e.title ?? e.text ?? ''}`}>
+              <span className={`event-mark ${e.relevant ? 'relevant' : e.type}`} aria-hidden="true">
+                {e.relevant ? '★' : e.type === 'pagina-cambiata' ? '·' : '!'}
+              </span>
+              <span className="stack" style={{ gap: 2 }}>
+                <span>
+                  <strong>{e.name}</strong>: {e.description}
+                </span>
+                <span className="faint small">
+                  {relativeDay(e.at)}
+                  {e.url && (
+                    <>
+                      {' · '}
+                      <a href={e.url} target="_blank" rel="noopener noreferrer">
+                        apri la pagina
+                      </a>
+                    </>
+                  )}
+                </span>
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {watch.events.length > 6 && (
+        <button type="button" className="small ghost" onClick={() => setAll(!all)} style={{ alignSelf: 'flex-start' }}>
+          {all ? 'Mostra meno' : `Mostra tutte (${watch.events.length})`}
+        </button>
+      )}
+    </section>
+  );
+}
+
 export default function PublishersBoard({
   initialItems,
   statuses,
@@ -564,6 +649,7 @@ export default function PublishersBoard({
   sectors,
   defaultPlace,
   initialStale = 0,
+  initialWatch = { events: [], checkedAt: null },
 }) {
   const router = useRouter();
   const [items, setItems] = useState(initialItems);
@@ -672,6 +758,13 @@ export default function PublishersBoard({
         </div>
       )}
       {error && <p className="error-box">{error}</p>}
+      {items.length > 0 && (
+        <WatchPanel
+          initial={initialWatch}
+          onChecked={async () => setItems((await send('/api/publishers', 'GET')).items)}
+          count={items.filter((p) => p.website && !['scartata', 'rifiutata'].includes(p.status)).length}
+        />
+      )}
 
       {!items.length ? (
         <div className="empty">
