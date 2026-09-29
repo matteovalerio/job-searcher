@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useRef } from 'react';
-import { BoardIcon, BriefcaseIcon, SearchIcon, UserIcon } from './icons.js';
+import { BoardIcon, BookIcon, BriefcaseIcon, SearchIcon, UserIcon } from './icons.js';
 
 /** Il profilo scelto resta in un cookie: così tutte le pagine sanno qual è quello attivo. */
 function rememberProfile(cookieName, id) {
@@ -43,6 +43,13 @@ export default function Sidebar({ profiles, active, counts, cookieName }) {
       icon: BoardIcon,
       count: counts.tracked,
       match: (p) => p.startsWith('/candidature'),
+    },
+    {
+      href: '/case-editrici',
+      label: 'Case editrici',
+      icon: BookIcon,
+      count: counts.publishers,
+      match: (p) => p.startsWith('/case-editrici'),
     },
     { href: '/profili', label: 'Profili', icon: UserIcon, match: (p) => p.startsWith('/profili') },
   ];

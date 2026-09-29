@@ -1,0 +1,9 @@
+{
+  "head": { "vars": ["item", "itemLabel", "website", "placeLabel", "coord", "genreLabel"] },
+  "results": { "bindings": [
+    { "item": { "type": "uri", "value": "http://www.wikidata.org/entity/Q100" }, "itemLabel": { "type": "literal", "value": "Edizioni Esempio" }, "website": { "type": "uri", "value": "https://www.edizioniesempio.it/" }, "placeLabel": { "type": "literal", "value": "Padova" }, "coord": { "type": "literal", "value": "Point(11.8763 45.407)" }, "genreLabel": { "type": "literal", "value": "letteratura per ragazzi" } },
+    { "item": { "type": "uri", "value": "http://www.wikidata.org/entity/Q200" }, "itemLabel": { "type": "literal", "value": "Casa Editrice Scienza Veneta" }, "website": { "type": "uri", "value": "https://scienzaveneta.it" }, "placeLabel": { "type": "literal", "value": "Vicenza" }, "coord": { "type": "literal", "value": "Point(11.5454 45.5477)" }, "genreLabel": { "type": "literal", "value": "editoria scientifica" } },
+    { "item": { "type": "uri", "value": "http://www.wikidata.org/entity/Q200" }, "itemLabel": { "type": "literal", "value": "Casa Editrice Scienza Veneta" }, "website": { "type": "uri", "value": "https://scienzaveneta.it" }, "placeLabel": { "type": "literal", "value": "Vicenza" }, "coord": { "type": "literal", "value": "Point(11.5454 45.5477)" }, "genreLabel": { "type": "literal", "value": "medicina" } },
+    { "item": { "type": "uri", "value": "http://www.wikidata.org/entity/Q300" }, "itemLabel": { "type": "literal", "value": "Q300" } }
+  ] }
+}

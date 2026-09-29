@@ -37,6 +37,12 @@ export const BoardIcon = (p) => (
     <rect x="17" y="4" width="4" height="7" rx="1.5" />
   </Icon>
 );
+export const BookIcon = (p) => (
+  <Icon {...p}>
+    <path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z" />
+    <path d="M4 19V5M8 7h7" />
+  </Icon>
+);
 export const UserIcon = (p) => (
   <Icon {...p}>
     <circle cx="12" cy="8" r="4" />

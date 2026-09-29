@@ -11,15 +11,19 @@ export const metadata = {
 
 /** Numeri della barra laterale: offerte dell'ultima ricerca del profilo attivo e candidature seguite. */
 async function sidebarData() {
-  const { listProfiles, Tracking } = await core();
+  const { listProfiles, Tracking, Publishers } = await core();
   const profiles = await listProfiles();
   const active = await activeProfileId(profiles);
-  const [results, tracking] = await Promise.all([active ? resultsForPage(active) : null, new Tracking().load()]);
+  const [results, tracking, publishers] = await Promise.all([
+    active ? resultsForPage(active) : null,
+    new Tracking().load(),
+    new Publishers().load(),
+  ]);
   const offers = new Set(results?.targets.flatMap((t) => t.jobs.map((j) => j.id)) ?? []).size;
   return {
     profiles: profiles.map(({ id, name }) => ({ id, name })),
     active,
-    counts: { offers, tracked: tracking.list().length },
+    counts: { offers, tracked: tracking.list().length, publishers: publishers.items.length },
   };
 }
 

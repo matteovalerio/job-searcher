@@ -116,6 +116,7 @@ Per un uso quotidiano è più veloce la versione compilata: `npm run build` una 
 - **Offerte:** premi «Avvia ricerca». L'avanzamento di ogni fonte compare mentre arriva. I risultati sono divisi per zona e si filtrano per testo o «solo nuove». Accanto a ogni offerta puoi scegliere uno stato e scrivere una nota; le offerte segnate «non mi interessa» o «non selezionata» spariscono.
 - **Candidature:** una bacheca a colonne (da candidarsi, candidato, colloquio, chiuse). Sposti le offerte trascinandole o scegliendo lo stato, scrivi note o smetti di seguirle.
 - **Offerte → «Prompt per Claude»:** prepara il testo per confrontare il CV con le offerte migliori dell'ultima ricerca (vedi [Quali offerte scegliere](#quali-offerte-scegliere-con-laiuto-di-claude)). Lo copi, lo incolli su claude.ai e alleghi il CV.
+- **Case editrici:** le candidature spontanee, con ricerca di nuove case editrici e «CV su misura» (vedi [Case editrici e candidature spontanee](#case-editrici-e-candidature-spontanee)).
 - **Profili:** l'elenco dei profili e la modifica del JSON, con gli stessi controlli della ricerca prima di salvare (per esempio i comuni).
 - **Profili → «Nuovo profilo»:** crea un profilo in due modi, come dalla riga di comando.
   - *Procedura guidata:* carichi il CV in PDF (facoltativo); le aree, gli anni di esperienza, le parole chiave, le lingue e i filtri vengono proposti dal CV. Controlli, correggi e salvi.
@@ -435,6 +436,41 @@ node src/cli.js match -p redattore-padova --cv ~/Documenti/cv.pdf   # include il
 
 Senza `--cv`, allega il PDF del CV nella chat. Le offerte sono quelle dell'ultima ricerca del profilo, senza quelle segnate `scartata` o `rifiutata`. Claude le chiama con lo stesso codice tra parentesi quadre, quindi poi puoi segnarle con `track`. Dall'interfaccia web c'è il pulsante «Prompt per Claude» nella pagina Offerte.
 
+## Case editrici e candidature spontanee
+
+Molte case editrici e studi editoriali non pubblicano offerte e non hanno una pagina «lavora con noi»: ci si candida di propria iniziativa. Il programma aiuta a trovarli e a seguire le candidature.
+
+- **Trovare:** cerca case editrici e studi editoriali attorno a una città su **OpenStreetMap** e **Wikidata**. Sono dati aperti, pensati per essere interrogati. Le mappe non sono complete: quelle che conosci aggiungile a mano.
+- **Capire chi sono:** «controlla sito» visita la home e ricava la specializzazione (bambini e ragazzi, scientifica, scolastica, narrativa…), l'email migliore per candidarsi (prima lavoro@, hr@, cv@, poi redazione@, poi info@) e il link alla pagina «lavora con noi», se c'è.
+- **Seguire:** ogni casa editrice ha uno stato: da valutare, da contattare, candidatura inviata, sollecito inviato, colloquio, risposta negativa, nessuna risposta, non mi interessa. Poi la data di invio e le note. Tre settimane dopo l'invio senza risposta viene segnata «da sollecitare».
+
+```bash
+node src/cli.js publishers find -l Padova -r 40          # anteprima dei risultati
+node src/cli.js publishers find -l Padova -r 40 --add    # li aggiunge all'elenco ("da valutare")
+node src/cli.js publishers check                         # visita i siti non ancora controllati
+node src/cli.js publishers add "Edizioni Esempio" --site esempio.it --city Vicenza --note "conosco la redattrice"
+node src/cli.js publishers                               # elenco: prima quelle da sollecitare
+node src/cli.js publishers edizioni-esempio inviata --date 2026-09-29 --note "CV a lavoro@esempio.it"
+node src/cli.js publishers edizioni-esempio sollecitata
+```
+
+`editori` è un sinonimo di `publishers`. I dati sono in `.job-searcher/publishers.json`. Nell'interfaccia web c'è la pagina **Case editrici**, con i filtri per stato e specializzazione.
+
+## CV su misura
+
+Lo stesso CV non va bene per tutti. Per un editore di libri per bambini conviene valorizzare il processo editoriale, i rapporti con autori e illustratori e l'impaginazione in InDesign, più dei contenuti scientifici curati. Per un editore accademico vale il contrario. Il lavoro è diviso in due parti:
+
+1. **Lo strumento** (`src/tailor.js`, senza intelligenza artificiale) riconosce la specializzazione del destinatario, dal sito della casa editrice o dal testo dell'annuncio. Da una tabella (`src/publishers/specialties.js`) decide cosa mettere in primo piano e cosa in secondo.
+2. **Il prompt** unisce il CV, il destinatario e queste indicazioni. Lo incolli su claude.ai, o in un altro assistente, che riscrive il CV senza inventare nulla. Per le candidature spontanee scrive anche l'email di accompagnamento.
+
+```bash
+node src/cli.js cv set ~/Documenti/cv.pdf        # salva il testo del CV (resta sul computer)
+node src/cli.js cv tailor edizioni-esempio        # per una casa editrice dell'elenco
+node src/cli.js cv tailor 3359919 -o cv-prompt.txt  # per un'offerta (codice tra [ ])
+```
+
+Nell'interfaccia web il pulsante **CV su misura** c'è su ogni offerta e su ogni casa editrice. Il CV caricato nella creazione del profilo viene ricordato; il testo resta in `.job-searcher/cv.txt`.
+
 ## Struttura del codice
 
 ```
@@ -451,6 +487,9 @@ src/
   store.js         memoria delle offerte già viste (.job-searcher/)
   tracking.js      candidature e ultimi risultati
   match.js         testo per confrontare CV e offerte su claude.ai
+  tailor.js        CV su misura: cosa valorizzare e testo per claude.ai
+  publishers/      case editrici: archivio, ricerca (OpenStreetMap, Wikidata), specializzazioni
+  commands/        comandi publishers e cv della riga di comando
   extract.js       livello, esperienza, contratto e stipendio ricavati dal testo
   app.js           percorso completo di una ricerca (usato da riga di comando e interfaccia web)
   paths.js         dove stanno i file (JOB_SEARCHER_HOME)
