@@ -1,9 +1,64 @@
 {
   "version": 0.6,
   "elements": [
-    { "type": "node", "id": 1, "lat": 45.4079, "lon": 11.8736, "tags": { "name": "Edizioni Esempio", "office": "publisher", "website": "www.edizioniesempio.it", "email": "info@edizioniesempio.it", "addr:street": "Via Roma", "addr:housenumber": "10", "addr:postcode": "35122", "addr:city": "Padova" } },
-    { "type": "way", "id": 2, "center": { "lat": 45.5477, "lon": 11.5454 }, "tags": { "name": "Studio Editoriale Pagine", "office": "company", "contact:website": "https://studiopagine.it" } },
-    { "type": "node", "id": 3, "lat": 45.41, "lon": 11.88, "tags": { "name": "Libreria Edizioni Rare", "shop": "books" } },
-    { "type": "node", "id": 4, "lat": 45.4, "lon": 11.9, "tags": { "office": "publisher" } }
+    {
+      "type": "node",
+      "id": 1,
+      "lat": 45.4079,
+      "lon": 11.8736,
+      "tags": {
+        "name": "Edizioni Esempio",
+        "office": "publisher",
+        "website": "www.edizioniesempio.it",
+        "email": "info@edizioniesempio.it",
+        "addr:street": "Via Roma",
+        "addr:housenumber": "10",
+        "addr:postcode": "35122",
+        "addr:city": "Padova"
+      }
+    },
+    {
+      "type": "way",
+      "id": 2,
+      "center": {
+        "lat": 45.5477,
+        "lon": 11.5454
+      },
+      "tags": {
+        "name": "Studio Editoriale Pagine",
+        "office": "company",
+        "contact:website": "https://studiopagine.it"
+      }
+    },
+    {
+      "type": "node",
+      "id": 3,
+      "lat": 45.41,
+      "lon": 11.88,
+      "tags": {
+        "name": "Libreria Due Torri",
+        "shop": "books"
+      }
+    },
+    {
+      "type": "node",
+      "id": 4,
+      "lat": 45.4,
+      "lon": 11.9,
+      "tags": {
+        "office": "publisher"
+      }
+    },
+    {
+      "type": "node",
+      "id": 5,
+      "lat": 45.22,
+      "lon": 12.28,
+      "tags": {
+        "name": "Libreria Editrice Il Leggio",
+        "shop": "books",
+        "website": "http://www.leggioeditrice.it/"
+      }
+    }
   ]
 }

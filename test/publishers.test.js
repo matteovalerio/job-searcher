@@ -33,7 +33,7 @@ test('OpenStreetMap: tiene gli editori, scarta librerie e voci senza nome', asyn
   const results = parseOverpass(JSON.parse(await fixture('overpass.json')), padova);
   assert.deepEqual(
     results.map((r) => r.name),
-    ['Edizioni Esempio', 'Studio Editoriale Pagine'],
+    ['Edizioni Esempio', 'Studio Editoriale Pagine', 'Libreria Editrice Il Leggio'],
   );
   const [esempio, studio] = results;
   assert.equal(esempio.website, 'https://www.edizioniesempio.it/');
@@ -56,7 +56,7 @@ test('le due fonti si uniscono per sito e si completano', async () => {
   const osm = parseOverpass(JSON.parse(await fixture('overpass.json')), padova);
   const wd = parseWikidata(JSON.parse(await fixture('wikidata.json')), padova);
   const merged = mergeResults([osm, wd]);
-  assert.equal(merged.length, 3);
+  assert.equal(merged.length, 4);
   const esempio = merged.find((r) => r.name === 'Edizioni Esempio');
   assert.deepEqual(esempio.sources, ['openstreetmap', 'wikidata']);
   assert.equal(esempio.email, 'info@edizioniesempio.it');
@@ -78,7 +78,7 @@ test('discoverPublishers: interroga le due fonti e riporta i problemi senza ferm
   };
   const { center, results, problems } = await discoverPublishers({ place: 'Padova', radiusKm: 40, http });
   assert.equal(center.name, 'Padova');
-  assert.equal(results.length, 2);
+  assert.equal(results.length, 3);
   assert.deepEqual(problems, ['Wikidata: HTTP 429']);
   assert.match(calls[0][2], /^data=/);
   await assert.rejects(discoverPublishers({ place: 'Atlantide', http }), /Non riconosco il comune/);

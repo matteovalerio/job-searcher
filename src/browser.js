@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { stateDir } from './paths.js';
@@ -12,6 +12,7 @@ import { stateDir } from './paths.js';
  *   JOB_SEARCHER_HEADLESS=1          non mostra la finestra (ma la verifica anti-robot non si può risolvere)
  *   JOB_SEARCHER_BROWSER=chrome      canale Playwright: chrome, msedge…
  *   JOB_SEARCHER_BROWSER_PATH=…      percorso di un browser Chromium qualsiasi (Brave, Chromium…)
+ *   JOB_SEARCHER_BROWSER_ARGS=…      opzioni in più per Chrome, separate da spazi (sostituiscono quelle per WSL)
  */
 
 const env = (name) => process.env[`JOB_SEARCHER_${name}`] || process.env[`INDEED_${name}`];
@@ -19,6 +20,25 @@ const env = (name) => process.env[`JOB_SEARCHER_${name}`] || process.env[`INDEED
 // Titoli e elementi tipici delle pagine di verifica (Cloudflare, DataDome…).
 const CHALLENGE_TITLE = /just a moment|un momento|verifica|security check|additional verification|cloudflare|captcha/i;
 const CHALLENGE_SELECTOR = '#challenge-form, iframe[src*="captcha"], iframe[src*="challenges.cloudflare"], #cf-wrapper';
+
+/** Gira dentro WSL (Linux su Windows)? Lì le finestre passano da WSLg, che con Chrome ha dei problemi. */
+export function isWsl(env = process.env, readVersion = () => readFileSync('/proc/version', 'utf8')) {
+  if (env.WSL_DISTRO_NAME || env.WSL_INTEROP) return true;
+  try {
+    return /microsoft|wsl/i.test(readVersion());
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Opzioni di avvio di Chrome. Su WSL la finestra spesso non si disegna (compare solo l'icona nella barra):
+ * si disattiva l'accelerazione grafica e si usa X11 invece di Wayland, che di solito risolve.
+ */
+export function browserArgs({ wsl = isWsl(), custom = env('BROWSER_ARGS') } = {}) {
+  if (custom) return custom.split(/\s+/).filter(Boolean);
+  return wsl ? ['--disable-gpu', '--ozone-platform=x11'] : [];
+}
 
 async function loadPlaywright() {
   try {
@@ -153,6 +173,7 @@ export async function openBrowser() {
     headless,
     viewport: { width: 1280, height: 900 },
     locale: 'it-IT',
+    args: browserArgs(),
   });
   const page = context.pages()[0] ?? (await context.newPage());
 
@@ -172,12 +193,39 @@ export async function openBrowser() {
         throw new Error(`${site} chiede la verifica anti-robot: esegui una volta senza JOB_SEARCHER_HEADLESS`);
       }
       process.stderr.write(`  ${site} chiede una verifica anti-robot: risolvila nella finestra del browser…\n`);
-      await page.waitForFunction(ready, null, { timeout: 120000 });
+      await page.bringToFront().catch(() => {});
+      try {
+        await page.waitForFunction(ready, null, { timeout: 120000 });
+      } catch {
+        throw new Error(
+          `${site}: verifica anti-robot non risolta entro 2 minuti. Se la finestra non si vede, prova ` +
+            '"job-searcher browser" per aprirla e risolvere la verifica con calma (vedi README, WSL).',
+        );
+      }
     },
     evaluate: (fn, arg) => page.evaluate(fn, arg),
     content: () => page.content(),
     close: () => context.close(),
   };
+}
+
+/**
+ * Apre il browser del programma (stesso profilo delle ricerche) e aspetta che l'utente lo chiuda: serve a
+ * controllare che la finestra si veda e a superare una volta la verifica anti-robot, i cui cookie restano.
+ */
+export async function openInteractive(url, { onReady = () => {} } = {}) {
+  const chromium = await loadPlaywright();
+  const context = await launch(chromium, stateDir('browser'), {
+    headless: false,
+    viewport: null,
+    locale: 'it-IT',
+    args: browserArgs(),
+  });
+  const page = context.pages()[0] ?? (await context.newPage());
+  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 }).catch(() => {});
+  await page.bringToFront().catch(() => {});
+  onReady();
+  await new Promise((resolve) => context.on('close', resolve));
 }
 
 /**

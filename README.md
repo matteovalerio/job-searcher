@@ -215,15 +215,22 @@ Indeed e InfoJobs non hanno un'API pubblica e bloccano gli script, quindi queste
 
 - **Quale browser:** Chrome o Edge se ci sono, altrimenti un altro browser basato su Chromium installato (Chromium, Brave, Vivaldi…). Se non ce n'è nessuno, `npm run browser:install` scarica il Chromium di Playwright, circa 150 MB.
 - **Prima esecuzione:** si apre una finestra del browser. Se il sito mostra la verifica "non sono un robot", risolvila a mano nella finestra (hai 2 minuti) e il programma prosegue da solo. Il profilo del browser è salvato in `.job-searcher/browser`, quindi le volte successive la verifica di solito non ricompare.
+- **Superare la verifica con calma:** `node src/cli.js browser` apre il browser del programma su Indeed (`browser infojobs` per InfoJobs). Risolvi la verifica, fai una ricerca qualsiasi e chiudi la finestra: i cookie restano per le ricerche successive.
 - **Più lente delle altre fonti:** tra una pagina e l'altra fanno pause di 3–6 secondi.
 - **Se un sito cambia struttura** e non viene riconosciuta nessuna offerta, la pagina viene salvata in `.job-searcher/debug/` e il riepilogo lo segnala: quel file serve per aggiornare il riconoscimento.
 - **Variabili d'ambiente** (nel file `.env`):
   - `JOB_SEARCHER_HEADLESS=1` nasconde la finestra (utile con cron), ma in quel caso la verifica anti-robot non si può risolvere;
   - `JOB_SEARCHER_BROWSER=msedge` usa Edge invece di Chrome;
   - `JOB_SEARCHER_BROWSER_PATH=/percorso/del/browser` usa un altro browser basato su Chromium (Brave, Chromium…);
+  - `JOB_SEARCHER_BROWSER_ARGS="--opzione …"` passa opzioni in più a Chrome (sostituiscono quelle per WSL);
   - `INDEED_HOST=it.indeed.com` cambia il dominio di Indeed;
   - `INFOJOBS_SEARCH_URL` cambia l'indirizzo della ricerca su InfoJobs (vedi sotto).
 - **Da sapere:** i termini d'uso di Indeed e InfoJobs non consentono la lettura automatica. Per questo le due fonti sono disattivate di default e si attivano con `"enableSources": ["indeed", "infojobs"]` nel profilo; la procedura guidata lo chiede. Per un uso personale, con poche richieste, il rischio pratico è basso, ma la scelta è tua.
+
+**Su WSL (Linux dentro Windows).** Le finestre delle app Linux passano da WSLg, e con Chrome capita che compaia solo l'icona nella barra, senza finestra. Su WSL il programma avvia Chrome con `--disable-gpu --ozone-platform=x11`, che di solito risolve. Per controllare, usa `node src/cli.js browser`. Se la finestra ancora non si vede:
+- aggiorna WSL da Windows con `wsl --update` e riavvialo con `wsl --shutdown`;
+- prova altre opzioni, per esempio `JOB_SEARCHER_BROWSER_ARGS="--disable-gpu"` oppure `JOB_SEARCHER_BROWSER_ARGS="--disable-gpu --ozone-platform=wayland"`;
+- se non ne vale la pena, lascia Indeed e InfoJobs fuori dal profilo, oppure cerca con `--no-browser`.
 
 **InfoJobs: indirizzo della ricerca.** Il programma riconosce le offerte in tre modi:
 - dati strutturati JSON-LD;

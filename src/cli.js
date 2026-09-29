@@ -5,6 +5,7 @@ import path from 'node:path';
 import { createInterface } from 'node:readline/promises';
 import { parseArgs } from 'node:util';
 import { searchProfile } from './app.js';
+import { browserArgs, isWsl, openInteractive } from './browser.js';
 import { CV_HELP, cvCommand } from './commands/cv.js';
 import { PUBLISHERS_HELP, publishersCommand } from './commands/publishers.js';
 import { resolveProfile } from './config.js';
@@ -50,6 +51,9 @@ Uso:
                                         (--cv file.pdf, --top 15, --ids a1b2c3d,e4f5a6b, -o file)
   job-searcher publishers               case editrici e candidature spontanee (vedi sotto)
   job-searcher cv tailor <codice>       prepara il testo per adattare il CV a un'offerta o a una casa editrice
+  job-searcher browser [indeed|infojobs|url]
+                                        apre il browser del programma: per controllare che la finestra si veda e
+                                        risolvere una volta la verifica anti-robot (i cookie restano)
 
 Opzioni di "profile new", "profile prompt" e "profile import":
       --cv <file.pdf>      ricava le informazioni dal CV (con "prompt": include il testo del CV)
@@ -507,6 +511,25 @@ async function importProfile(opts, file) {
   console.log(`Per cercare: ${c.bold(`job-searcher search -p ${id}`)}`);
 }
 
+const BROWSER_SITES = { indeed: 'https://it.indeed.com/', infojobs: 'https://www.infojobs.it/' };
+
+async function openBrowserCommand(opts) {
+  const target = opts.args[0] ?? 'indeed';
+  const url = BROWSER_SITES[target] ?? (/^https?:\/\//.test(target) ? target : null);
+  if (!url) throw new Error('Indica indeed, infojobs o un indirizzo: job-searcher browser indeed');
+  const args = browserArgs();
+  const note = [isWsl() && 'WSL', args.length && `opzioni: ${args.join(' ')}`].filter(Boolean).join(', ');
+  console.error(c.dim(`Apro ${url}${note ? ` (${note})` : ''}…`));
+  await openInteractive(url, {
+    onReady: () =>
+      console.log(
+        'Browser aperto. Se compare la verifica anti-robot, risolvila e fai una ricerca qualsiasi;\n' +
+          'poi chiudi la finestra: i cookie restano per le prossime ricerche.',
+      ),
+  });
+  console.log(c.green('Browser chiuso.'));
+}
+
 async function main() {
   if (existsSync(envFile())) process.loadEnvFile(envFile());
   const opts = parseCli(process.argv.slice(2));
@@ -517,6 +540,7 @@ async function main() {
   if (opts.command === 'match') return match(opts);
   if (opts.command === 'publishers' || opts.command === 'editori') return publishersCommand(opts);
   if (opts.command === 'cv') return cvCommand(opts);
+  if (opts.command === 'browser') return openBrowserCommand(opts);
   if (opts.command === 'search') return search(opts);
   if (opts.command === 'profiles') return listSavedProfiles();
   if (opts.command === 'profile') {
