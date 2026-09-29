@@ -19,6 +19,7 @@ Case editrici e studi editoriali (candidature spontanee):
   job-searcher publishers check [id]          visita i siti: specializzazione, email, pagina "lavora con noi"
   job-searcher publishers <id> <stato> [--date 2026-09-29] [--note "…"]
                                               stati: ${Object.keys(PUBLISHER_STATUSES).join(', ')}
+  job-searcher publishers clean               toglie le voci di Wikidata senza sito mai toccate (editori storici)
   job-searcher publishers <id>                scheda completa; "publishers <id> rimuovi" la toglie
 `;
 
@@ -198,6 +199,13 @@ export async function publishersCommand(opts) {
   if (first === 'find' || first === 'cerca') return find(opts, store);
   if (first === 'check' || first === 'controlla') return check(second, store);
   if (first === 'prompt') return prompt(opts, store);
+  if (first === 'clean' || first === 'pulisci') {
+    const stale = store.staleFromWikidata();
+    for (const p of stale) store.remove(p.id);
+    await store.save();
+    console.log(stale.length ? `Tolte ${stale.length}: ${stale.map((p) => p.name).join(', ')}` : 'Niente da togliere.');
+    return;
+  }
   if (first === 'import' || first === 'importa') return importList(second, store);
   if (first === 'add' || first === 'aggiungi') {
     if (opts.kind && !PUBLISHER_KINDS[opts.kind]) {

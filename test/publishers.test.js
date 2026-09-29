@@ -45,7 +45,7 @@ test('OpenStreetMap: tiene gli editori, scarta librerie e voci senza nome', asyn
 
 test('Wikidata: una voce per casa editrice, generi uniti in specializzazioni', async () => {
   const results = parseWikidata(JSON.parse(await fixture('wikidata.json')), padova);
-  assert.equal(results.length, 2);
+  assert.equal(results.length, 2, 'senza gli stampatori storici e senza le voci prive di sito');
   const scienza = results.find((r) => r.name === 'Casa Editrice Scienza Veneta');
   assert.deepEqual(scienza.specialties.sort(), ['medicina', 'scientifica']);
   assert.equal(scienza.city, 'Vicenza');
@@ -163,4 +163,20 @@ test('archivio: niente doppioni, stati, date di invio e solleciti', async () => 
   assert.equal(again.find('esempio').id, a.id);
   assert.ok(again.remove(found.id));
   assert.equal(again.list().length, 1);
+});
+
+test('pulizia: via le voci di Wikidata senza sito mai toccate', async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), 'publishers-'));
+  const store = new Publishers(path.join(dir, 'publishers.json'));
+  store.add({ name: 'Stamperia del Seicento', source: 'wikidata', city: 'Venezia' });
+  store.add({ name: 'Marsilio', source: 'wikidata', website: 'marsilioeditori.it' });
+  const noted = store.add({ name: 'Tipografia con nota', source: 'wikidata' });
+  store.update(noted.id, { note: 'da chiedere a Anna' });
+  const contacted = store.add({ name: 'Editore contattato', source: 'wikidata' });
+  store.update(contacted.id, { status: 'inviata' });
+  store.add({ name: 'Aggiunto a mano senza sito' });
+  assert.deepEqual(
+    store.staleFromWikidata().map((p) => p.name),
+    ['Stamperia del Seicento'],
+  );
 });

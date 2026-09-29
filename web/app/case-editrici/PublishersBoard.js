@@ -472,7 +472,14 @@ function Row({ p, statuses, kinds, specialtyLabel, onChange, onCheck, onRemove, 
   );
 }
 
-export default function PublishersBoard({ initialItems, statuses, kinds, specialties, defaultPlace }) {
+export default function PublishersBoard({
+  initialItems,
+  statuses,
+  kinds,
+  specialties,
+  defaultPlace,
+  initialStale = 0,
+}) {
   const router = useRouter();
   const [items, setItems] = useState(initialItems);
   const [group, setGroup] = useState('all');
@@ -524,6 +531,15 @@ export default function PublishersBoard({ initialItems, statuses, kinds, special
     );
   }, [items, group, query, specialty]);
   const due = items.filter((p) => p.followUpDue).length;
+  // Stessa regola di staleFromWikidata: voci di Wikidata senza sito mai toccate.
+  const stale = items.filter(
+    (p) => p.source === 'wikidata' && !p.website && p.status === 'da_valutare' && !p.note && p.history.length <= 1,
+  ).length;
+  async function cleanup() {
+    const { removed } = await send('/api/publishers/cleanup', 'POST');
+    setItems((prev) => prev.filter((p) => !removed.includes(p.id)));
+    router.refresh();
+  }
 
   return (
     <div className="page">
@@ -554,6 +570,18 @@ export default function PublishersBoard({ initialItems, statuses, kinds, special
             {due === 1 ? '1 candidatura da sollecitare' : `${due} candidature da sollecitare`}: sono passate tre
             settimane dall&apos;invio senza risposta.
           </span>
+        </div>
+      )}
+      {initialStale > 0 && stale > 0 && (
+        <div className="statusbar">
+          <span>
+            {stale} voci trovate su Wikidata senza sito e mai toccate: sono quasi sempre stampatori storici o editori
+            non più attivi.
+          </span>
+          <button type="button" className="small" onClick={cleanup}>
+            <TrashIcon size={14} />
+            Toglile
+          </button>
         </div>
       )}
       {error && <p className="error-box">{error}</p>}

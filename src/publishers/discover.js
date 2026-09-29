@@ -79,7 +79,7 @@ export function parseOverpass(json, center) {
 }
 
 export function wikidataQuery({ lat, lon }, radiusKm) {
-  return `SELECT DISTINCT ?item ?itemLabel ?website ?placeLabel ?coord ?genreLabel WHERE {
+  return `SELECT DISTINCT ?item ?itemLabel ?website ?placeLabel ?coord ?genreLabel ?inception WHERE {
   SERVICE wikibase:around {
     ?place wdt:P625 ?coord .
     bd:serviceParam wikibase:center "Point(${lon} ${lat})"^^geo:wktLiteral .
@@ -89,14 +89,24 @@ export function wikidataQuery({ lat, lon }, radiusKm) {
   { ?item wdt:P159 ?place } UNION { ?item wdt:P131 ?place }
   ?item wdt:P31/wdt:P279* wd:Q2085381 .
   FILTER NOT EXISTS { ?item wdt:P576 ?dissolved }
-  OPTIONAL { ?item wdt:P856 ?website }
+  FILTER NOT EXISTS { ?item wdt:P582 ?ended }
+  # solo con il sito ufficiale: gli stampatori storici (Venezia del Cinquecento…) non ce l'hanno
+  ?item wdt:P856 ?website .
+  OPTIONAL { ?item wdt:P571 ?inception }
   OPTIONAL { ?item wdt:P136 ?genre }
   SERVICE wikibase:label { bd:serviceParam wikibase:language "it,en". }
 }
 LIMIT 300`;
 }
 
-/** Case editrici dalla risposta di Wikidata (una riga per genere: si uniscono). */
+/** Prima di quest'anno è una casa editrice storica, anche se su Wikidata non risulta chiusa. */
+const OLDEST_FOUNDATION = 1800;
+
+/**
+ * Case editrici dalla risposta di Wikidata (una riga per genere: si uniscono). Si tengono solo quelle con il
+ * sito ufficiale e fondate dal 1800 in poi: Wikidata elenca anche gli stampatori storici, spesso senza data
+ * di chiusura.
+ */
 export function parseWikidata(json, center) {
   const byItem = new Map();
   for (const row of json.results?.bindings ?? []) {
@@ -104,6 +114,9 @@ export function parseWikidata(json, center) {
     const name = row.itemLabel?.value;
     // Senza etichetta in italiano o inglese Wikidata restituisce il codice (Q123): meglio saltare.
     if (!name || /^Q\d+$/.test(name) || notPublisher(name)) continue;
+    if (!row.website?.value) continue;
+    const founded = Number(/^-?\d{1,4}/.exec(row.inception?.value ?? '')?.[0]);
+    if (founded && founded < OLDEST_FOUNDATION) continue;
     const point = /Point\(([-\d.]+) ([-\d.]+)\)/.exec(row.coord?.value ?? '');
     const lat = point ? Number(point[2]) : null;
     const lon = point ? Number(point[1]) : null;

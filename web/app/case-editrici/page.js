@@ -18,6 +18,7 @@ export default async function CaseEditrici() {
       kinds={PUBLISHER_KINDS}
       specialties={SPECIALTIES.map(({ id, label }) => ({ id, label }))}
       defaultPlace={place}
+      initialStale={store.staleFromWikidata().length}
     />
   );
 }

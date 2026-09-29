@@ -199,6 +199,16 @@ export class Publishers {
     return p;
   }
 
+  /**
+   * Voci trovate su Wikidata senza sito e mai toccate (stato "da valutare", nessuna nota): sono quasi sempre
+   * stampatori storici o editori non più attivi, aggiunti prima che la ricerca li scartasse.
+   */
+  staleFromWikidata() {
+    return this.items.filter(
+      (p) => p.source === 'wikidata' && !p.website && p.status === 'da_valutare' && !p.note && p.history.length <= 1,
+    );
+  }
+
   remove(id) {
     const before = this.items.length;
     this.items = this.items.filter((p) => p.id !== id);

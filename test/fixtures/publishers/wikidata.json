@@ -112,6 +112,68 @@
           "type": "literal",
           "value": "Venezia"
         }
+      },
+      {
+        "item": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q500"
+        },
+        "itemLabel": {
+          "type": "literal",
+          "value": "Aldo Manuzio stampatore"
+        },
+        "placeLabel": {
+          "type": "literal",
+          "value": "Venezia"
+        },
+        "coord": {
+          "type": "literal",
+          "value": "Point(12.33 45.43)"
+        },
+        "inception": {
+          "type": "literal",
+          "value": "1494-01-01T00:00:00Z"
+        }
+      },
+      {
+        "item": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q501"
+        },
+        "itemLabel": {
+          "type": "literal",
+          "value": "Stamperia Giunti"
+        },
+        "placeLabel": {
+          "type": "literal",
+          "value": "Venezia"
+        },
+        "coord": {
+          "type": "literal",
+          "value": "Point(12.33 45.43)"
+        },
+        "website": {
+          "type": "uri",
+          "value": "https://museo.example/giunti"
+        },
+        "inception": {
+          "type": "literal",
+          "value": "1489-01-01T00:00:00Z"
+        }
+      },
+      {
+        "item": {
+          "type": "uri",
+          "value": "http://www.wikidata.org/entity/Q502"
+        },
+        "itemLabel": {
+          "type": "literal",
+          "value": "Senza Sito Editore"
+        },
+        "placeLabel": {
+          "type": "literal",
+          "value": "Padova"
+        }
       }
     ]
   }
