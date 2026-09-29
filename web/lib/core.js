@@ -37,6 +37,8 @@ export async function core() {
     load('publishers/specialties.js'),
     load('tailor.js'),
     load('publishers/import.js'),
+    load('publishers/sectors.js'),
+    load('publishers/candidate.js'),
   ]).then(
     ([
       app,
@@ -53,6 +55,8 @@ export async function core() {
       specialties,
       tailor,
       pubImport,
+      sectors,
+      candidate,
     ]) => ({
       searchProfile: app.searchProfile,
       checkImported: prompt.checkImported,
@@ -96,6 +100,13 @@ export async function core() {
       buildTailorPrompt: tailor.buildTailorPrompt,
       buildPublishersPrompt: pubImport.buildPublishersPrompt,
       parsePublisherList: pubImport.parsePublisherList,
+      buildAffinePrompt: pubImport.buildAffinePrompt,
+      SECTORS: sectors.SECTORS,
+      PUBLISHING_SECTORS: sectors.PUBLISHING_SECTORS,
+      suggestSectors: sectors.suggestSectors,
+      affineSectors: sectors.affineSectors,
+      resolveSectors: sectors.resolveSectors,
+      candidateText: candidate.candidateText,
     }),
   );
   return modules;

@@ -94,3 +94,37 @@ test('prompt per Claude: zona, regole contro le invenzioni, formato e case editr
   assert.match(prompt, /non ripeterle: Marsilio/);
   assert.match(prompt, /"studio-editoriale"/);
 });
+
+test('aziende affini: prompt dal CV e import con settore, ruolo e motivo', async () => {
+  const { buildAffinePrompt } = await import('../src/publishers/import.js');
+  const prompt = buildAffinePrompt({
+    candidate: 'Redattrice in studio editoriale, InDesign',
+    hasCv: true,
+    places: ['Padova'],
+    radiusKm: 25,
+    suggested: ['agenzia-comunicazione'],
+    known: ['Idea Comunicazione'],
+  });
+  assert.match(prompt, /<cv>\nRedattrice in studio editoriale/);
+  assert.match(prompt, /libretti per le sagre/);
+  assert.match(
+    prompt,
+    /"agenzia-comunicazione", Agenzie pubblicitarie e di comunicazione \(tra i più vicini al mio profilo\):/,
+  );
+  assert.match(prompt, /non ripeterle: Idea Comunicazione/);
+  assert.match(prompt, /"pitch": "il ruolo che potrei proporre"/);
+  assert.doesNotMatch(prompt, /"casa-editrice"/);
+
+  const list = parsePublisherList(`\`\`\`json
+[
+  { "name": "Idea Grafica", "website": "ideagrafica.it", "city": "Padova", "kind": "agenzia-comunicazione",
+    "pitch": "impaginatore e correttore di bozze", "why": "cataloghi e libretti per eventi" },
+  { "name": "Pro Loco Eventi", "kind": "altro", "sector": "organizzazione eventi", "why": "libretti delle sagre" }
+]
+\`\`\``);
+  assert.equal(list[0].kind, 'agenzia-comunicazione');
+  assert.equal(list[0].pitch, 'impaginatore e correttore di bozze');
+  assert.equal(list[0].note, 'cataloghi e libretti per eventi');
+  assert.equal(list[1].kind, 'altro');
+  assert.equal(list[1].note, 'libretti delle sagre · settore: organizzazione eventi');
+});

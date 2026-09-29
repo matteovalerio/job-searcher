@@ -54,3 +54,24 @@ test("prompt per un'offerta, senza CV salvato", () => {
   assert.match(prompt, /Lingua: quella dell'annuncio/);
   assert.match(prompt, /Narrativa e letteratura/);
 });
+
+test('azienda di un settore affine: focus del settore, perché è affine e ruolo da proporre', () => {
+  const publisher = {
+    name: 'Idea Comunicazione',
+    kind: 'agenzia-comunicazione',
+    pitch: 'correttore di bozze e impaginatore',
+  };
+  const emphasis = emphasisFor({ kind: publisher.kind });
+  assert.ok(emphasis.focus.some((f) => /InDesign/.test(f)));
+  const prompt = buildTailorPrompt({ cvText: 'CV', target: { type: 'publisher', publisher }, emphasis });
+  assert.match(prompt, /\(agenzia di comunicazione\)/);
+  assert.match(prompt, /Perché è affine al mio profilo: brochure, cataloghi, libretti per eventi e sagre/);
+  assert.match(prompt, /Ruolo che vorrei proporre: correttore di bozze e impaginatore/);
+  assert.match(prompt, /Non è una casa editrice/);
+  const publisherPrompt = buildTailorPrompt({
+    cvText: 'CV',
+    target: { type: 'publisher', publisher: { name: 'Edizioni X', kind: 'casa-editrice' } },
+    emphasis: emphasisFor({ kind: 'casa-editrice' }),
+  });
+  assert.doesNotMatch(publisherPrompt, /Non è una casa editrice|Perché è affine/);
+});
