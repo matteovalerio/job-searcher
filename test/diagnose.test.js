@@ -60,6 +60,7 @@ const profile = () =>
     keywords: ['redattore', 'editorial*'],
     excludeKeywords: ['stage'],
     matchIn: 'title',
+    affine: { sectors: 'no' },
     targets: [
       {
         id: 'zona',

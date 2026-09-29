@@ -60,7 +60,12 @@ export default function JobCard({ job, statuses, onTracked, onKit }) {
           </a>
           {job.isNew && <span className="badge">Nuova</span>}
           {job.warnings.map((w) => (
-            <span key={w} className="badge warn">
+            <span
+              key={w}
+              className="badge warn"
+              // Per le offerte affini: perché il settore c'entra con il profilo.
+              title={job.affine && w.startsWith('affine') ? `Settore affine: ${job.affine.why}` : undefined}
+            >
               {w}
             </span>
           ))}

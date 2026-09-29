@@ -63,7 +63,8 @@ di Next. La CI (`.github/workflows/test.yml`) esegue test su Node 20 e 22, lint 
 - `src/profiles/` contiene i profili: archivio, analisi del CV, procedura guidata, prompt per Claude e le aree
   professionali (`roles.js`).
 - `src/publishers/` contiene le case editrici e le aziende affini:
-  - `sectors.js`: la tabella dei settori affini, con motivo, ruoli, come cercarli e focus per il CV;
+  - `sectors.js`: la tabella dei settori affini, con motivo, ruoli, titoli degli annunci (per le offerte affini), come
+    cercarli e focus per il CV;
   - `discover.js`: ricerca su OpenStreetMap (Overpass, una query per settore) e Wikidata;
   - `websearch.js`: ricerca web con Brave (facoltativa);
   - `maps.js`: ricerca su Google Maps, Places API (facoltativa, con un tetto mensile di chiamate);

@@ -517,17 +517,20 @@ export function buildKit({ job, text, cvText = '', publishers = [], site = null 
   const offerText = text?.trim() || job.description || '';
   const offer = analyzeOfferText(offerText);
   const known = findCompany(job, publishers);
+  const affine = job.affine ?? null;
   const company = {
     name: job.company ?? known?.name ?? null,
     website: known?.website ?? site?.website ?? companySiteFromJob(job),
     email: known?.email ?? site?.email ?? null,
     careersUrl: known?.careersUrl ?? site?.careersUrl ?? null,
-    kind: known?.kind ?? null,
-    kindLabel: known?.kind ? (PUBLISHER_KINDS[known.kind] ?? null) : null,
+    // Per un'offerta di un settore affine (vedi filter.js) vale il settore: il CV valorizza ciò che conta lì.
+    kind: known?.kind ?? job.affine?.id ?? null,
+    kindLabel: PUBLISHER_KINDS[known?.kind ?? job.affine?.id] ?? null,
     specialties: known?.specialties ?? site?.specialties ?? [],
     description: known?.description ?? site?.description ?? null,
     about: offer.company,
     known: Boolean(known),
+    affine,
     // La persona a cui scrivere, se è stata trovata sul sito (vedi people.js).
     contact: bestContact(known?.people),
   };
@@ -590,7 +593,13 @@ ${kit.offerText.trim().slice(0, 6000) || '(testo non disponibile: se puoi, apri 
 L'AZIENDA
 ${company || '- Non so altro: se puoi, cerca informazioni sul sito ufficiale e dimmi da dove le prendi.'}
 
-LA MIA ANALISI (automatica, da verificare)
+${
+  kit.company.affine
+    ? `È UN RUOLO DI UN SETTORE AFFINE (${kit.company.affine.one}): ${kit.company.affine.why}. Racconta le esperienze editoriali con le parole di questo settore (per esempio "correzione di bozze" può diventare "controllo di qualità dei testi"), senza cambiarne la sostanza, e spiega nel CV e nell'email perché le mie competenze servono qui.
+
+`
+    : ''
+}LA MIA ANALISI (automatica, da verificare)
 Requisiti che il CV mostra:
 ${covered || '- nessuno riconosciuto'}
 Requisiti che non trovo nel CV:

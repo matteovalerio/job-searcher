@@ -284,6 +284,7 @@ Un profilo è un file JSON dentro `profiles/`. Di solito si crea con `profile ne
   "excludeKeywords": ["video", "software"],        // scarta le offerte che le hanno nel TITOLO (non se sono dentro una parola chiave trovata: "documentazione tecnica")
   "boostKeywords": ["casa editrice", "libri"],     // alzano il punteggio (non obbligatorie)
   "matchIn": "title",                              // "title-only" (solo il titolo) o "title+description" (più rumore)
+  "affine": { "sectors": "auto", "queries": 4 },   // (opz.) offerte dei settori affini: "auto", un elenco o "no"
   "maxAgeDays": 30,                                 // ignora offerte più vecchie
   "maxPages": 2,                                    // pagine di risultati per ogni ricerca
   "targets": [
@@ -324,6 +325,11 @@ Un profilo è un file JSON dentro `profiles/`. Di solito si crea con `profile ne
   Un'informazione che nell'annuncio non c'è non fa mai scartare l'offerta. Un contratto viene escluso solo se tutti quelli citati sono tra gli esclusi ("somministrazione finalizzata al tempo indeterminato" resta). `minSalary` è lordo annuo in euro (`salaryCurrency` per un'altra valuta). La procedura guidata imposta i filtri in base agli anni di esperienza.
 - **Punteggio**: una parola chiave nel titolo vale 10 punti, nella descrizione 2. Un ruolo affine vale 5 punti (una volta sola), quindi resta sotto i ruoli principali. Una parola "boost" vale 5 punti nel titolo e 2 altrove (azienda compresa, quindi ci si possono mettere i nomi degli editori preferiti). Le offerte sono ordinate per punteggio e poi per data.
 - **Lingue**: con `languages` si scartano le offerte che nel titolo chiedono una lingua diversa da quelle indicate, per esempio "Hebrew Localization Specialist" o "English to Korean Translator". Senza `languages` la regola non si applica.
+- **Offerte nei settori affini (`affine`)**: le stesse competenze servono anche dove il ruolo ha un altro nome: copywriter in un'agenzia, technical writer nella documentazione tecnica, medical writer nella comunicazione scientifica, post-editor nelle traduzioni… (i titoli sono nella tabella `src/publishers/sectors.js`).
+  - **Settori:** con `"auto"` (predefinito) il programma sceglie i 3 settori più vicini al profilo; si possono indicare a mano (`"sectors": ["agenzia-comunicazione", "documentazione-tecnica"]`) o spegnere (`"no"`).
+  - **Ricerche in più:** i loro titoli si cercano anche sui portali, al massimo `queries` (4) per zona.
+  - **Filtro:** un'offerta senza le parole principali ma con un titolo affine resta, con 5 punti e l'etichetta **affine · agenzia di comunicazione** (passandoci sopra si legge perché c'entra).
+  - **Kit:** per queste offerte il kit di candidatura valorizza nel CV ciò che conta in quel settore.
 - **`matchIn: "title"`**: conta soprattutto il titolo. Se il titolo non ha parole chiave ma il testo dell'annuncio sì (per esempio «Specialista comunicazione» che si occuperà della «redazione di testi», o «Technical documentation specialist» con la «redazione di manuali»), l'offerta resta con pochi punti e l'etichetta **trovata nel testo**: finisce sotto le altre, ma non si perde. Con `"title-only"` si guarda solo il titolo.
 - **Descrizioni di LinkedIn**: nei risultati di ricerca LinkedIn mostra solo titolo, azienda e luogo. Il programma scarica la descrizione:
   - delle offerte che passano il filtro sul titolo, al massimo 40 per ricerca (`maxEnrich` nel target), così può assegnare i punti bonus;
