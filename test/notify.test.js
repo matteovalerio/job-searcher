@@ -5,7 +5,14 @@ import path from 'node:path';
 import { test } from 'node:test';
 import { resolveProfile } from '../src/config.js';
 import { makeJob } from '../src/job.js';
-import { buildDigest, configuredChannels, notify, selectForDigest } from '../src/notify.js';
+import {
+  buildDigest,
+  configuredChannels,
+  notify,
+  parseByProfile,
+  recipientsForProfile,
+  selectForDigest,
+} from '../src/notify.js';
 import { SeenStore } from '../src/store.js';
 
 const job = (title, isNew = true, extra = {}) => ({
@@ -128,4 +135,28 @@ test('digest: la stessa offerta in due zone compare una volta sola', () => {
     d.sections.map((s) => s.jobs.map((j) => j.title)),
     [['Redattrice'], ['Proofreader']],
   );
+});
+
+test('più profili: chat Telegram ed email del profilo, altrimenti quelle generali', () => {
+  assert.deepEqual(parseByProfile('{"redattore-padova": 123, "grafico": "-100456"}'), {
+    'redattore-padova': '123',
+    grafico: '-100456',
+  });
+  assert.deepEqual(parseByProfile('redattore-padova=123\ngrafico = -100456, altro=7'), {
+    'redattore-padova': '123',
+    grafico: '-100456',
+    altro: '7',
+  });
+  assert.deepEqual(parseByProfile(''), {});
+  assert.throws(() => parseByProfile('{rotto'), /non valido/);
+
+  const env = {
+    TELEGRAM_CHAT_ID: '1',
+    EMAIL_TO: 'tutti@x.it',
+    TELEGRAM_CHAT_ID_BY_PROFILE: 'grafico=-100456',
+    EMAIL_TO_BY_PROFILE: '{"grafico": "anna@x.it"}',
+  };
+  assert.deepEqual(recipientsForProfile('grafico', env), { TELEGRAM_CHAT_ID: '-100456', EMAIL_TO: 'anna@x.it' });
+  assert.deepEqual(recipientsForProfile('redattore-padova', env), {}, 'restano quelli generali');
+  assert.deepEqual(recipientsForProfile('grafico', {}), {});
 });

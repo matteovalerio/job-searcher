@@ -1,6 +1,9 @@
 # Ricerca quotidiana: cerca le offerte e manda quelle nuove su Telegram e/o email; poi sorveglia le case
 # editrici e le aziende affini (e una volta a settimana ne cerca di nuove nella zona del profilo).
 # Configurazione (segreti e variabili del repository): vedi il README, sezione "Ricerca automatica ogni giorno".
+# Più profili: la variabile JOB_SEARCHER_PROFILES (per esempio ["redattore-padova","grafico-milano"]) fa girare
+# una ricerca per profilo, ognuna con la sua memoria; i destinatari per profilo stanno nei segreti
+# TELEGRAM_CHAT_ID_BY_PROFILE ed EMAIL_TO_BY_PROFILE.
 # InfoJobs è escluso: richiede un browser e la verifica anti-robot.
 name: Ricerca quotidiana
 
@@ -17,16 +20,23 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: ricerca-quotidiana
-  cancel-in-progress: false
-
 jobs:
   search:
+    name: Ricerca (${{ matrix.profile }})
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    strategy:
+      # Un profilo che fallisce non ferma gli altri.
+      fail-fast: false
+      matrix:
+        # Il profilo scelto a mano; altrimenti l'elenco JOB_SEARCHER_PROFILES; altrimenti un profilo solo.
+        profile: ${{ fromJSON(inputs.profile && format('["{0}"]', inputs.profile) || vars.JOB_SEARCHER_PROFILES || format('["{0}"]', vars.JOB_SEARCHER_PROFILE || 'redattore-padova')) }}
+    # Due esecuzioni dello stesso profilo non si sovrappongono (la memoria è per profilo).
+    concurrency:
+      group: ricerca-quotidiana-${{ matrix.profile }}
+      cancel-in-progress: false
     env:
-      PROFILE: ${{ inputs.profile || vars.JOB_SEARCHER_PROFILE || 'redattore-padova' }}
+      PROFILE: ${{ matrix.profile }}
     steps:
       - uses: actions/checkout@v4
 
@@ -53,11 +63,13 @@ jobs:
           JOOBLE_HOST: ${{ vars.JOOBLE_HOST }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_CHAT_ID_BY_PROFILE: ${{ secrets.TELEGRAM_CHAT_ID_BY_PROFILE }}
           SMTP_HOST: ${{ secrets.SMTP_HOST }}
           SMTP_PORT: ${{ secrets.SMTP_PORT }}
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASS: ${{ secrets.SMTP_PASS }}
           EMAIL_TO: ${{ secrets.EMAIL_TO }}
+          EMAIL_TO_BY_PROFILE: ${{ secrets.EMAIL_TO_BY_PROFILE }}
           EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
           JOB_SEARCHER_REPORT_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           NO_COLOR: '1'
@@ -71,11 +83,13 @@ jobs:
           GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_CHAT_ID_BY_PROFILE: ${{ secrets.TELEGRAM_CHAT_ID_BY_PROFILE }}
           SMTP_HOST: ${{ secrets.SMTP_HOST }}
           SMTP_PORT: ${{ secrets.SMTP_PORT }}
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASS: ${{ secrets.SMTP_PASS }}
           EMAIL_TO: ${{ secrets.EMAIL_TO }}
+          EMAIL_TO_BY_PROFILE: ${{ secrets.EMAIL_TO_BY_PROFILE }}
           EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
           NO_COLOR: '1'
         run: node src/cli.js publishers auto -p "$PROFILE" --notify

@@ -18,6 +18,7 @@ import { WHY_HELP, whyCommand } from './commands/why.js';
 import { resolveProfile } from './config.js';
 import { runDoctor } from './doctor.js';
 import { buildMatchPrompt, pickJobs } from './match.js';
+import { recipientsForProfile } from './notify.js';
 import { renderCsv } from './output/csv.js';
 import { renderHtml } from './output/html.js';
 import { renderJson } from './output/json.js';
@@ -606,6 +607,8 @@ async function main() {
   if (existsSync(envFile())) process.loadEnvFile(envFile());
   const opts = parseCli(process.argv.slice(2));
   if (opts.help) return console.log(HELP);
+  // Più profili, destinatari diversi: chat Telegram ed email del profilo, se indicate.
+  if (opts.profile) Object.assign(process.env, recipientsForProfile(slugify(path.basename(opts.profile, '.json'))));
   if (opts.command === 'sources') return listSources();
   if (opts.command === 'doctor') return doctor(opts);
   if (opts.command === 'track') return track(opts);

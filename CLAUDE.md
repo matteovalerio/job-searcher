@@ -99,5 +99,7 @@ di Next. La CI (`.github/workflows/test.yml`) esegue test su Node 20 e 22, lint 
 - **L'utente usa WSL:** il browser parte con opzioni apposite (`src/browser.js`), e `node src/cli.js browser` apre
   la finestra per risolvere a mano le verifiche.
 - **Ricerca automatica:** la ricerca quotidiana gira su GitHub Actions (`.github/workflows/ricerca-quotidiana.yml`),
-  senza browser, e manda le novità su Telegram o per email.
+  senza browser, e manda le novità su Telegram o per email. Gira una volta per ogni profilo di `JOB_SEARCHER_PROFILES`
+  (matrice); i destinatari per profilo vengono da `TELEGRAM_CHAT_ID_BY_PROFILE`/`EMAIL_TO_BY_PROFILE`
+  (`recipientsForProfile` in `src/notify.js`, applicato in `cli.js` quando c'è `-p`).
 - **Git:** i PR vengono uniti con rebase. Dopo un merge si riparte da `main` aggiornato.
