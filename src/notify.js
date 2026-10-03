@@ -6,6 +6,8 @@ import { describeInfo } from './extract.js';
  * I canali si attivano con le variabili d'ambiente:
  *   Telegram: TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
  *   Email:    SMTP_HOST, SMTP_PORT (default 465), SMTP_USER, SMTP_PASS, EMAIL_TO, EMAIL_FROM (default SMTP_USER)
+ * Con più profili, ognuno può avere i suoi destinatari: TELEGRAM_CHAT_ID_BY_PROFILE ed EMAIL_TO_BY_PROFILE
+ * (vedi recipientsForProfile).
  */
 
 const esc = (s) =>
@@ -16,6 +18,41 @@ const esc = (s) =>
 
 const TELEGRAM_LIMIT = 4000; // Telegram accetta messaggi fino a 4096 caratteri
 const FIRST_RUN_TOP = 10;
+
+/**
+ * Legge un elenco "profilo → valore", scritto in JSON ({"redattore-padova": "123"}) oppure una coppia per riga
+ * (o separata da virgole): "redattore-padova=123".
+ */
+export function parseByProfile(value) {
+  const text = String(value ?? '').trim();
+  if (!text) return {};
+  if (text.startsWith('{')) {
+    try {
+      return Object.fromEntries(Object.entries(JSON.parse(text)).map(([k, v]) => [k.trim(), String(v).trim()]));
+    } catch {
+      throw new Error('Elenco dei destinatari per profilo non valido: il JSON non si legge');
+    }
+  }
+  const out = {};
+  for (const pair of text.split(/[\n,;]+/)) {
+    const i = pair.indexOf('=');
+    if (i > 0) out[pair.slice(0, i).trim()] = pair.slice(i + 1).trim();
+  }
+  return out;
+}
+
+/**
+ * Destinatari del profilo: se TELEGRAM_CHAT_ID_BY_PROFILE o EMAIL_TO_BY_PROFILE lo nominano, sostituiscono
+ * TELEGRAM_CHAT_ID ed EMAIL_TO; altrimenti restano quelli generali. Restituisce solo le variabili da cambiare.
+ */
+export function recipientsForProfile(profileId, env = process.env) {
+  const out = {};
+  const chat = parseByProfile(env.TELEGRAM_CHAT_ID_BY_PROFILE)[profileId];
+  const email = parseByProfile(env.EMAIL_TO_BY_PROFILE)[profileId];
+  if (chat) out.TELEGRAM_CHAT_ID = chat;
+  if (email) out.EMAIL_TO = email;
+  return out;
+}
 
 export function configuredChannels(env = process.env) {
   const channels = [];

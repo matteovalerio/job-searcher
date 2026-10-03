@@ -193,10 +193,28 @@ Tutto si fa da GitHub, nel repository: **Settings → Secrets and variables → 
 Per le fonti con chiave API aggiungi anche `ADZUNA_APP_ID`, `ADZUNA_APP_KEY` e `JOOBLE_API_KEY`; per la ricerca delle aziende, `GOOGLE_MAPS_API_KEY` e `BRAVE_SEARCH_API_KEY`.
 
 **2. Facoltativo: variabili** (scheda *Variables*):
-- `JOB_SEARCHER_PROFILE`: il profilo da usare (default `redattore-padova`). Il profilo deve essere nel repository, cioè in `profiles/` con commit e push.
+- `JOB_SEARCHER_PROFILE`: il profilo da usare (default `redattore-padova`); per più profili vedi [Più profili, ognuno con la sua chat](#più-profili-ognuno-con-la-sua-chat). Il profilo deve essere nel repository, cioè in `profiles/` con commit e push.
 - `JOOBLE_HOST`: per esempio `it.jooble.org`, se serve.
 
 **3. Prova subito:** scheda **Actions** → *Ricerca quotidiana* → **Run workflow**. Qui puoi anche scegliere un profilo diverso per quella esecuzione.
+
+### Più profili, ognuno con la sua chat
+
+La ricerca automatica può girare per più profili, per esempio uno per te e uno per un'altra persona, o per un altro tipo di lavoro. Ogni profilo ha la sua memoria delle offerte già viste e il suo elenco di aziende, e può mandare i messaggi a una chat Telegram o a un indirizzo email diversi.
+
+1. **Il profilo:** crealo (`profile new` o dalla pagina Profili), poi fai commit e push del file in `profiles/`.
+2. **I profili da usare:** nella scheda *Variables* aggiungi `JOB_SEARCHER_PROFILES` con l'elenco in JSON, per esempio `["redattore-padova","grafico-milano"]`. Prende il posto di `JOB_SEARCHER_PROFILE`.
+3. **La chat di ogni profilo:** nella scheda *Secrets* aggiungi `TELEGRAM_CHAT_ID_BY_PROFILE`, con una riga per profilo:
+   ```
+   redattore-padova=123456789
+   grafico-milano=987654321
+   ```
+   (va bene anche il JSON: `{"grafico-milano": "987654321"}`). Il bot è lo stesso (`TELEGRAM_BOT_TOKEN`); chi riceve deve aver scritto almeno un messaggio al bot, e il suo *chat id* si trova con `getUpdates` come sopra. Per una chat di gruppo aggiungi il bot al gruppo: il chat id del gruppo è un numero negativo.
+4. **Email, se serve:** allo stesso modo `EMAIL_TO_BY_PROFILE` (`grafico-milano=anna@example.com`).
+
+I profili che non compaiono in questi elenchi usano `TELEGRAM_CHAT_ID` ed `EMAIL_TO`. Le ricerche dei vari profili girano in parallelo, ognuna come un'esecuzione a sé nella pagina del workflow: se una fallisce, le altre vanno avanti. Con **Run workflow** puoi lanciarne una sola, scrivendo il nome del profilo.
+
+Lo stesso vale sul tuo computer: con `-p grafico-milano --notify` il messaggio va alla chat di quel profilo, se le due variabili sono nel file `.env`.
 
 **Orario:** l'ora si cambia nel file del workflow (`cron: '23 5 * * *'` = 5:23 UTC, cioè le 7:23 d'estate e le 6:23 d'inverno in Italia).
 
