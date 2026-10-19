@@ -164,17 +164,58 @@ export function splitTelegram(lines) {
 
 export { esc as escapeHtml };
 
-export async function sendTelegram(messages, env = process.env) {
+// Tentativi per ogni messaggio e attese tra uno e l'altro: la rete dei server di GitHub ogni tanto cade per
+// qualche secondo ("fetch failed"), e Telegram con troppi messaggi risponde 429 dicendo quanto aspettare.
+const TELEGRAM_WAITS = [3000, 10000, 30000];
+
+/** Spiega un errore di rete: "fetch failed" da solo non dice niente, la causa sì (ECONNRESET, timeout…). */
+const networkError = (err) => {
+  const cause = err.cause?.code ?? err.cause?.message;
+  return err.name === 'TimeoutError'
+    ? 'nessuna risposta entro 20 secondi'
+    : cause
+      ? `${err.message} (${cause})`
+      : err.message;
+};
+
+/**
+ * Manda i messaggi su Telegram. Gli errori di rete, le risposte 5xx e i 429 si riprovano (fino a 4 tentativi per
+ * messaggio); gli altri errori (token o chat id sbagliati) no, perché riprovare non cambierebbe niente.
+ */
+export async function sendTelegram(
+  messages,
+  env = process.env,
+  { wait = (ms) => new Promise((r) => setTimeout(r, ms)) } = {},
+) {
   for (const text of messages) {
-    const res = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: env.TELEGRAM_CHAT_ID, text, parse_mode: 'HTML', disable_web_page_preview: true }),
-      signal: AbortSignal.timeout(20000),
-    });
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      throw new Error(`Telegram ha risposto ${res.status}: ${body.description ?? 'errore sconosciuto'}`);
+    for (let attempt = 0; ; attempt++) {
+      let problem;
+      let retryAfter = null;
+      try {
+        const res = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: env.TELEGRAM_CHAT_ID,
+            text,
+            parse_mode: 'HTML',
+            disable_web_page_preview: true,
+          }),
+          signal: AbortSignal.timeout(20000),
+        });
+        if (res.ok) break;
+        const body = await res.json().catch(() => ({}));
+        problem = `Telegram ha risposto ${res.status}: ${body.description ?? 'errore sconosciuto'}`;
+        if (res.status !== 429 && res.status < 500) throw new Error(problem);
+        retryAfter = body.parameters?.retry_after ? body.parameters.retry_after * 1000 : null;
+      } catch (err) {
+        if (problem && err.message === problem) throw err;
+        problem = networkError(err);
+      }
+      if (attempt >= TELEGRAM_WAITS.length) {
+        throw new Error(`${problem} (dopo ${attempt + 1} tentativi)`);
+      }
+      await wait(Math.min(retryAfter ?? TELEGRAM_WAITS[attempt], 60000));
     }
   }
 }
