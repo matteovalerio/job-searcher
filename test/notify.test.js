@@ -12,6 +12,7 @@ import {
   parseByProfile,
   recipientsForProfile,
   selectForDigest,
+  sendTelegram,
 } from '../src/notify.js';
 import { SeenStore } from '../src/store.js';
 
@@ -159,4 +160,35 @@ test('più profili: chat Telegram ed email del profilo, altrimenti quelle genera
   assert.deepEqual(recipientsForProfile('grafico', env), { TELEGRAM_CHAT_ID: '-100456', EMAIL_TO: 'anna@x.it' });
   assert.deepEqual(recipientsForProfile('redattore-padova', env), {}, 'restano quelli generali');
   assert.deepEqual(recipientsForProfile('grafico', {}), {});
+});
+
+test('Telegram: riprova dopo un errore di rete o un 429, non dopo un chat id sbagliato', async (t) => {
+  const env = { TELEGRAM_BOT_TOKEN: 'T', TELEGRAM_CHAT_ID: '1' };
+  const waits = [];
+  const wait = async (ms) => waits.push(ms);
+  const reply = (status, body = {}) => new Response(JSON.stringify(body), { status });
+  const offline = () => Promise.reject(new TypeError('fetch failed', { cause: { code: 'ECONNRESET' } }));
+  const answers = [];
+  t.mock.method(globalThis, 'fetch', () => answers.shift()());
+
+  // Rete giù una volta, poi troppi messaggi (Telegram dice di aspettare 7 secondi), poi va.
+  answers.push(
+    offline,
+    () => reply(429, { parameters: { retry_after: 7 } }),
+    () => reply(200, { ok: true }),
+  );
+  await sendTelegram(['ciao'], env, { wait });
+  assert.deepEqual(waits, [3000, 7000]);
+
+  // Sempre giù: dopo 4 tentativi si arrende, con la causa nel messaggio.
+  waits.length = 0;
+  answers.push(offline, offline, offline, offline);
+  await assert.rejects(sendTelegram(['ciao'], env, { wait }), /fetch failed \(ECONNRESET\) \(dopo 4 tentativi\)/);
+  assert.deepEqual(waits, [3000, 10000, 30000]);
+
+  // Chat id sbagliato: inutile riprovare.
+  waits.length = 0;
+  answers.push(() => reply(400, { description: 'Bad Request: chat not found' }));
+  await assert.rejects(sendTelegram(['ciao'], env, { wait }), /400: Bad Request: chat not found$/);
+  assert.deepEqual(waits, []);
 });
