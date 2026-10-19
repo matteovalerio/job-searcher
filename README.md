@@ -582,6 +582,8 @@ Molte case editrici e aziende pubblicano un annuncio solo sul proprio sito, e pe
 - **una pagina «lavora con noi» comparsa**, dove prima non c'era;
 - **una pagina «lavora con noi» cambiata**, anche senza annunci riconosciuti.
 
+Non contano come annunci le voci di menu, le note legali (privacy, cookie, condizioni…), i contatti, i link «vai al contenuto» e i link ad altri siti (partner, mappe), tranne quelli alle piattaforme di selezione come LinkedIn o Workday. Se in una pagina compaiono più di 8 voci nuove insieme, di solito il sito è stato rifatto: arriva un avviso solo («la pagina è cambiata»), non l'elenco.
+
 La prima volta salva solo un'istantanea di ogni pagina: le novità si vedono dal controllo successivo. Le aziende segnate «non mi interessa» o «risposta negativa» non vengono controllate.
 
 ```bash

@@ -41,9 +41,64 @@ const HIRING = compileKeywords([
   'join our team',
 ]);
 
-// Voci di menu e link di servizio: non sono annunci.
-const NOT_AN_OFFER =
-  /^(home|homepage|chi siamo|contatti|contattaci|privacy|cookie|note legali|catalogo|autori|news|blog|eventi|shop|carrello|accedi|login|registrati|newsletter|cerca|lavora con noi|careers|job|jobs|facebook|instagram|linkedin|youtube|twitter|torna su|leggi (tutto|di più)|scopri di più|mostra di più|english|italiano)$/i;
+// Voci di menu, link di servizio, note legali e contatti: non sono annunci.
+// biome-ignore format: elenco lungo, più leggibile a gruppi
+const NOT_AN_OFFER = new RegExp(
+  `^(${[
+    'home|homepage|chi siamo|contatti( hr)?|contattaci|telefono|tel|email|e-mail|fax|sede|indirizzo|dove siamo',
+    'catalogo|autori|news|blog|eventi|shop|carrello|accedi|login|registrati|cerca|area (clienti|riservata)',
+    'client portal|download.*|iscriviti.*|newsletter.*|english|italiano',
+    'lavora con noi|careers?|jobs?|posizioni aperte|candidatura( spontanea)?|invia (la )?candidatura.*',
+    'vai alla candidatura|candidati( ora)?|apply( now)?',
+    'facebook|instagram|linkedin|youtube|twitter|tiktok|whatsapp',
+    'vai al contenuto|salta al contenuto|skip to (main )?content|torna su|torna in alto|go to top|back to top',
+    'leggi (tutto|di più)|scopri di più|mostra di più|continua|indietro|avanti',
+    'privacy.*|informativa.*|cookies?( policy)?.*|note legali|condizioni.*|termini.*|codice etico.*',
+    'whistleblowing|disclaimer.*|decreto legislativo.*|sitemap|site map|mappa del sito|credits|p\\.? ?iva.*',
+    '\\[email.*protected\\]',
+  ].join('|')})$`,
+  'i',
+);
+
+// Parole che dicono che un link porta a un annuncio o a una pagina di selezione.
+const JOB_LINK =
+  /lavora|lavoro|career|job|offert|posizion|candidat|selezion|annunc|recruit|vacanc|opportunit|stage|tirocin/i;
+// Piattaforme di selezione e portali: un annuncio può stare lì anche se l'azienda ha un altro sito.
+const JOB_HOSTS =
+  /(^|\.)(linkedin\.com|indeed\.\w+|infojobs\.it|myworkdayjobs\.com|greenhouse\.io|lever\.co|smartrecruiters\.com|inrecruiting\.com|teamtailor\.com|personio\.\w+|factorial\.\w+|recruitee\.com|bamboohr\.com|join\.com|altamirahrm\.com)$/i;
+
+// Sito di un indirizzo, senza "www.": "www.enaip.veneto.it" e "enaip.veneto.it" sono lo stesso sito.
+const siteOf = (url) => new URL(url).hostname.replace(/^www\./, '');
+
+/**
+ * Un link della pagina «lavora con noi» è un possibile annuncio se resta sullo stesso sito, dentro la pagina o
+ * in un indirizzo che parla di lavoro; oppure se porta a una piattaforma di selezione. Così restano fuori i
+ * link ai partner, alle mappe e alle pagine del sito che non c'entrano (corsi, note legali…).
+ */
+function isOfferLink(item, pageUrl) {
+  if (item.url === pageUrl) return true;
+  let page;
+  let link;
+  try {
+    page = new URL(pageUrl);
+    link = new URL(item.url);
+  } catch {
+    return false;
+  }
+  if (siteOf(link.href) !== siteOf(page.href))
+    return JOB_HOSTS.test(link.hostname) && !/^vai alla candidatura$/i.test(item.title);
+  if (link.pathname === page.pathname) return true;
+  return link.pathname.startsWith(page.pathname.replace(/\/?$/, '/')) || JOB_LINK.test(link.pathname);
+}
+
+// Testo quasi tutto in maiuscolo.
+const mostlyUpper = (text) => {
+  const letters = text.replace(/[^\p{L}]/gu, '');
+  return letters.length > 0 && letters.replace(/\p{Lu}/gu, '').length / letters.length < 0.4;
+};
+
+/** Oltre queste voci nuove in un colpo solo la pagina è stata rifatta: un avviso solo, non un elenco. */
+export const MAX_NEW_ITEMS = 8;
 
 const fileOf = () => stateDir('watch.json');
 
@@ -77,15 +132,19 @@ export function snapshot(html, url, kind) {
   const items =
     kind === 'careers'
       ? parseCareersPage(html, url)
-          .filter((i) => !NOT_AN_OFFER.test(i.title.trim()) && i.title.split(' ').length <= 16)
+          .filter((i) => !NOT_AN_OFFER.test(i.title.trim()) && i.title.split(' ').length <= 16 && isOfferLink(i, url))
           .slice(0, 100)
       : [];
   const text = mainText(cheerio.load(html));
   const norm = normalize(text);
-  const hiring = findKeywords(norm, HIRING).map((phrase) => {
-    const i = norm.indexOf(normalize(phrase));
-    return text.slice(Math.max(0, i - 40), i + 120).trim();
-  });
+  const hiring = findKeywords(norm, HIRING)
+    .map((phrase) => {
+      const i = norm.indexOf(normalize(phrase));
+      // La frase scritta in maiuscolo è una voce di menu («POSIZIONI APERTE», «I VALORI CHE CERCHIAMO»).
+      if (mostlyUpper(text.slice(i, i + phrase.length))) return null;
+      return text.slice(Math.max(0, i - 40), i + 120).trim();
+    })
+    .filter(Boolean);
   return {
     url,
     kind,
@@ -111,7 +170,13 @@ export function compareSnapshots(prev, next, { keywords = [] } = {}) {
   }
   if (prev.kind === next.kind && next.kind === 'careers') {
     const before = new Set(prev.items.map(itemKey));
-    for (const item of next.items.filter((i) => !before.has(itemKey(i)))) {
+    const added = next.items.filter((i) => !before.has(itemKey(i)));
+    // Tante voci nuove insieme: la pagina è stata rifatta (o il sito ha cambiato menu). Si segnala una volta.
+    if (added.length > MAX_NEW_ITEMS) {
+      events.push({ type: 'pagina-cambiata', url: next.url, count: added.length });
+      return events;
+    }
+    for (const item of added) {
       events.push({
         type: 'annuncio',
         title: item.title,
@@ -207,7 +272,7 @@ export function describeEvent(e) {
     case 'pagina-trovata':
       return 'è comparsa una pagina «lavora con noi»';
     default:
-      return 'la pagina «lavora con noi» è cambiata';
+      return `la pagina «lavora con noi» è cambiata${e.count ? ` (${e.count} voci nuove: dai un'occhiata)` : ''}`;
   }
 }
 
