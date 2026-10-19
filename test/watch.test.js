@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp } from 'node:fs/promises';
+import { mkdtemp, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
@@ -10,6 +10,7 @@ import {
   compareSnapshots,
   describeEvent,
   loadWatch,
+  MAX_NEW_ITEMS,
   saveWatch,
   snapshot,
   watchPublishers,
@@ -213,4 +214,35 @@ test('giro automatico: ricerca ogni 7 giorni nella zona del profilo, poi sorvegl
   assert.equal(run3.discovered, true);
   assert.deepEqual(run3.added, [], 'le aziende già in elenco non si aggiungono di nuovo');
   assert.equal(calls.length, 2);
+});
+
+test('istantanea: niente menu, note legali, contatti, partner e mappe; restano gli annunci veri', async () => {
+  const html = await readFile(new URL('./fixtures/watch/lavora-con-noi-rumorosa.html', import.meta.url), 'utf8');
+  const snap = snapshot(html, 'https://www.esempio.it/lavora-con-noi', 'careers');
+  assert.deepEqual(
+    snap.items.map((i) => i.title),
+    ['Addetto ufficio stampa', 'Coordinatore editoriale', 'Senior Account', 'Redattore junior', 'Graphic Designer'],
+  );
+  // Il menu tutto in maiuscolo («… I VALORI CHE CERCHIAMO …») non è un avviso.
+  assert.deepEqual(snap.hiring, []);
+});
+
+test('confronto: tante voci nuove insieme diventano un avviso solo', () => {
+  const page = 'https://x.it/lavora-con-noi';
+  const items = (n) => Array.from({ length: n }, (_, i) => ({ title: `Voce ${i}`, url: page }));
+  const prev = { kind: 'careers', items: [], hiring: [], hash: 'a' };
+  const many = compareSnapshots(prev, {
+    kind: 'careers',
+    items: items(MAX_NEW_ITEMS + 1),
+    hiring: [],
+    hash: 'b',
+    url: page,
+  });
+  assert.deepEqual(many, [{ type: 'pagina-cambiata', url: page, count: MAX_NEW_ITEMS + 1 }]);
+  assert.match(describeEvent(many[0]), /è cambiata \(9 voci nuove/);
+  const few = compareSnapshots(prev, { kind: 'careers', items: items(2), hiring: [], hash: 'b', url: page });
+  assert.deepEqual(
+    few.map((e) => e.type),
+    ['annuncio', 'annuncio'],
+  );
 });
